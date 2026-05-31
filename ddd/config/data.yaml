@@ -1,0 +1,15 @@
+# AIHUB 재활용 쓰레기 데이터셋 - YOLO 학습 설정
+# 자동 바운딩박스 생성 (ZIP 카테고리 기반)
+path: C:\Users\MSY\Desktop\main\data\converted
+train: images/train
+val: images/val
+
+nc: 7
+names:
+  0: vinyl
+  1: styrofoam
+  2: glass_bottle
+  3: paper
+  4: can
+  5: pet_bottle
+  6: plastic
