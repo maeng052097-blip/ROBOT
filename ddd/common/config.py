@@ -43,5 +43,11 @@ SLOW_MM = 700             # 이보다 가까우면 SLOW
 #   False -> fail-safe 로 DANGER 처리
 EMPTY_ARC_IS_SAFE = True
 
+# LiDAR 필수 여부.
+#   True(기본) -> 미연결 시 통합 주행을 중단(안전 우선).
+#   False      -> 저하 모드로 LiDAR 없이 진행(전방 직진 금지=SLOW 취급, 회전 추적만).
+#                 모터/웹캠만 단독으로 시험할 때 사용.
+REQUIRE_LIDAR = True
+
 # ===== 비전(YOLO) =====
 CONF_THRESHOLD = 0.5  # 탐지 신뢰도 임계값

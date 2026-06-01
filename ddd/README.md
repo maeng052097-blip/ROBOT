@@ -56,22 +56,30 @@
 ## 프로젝트 구조
 
 ```
-recycling_robot/
+ddd/
+├── common/                      # 공용 모듈
+│   ├── config.py                #   포트·임계값·경로 중앙 설정
+│   ├── classes.py               #   재활용 7개 클래스 정의
+│   └── safety.py                #   LiDAR 전방 안전판단(SAFE/SLOW/DANGER)
 ├── config/
 │   └── data.yaml                # YOLO 학습 설정
-├── data/
-│   └── scripts/
-│       ├── convert_aihub_to_yolo_v3.py  # AIHUB → YOLO 변환
-│       └── verify_labels.py             # 라벨 검증 시각화
+├── data/scripts/                # 데이터 변환·검증
+│   ├── convert_aihub_to_yolo_v3.py
+│   └── verify_labels.py
 ├── drivers/
 │   └── LidarX2.py               # YDLIDAR X2 드라이버
 ├── inference/
-│   └── detect_camera.py         # 실시간 카메라 추론 (예정)
-├── visualization/
-│   └── realtime_radar.py        # LiDAR 레이더 시각화
-├── tests/
-│   ├── test_scan.py             # LiDAR 연결 테스트
-│   └── webcam_test.py           # 카메라 테스트
+│   └── detector.py              # YOLO 목표 탐지(좌/중/우 방향)
+├── models/weights/best.pt       # 학습 가중치 (직접 배치, git 제외)
+├── tests/                       # 하드웨어 스모크 테스트
+│   ├── check_devices.py         #   Arduino/LiDAR/웹캠 연결 점검
+│   ├── test_scan.py             #   LiDAR 전방거리·안전상태
+│   └── webcam_test.py           #   웹캠 + YOLO 탐지
+├── urt/                         # 통합 주행 + 모터
+│   ├── 웹캠_LiDAR_주행제어.py     #   통합 주행 컨트롤러
+│   ├── 모터2개_시리얼테스트.py    #   모터 수동 테스트(w/a/d/s)
+│   ├── motor_serial.py          #   시리얼 전송 헬퍼
+│   └── arduino_motor/           #   Arduino 펌웨어(PlatformIO)
 └── requirements.txt
 ```
 
@@ -117,22 +125,32 @@ model.train(data='config/data.yaml', epochs=100, imgsz=640, batch=16, device=0)
 python tests/test_scan.py
 ```
 
-### 5. LiDAR 레이더 시각화
+### 5. 하드웨어 브링업 / 통합 주행
+
+VSCode 에서 `ddd` 폴더를 열면 Run and Debug(F5) 에 실행 구성이 준비돼 있다. 터미널로도 가능:
 
 ```bash
-python visualization/realtime_radar.py
+python tests/check_devices.py        # Arduino/LiDAR/웹캠 연결 점검
+python urt/모터2개_시리얼테스트.py    # 모터 2개 수동 구동 (w/a/d/s)
+python tests/webcam_test.py          # 웹캠 + YOLO 탐지/방향
+python urt/웹캠_LiDAR_주행제어.py     # 통합 주행 (웹캠+LiDAR+Arduino)
 ```
+
+- 학습 가중치 `best.pt` 는 `models/weights/best.pt` 에 둔다(git 제외).
+- 포트/임계값은 `common/config.py` 에서 관리. LiDAR 없이 시험하려면 `REQUIRE_LIDAR=False`.
+- Arduino 펌웨어는 PlatformIO 로 `urt/arduino_motor` 를 업로드.
 
 ## 진행 상황
 
-- [x] Phase 0: 하드웨어 개별 테스트 (카메라, LiDAR)
-- [x] Phase 1: 개발 환경 구축 (PyTorch + CUDA)
-- [x] Phase 2: AIHUB 데이터 → YOLO 포맷 변환
-- [x] Phase 3: YOLOv8n 모델 학습 (mAP@0.5 = 0.756)
-- [ ] Phase 4: 카메라 실시간 추론 테스트
-- [ ] Phase 5: LiDAR + 카메라 센서 퓨전
-- [ ] Phase 6: Raspberry Pi 5 이식 (ONNX/NCNN)
-- [ ] Phase 7~11: 자율주행 통합
+- [x] 하드웨어 개별 테스트 (카메라, LiDAR, 모터)
+- [x] 개발 환경 구축 (PyTorch + CUDA)
+- [x] AIHUB 데이터 → YOLO 변환 / YOLOv8n 학습 (mAP@0.5 = 0.756)
+- [x] 코드 통합: 공통 설정 · LiDAR 드라이버 · YOLO 탐지 · 모터 제어 연결
+- [x] 통합 주행 컨트롤러 (웹캠 방향 + LiDAR 안전 SAFE/SLOW/DANGER + Arduino)
+- [x] 하드웨어 브링업 스모크 테스트 (장치점검 / LiDAR / 웹캠)
+- [ ] 실하드웨어 통합 주행 검증 및 임계값 튜닝
+- [ ] 추가 데이터로 재학습 (정확도 향상)
+- [ ] Raspberry Pi 5 이식 (ONNX/NCNN)
 
 ## 데이터셋 출처
 

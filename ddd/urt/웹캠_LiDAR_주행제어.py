@@ -24,7 +24,7 @@ if _REPO_ROOT not in sys.path:
 
 from common.config import (
     MOTOR_PORT, MOTOR_BAUDRATE, LIDAR_PORT, LIDAR_BAUDRATE, SERIAL_TIMEOUT,
-    CAMERA_INDEX, LOOP_DELAY, WEIGHTS_PATH,
+    CAMERA_INDEX, LOOP_DELAY, WEIGHTS_PATH, REQUIRE_LIDAR,
 )
 from common.safety import classify_safety
 from drivers.LidarX2 import LidarX2
@@ -129,12 +129,18 @@ def main():
             print(f"[중단] Arduino({MOTOR_PORT}) 연결 실패: {exc}")
             return
 
-        # 2) LiDAR (필수): 안전 판단의 핵심이므로 실패하면 중단
+        # 2) LiDAR: 안전 판단의 핵심. REQUIRE_LIDAR 면 실패 시 중단,
+        #    아니면 저하 모드(전방 직진 금지)로 진행.
         lidar = LidarX2(LIDAR_PORT, LIDAR_BAUDRATE)
-        if not lidar.open():
-            print(f"[중단] LiDAR({LIDAR_PORT}) 연결 실패. 안전 판단이 불가하여 주행을 멈춥니다.")
-            return
-        print(f"[OK] LiDAR 연결: {LIDAR_PORT}")
+        if lidar.open():
+            print(f"[OK] LiDAR 연결: {LIDAR_PORT}")
+        else:
+            lidar.close()
+            lidar = None
+            if REQUIRE_LIDAR:
+                print(f"[중단] LiDAR({LIDAR_PORT}) 연결 실패. 안전 판단이 불가하여 주행을 멈춥니다.")
+                return
+            print("[경고] LiDAR 없음 -> 저하 모드: 전방 직진 금지(SLOW 취급), 회전 추적만 허용")
 
         # 3) 카메라 (선택): 실패해도 목표 NONE -> STOP 으로 안전하게 동작
         cap = cv2.VideoCapture(CAMERA_INDEX)
@@ -154,9 +160,10 @@ def main():
 
         # LiDAR 워밍업: 첫 스캔이 들어올 때까지 잠깐 대기
         # (시작 직후 빈 데이터를 SAFE 로 오판하는 것을 막는다)
-        warm_deadline = time.time() + 3.0
-        while time.time() < warm_deadline and not lidar.getDistanceDict():
-            time.sleep(0.1)
+        if lidar is not None:
+            warm_deadline = time.time() + 3.0
+            while time.time() < warm_deadline and not lidar.getDistanceDict():
+                time.sleep(0.1)
 
         print("\n주행 시작. Ctrl+C 로 종료.\n")
 
@@ -166,7 +173,8 @@ def main():
                 detect_target_from_webcam(cap, detector)
                 if (cap is not None and detector is not None) else CAMERA_NONE
             )
-            lidar_state = analyze_lidar_safety(lidar)
+            # LiDAR 없으면(저하 모드) SLOW 로 취급 -> 직진 금지, 회전 추적만 허용
+            lidar_state = analyze_lidar_safety(lidar) if lidar is not None else LIDAR_SLOW
             command = decide_drive_command(camera_state, lidar_state)
 
             if command != last_command:
