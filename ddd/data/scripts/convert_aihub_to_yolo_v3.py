@@ -15,6 +15,7 @@ AIHUB 재활용 쓰레기 → YOLO 데이터셋 변환 v3
 """
 import os
 import sys
+import pathlib
 import random
 import shutil
 import zipfile
@@ -22,23 +23,21 @@ import cv2
 import numpy as np
 from collections import defaultdict
 
+# repo-root(ddd) 를 import 경로에 추가 -> common 패키지 사용
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from common.config import CONVERTED_DATA_DIR, PROJECT_ROOT
+from common.classes import CATEGORY_KEYWORDS, CLASS_NAMES
+
 # ============================================================
 # 설정
 # ============================================================
 
+# AIHUB 원천 ZIP 들이 있는 폴더(저장소 밖 외부 데이터 — 환경에 맞게 수정).
 ZIP_ROOT = r"C:\Users\MSY\Desktop\Training"
-OUTPUT_ROOT = r"C:\Users\MSY\Desktop\main\data\converted"
+# 변환 결과 출력 위치(프로젝트 내부). common/config.py 에서 관리.
+OUTPUT_ROOT = str(CONVERTED_DATA_DIR)
 
-# 재활용 7개 카테고리: ZIP 파일명 키워드 → YOLO 클래스
-CATEGORY_KEYWORDS = {
-    "비닐": 0,
-    "스티로폼": 1,
-    "유리병": 2,
-    "종이류": 3,
-    "캔류": 4,
-    "페트병": 5,
-    "플라스틱류": 6,
-}
+# 재활용 7개 카테고리(ZIP 파일명 키워드 → 클래스 id)는 common/classes.py 에서 가져온다.
 
 SAMPLES_PER_CLASS = 800
 VAL_RATIO = 0.2
@@ -354,27 +353,22 @@ def create_data_yaml():
     print("[5/5] data.yaml 생성 중...")
     print("=" * 60)
 
-    config_dir = os.path.join(r"C:\Users\MSY\Desktop\main", "config")
+    config_dir = os.path.join(str(PROJECT_ROOT), "config")
     os.makedirs(config_dir, exist_ok=True)
 
     yaml_path = os.path.join(config_dir, "data.yaml")
     abs_output = os.path.abspath(OUTPUT_ROOT)
 
+    names_block = "\n".join(f"  {cid}: {name}" for cid, name in sorted(CLASS_NAMES.items()))
     yaml_content = f"""# AIHUB 재활용 쓰레기 데이터셋 - YOLO 학습 설정
 # 자동 바운딩박스 생성 (ZIP 카테고리 기반)
 path: {abs_output}
 train: images/train
 val: images/val
 
-nc: {len(CATEGORY_KEYWORDS)}
+nc: {len(CLASS_NAMES)}
 names:
-  0: vinyl
-  1: styrofoam
-  2: glass_bottle
-  3: paper
-  4: can
-  5: pet_bottle
-  6: plastic
+{names_block}
 """
 
     with open(yaml_path, "w", encoding="utf-8") as f:

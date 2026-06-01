@@ -1,5 +1,6 @@
 # AIHUB 재활용 쓰레기 데이터셋 - YOLO 학습 설정
 # 자동 바운딩박스 생성 (ZIP 카테고리 기반)
+# 변환 데이터셋 위치(대용량이라 저장소 밖). convert 스크립트가 자동 생성/갱신한다.
 path: C:\Users\MSY\Desktop\main\data\converted
 train: images/train
 val: images/val

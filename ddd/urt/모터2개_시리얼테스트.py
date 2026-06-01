@@ -1,15 +1,20 @@
+import sys
+import pathlib
 import time
 
 import serial
 import serial.tools.list_ports
 
+# repo-root(상위 폴더)를 import 경로에 추가 -> common 패키지 사용
+_REPO_ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from common.config import MOTOR_PORT, MOTOR_BAUDRATE, SERIAL_TIMEOUT
 from motor_serial import send_command
 
-
-# Arduino COM port. 실행 후 출력되는 포트 목록을 보고 수정하세요.
-MOTOR_PORT = "COM4"
-MOTOR_BAUDRATE = 115200
-TIMEOUT = 1.0
+# 포트/통신 설정은 common/config.py 에서 관리한다.
+# 실행 후 출력되는 포트 목록을 보고 config.py 의 MOTOR_PORT 를 수정하세요.
 
 # 모터 2개 테스트 기준
 # FORWARD: 왼쪽 + 오른쪽 모터 전진
@@ -40,7 +45,7 @@ def main():
     show_ports()
 
     try:
-        arduino = serial.Serial(MOTOR_PORT, MOTOR_BAUDRATE, timeout=TIMEOUT)
+        arduino = serial.Serial(MOTOR_PORT, MOTOR_BAUDRATE, timeout=SERIAL_TIMEOUT)
         time.sleep(2)
         print("Arduino 연결됨")
     except Exception as exc:

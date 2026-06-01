@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상환경
+recycling_env/
+.venv/
+venv/
+env/
+
+# 모델 가중치 / 내보내기 (대용량 — 저장소에 포함하지 않고 직접 배치)
+*.pt
+*.onnx
+*.ncnn.*
+
+# 변환 데이터셋 (대용량)
+ddd/data/converted/
+ddd/data/_temp_images/
+
+# IDE / 에디터
+*.code-workspace
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

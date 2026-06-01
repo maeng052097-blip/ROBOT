@@ -3,22 +3,19 @@ YOLO 라벨 변환 결과 검증 스크립트
 - 무작위 10장을 선택하여 바운딩박스를 이미지 위에 그림
 - 변환이 정확한지 눈으로 확인
 """
+import sys
+import pathlib
 import cv2
 import os
 import random
 import glob
 
-OUTPUT_ROOT = r"C:\Users\MSY\Desktop\main\data\converted"
+# repo-root(ddd) 를 import 경로에 추가 -> common 패키지 사용
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from common.config import CONVERTED_DATA_DIR
+from common.classes import CLASS_NAMES
 
-CLASS_NAMES = {
-    0: "vinyl",
-    1: "styrofoam",
-    2: "glass_bottle",
-    3: "paper",
-    4: "can",
-    5: "pet_bottle",
-    6: "plastic",
-}
+OUTPUT_ROOT = str(CONVERTED_DATA_DIR)
 
 COLORS = {
     0: (255, 100, 100),
