@@ -14,18 +14,40 @@
 //    TURN_LEFT   -> 오른쪽 모터만 전진 (왼쪽 정지) -> 차체 좌회전
 //    TURN_RIGHT  -> 왼쪽 모터만 전진 (오른쪽 정지) -> 차체 우회전
 //    STOP        -> 양쪽 모터 정지
+//    ENC         -> 엔코더 카운트 응답 "ENC <left> <right>"
+//    ENCRESET    -> 엔코더 카운트 0 으로 리셋 후 응답
 //
-//  PWM 주파수: 7kHz (Timer3, Fast PWM, TOP=ICR3)
+//  엔코더: 단일 채널, 좌=핀2 / 우=핀3 (인터럽트). 방향은 현재 적용 속도 부호 기준.
+//  주행: 명령은 '목표 속도'를 설정하고, loop 에서 부드럽게 가감속(ramp)한다.
+//        -> 방향 전환 시 0 을 거쳐 감속 후 반대로 가속하므로 급격한 반전이 없다.
+//  PWM 주파수: 7kHz (Timer4, Fast PWM, TOP=ICR4)
+//  ※ 엔코더가 핀 2,3(인터럽트)을 사용하므로 모터 PWM 은 Timer4(핀 6,7)로 옮김.
 // =============================================================
 
 // ----- MDD10A 핀 연결 (Sign-Magnitude: 채널당 DIR + PWM) -----
 // 좌측 모터 = 채널 1, 우측 모터 = 채널 2
-// PWM 핀은 모두 Timer3(핀 2=OC3B, 핀 3=OC3C)을 사용한다.
+// 엔코더가 핀 2,3(인터럽트 핀)을 쓰므로, 모터 PWM 은 Timer4 의 핀 6,7 을 사용한다.
 // -> millis()용 Timer0과 충돌하지 않고, 한 타이머로 양쪽 주파수를 7kHz로 맞춘다.
+//    ★ MDD10A 의 PWM 입력 2개를 아두이노 핀 6, 7 에 연결할 것 (기존 2,3 에서 이동).
 const uint8_t LEFT_DIR  = 22;  // 디지털 출력
 const uint8_t RIGHT_DIR = 23;  // 디지털 출력
-const uint8_t LEFT_PWM  = 2;   // OC3B
-const uint8_t RIGHT_PWM = 3;   // OC3C
+const uint8_t LEFT_PWM  = 6;   // OC4A
+const uint8_t RIGHT_PWM = 7;   // OC4B
+
+// ----- 엔코더 (단일 채널: 모터당 신호선 1개) -----
+// 앞바퀴 기준 좌 엔코더 -> 핀 2, 우 엔코더 -> 핀 3 (둘 다 Mega 인터럽트 핀).
+// 단일 채널이라 회전 '방향'은 엔코더만으로 알 수 없어, 마지막 명령 방향으로 부호를 정한다.
+const uint8_t LEFT_ENC  = 2;
+const uint8_t RIGHT_ENC = 3;
+
+volatile long encLeft  = 0;    // 좌 엔코더 누적 카운트(부호 포함)
+volatile long encRight = 0;    // 우 엔코더 누적 카운트
+volatile int8_t dirLeft  = 1;  // +1 전진 / -1 후진 (명령 기준)
+volatile int8_t dirRight = 1;
+
+// 엔코더 펄스 인터럽트 (상승 에지마다 1 카운트)
+void onLeftPulse()  { encLeft  += dirLeft; }
+void onRightPulse() { encRight += dirRight; }
 
 // 전진을 만드는 DIR 레벨.
 // 실제로 모터가 반대로 돌면 이 값을 HIGH로 바꾸거나, 모터 전선을 바꿔 끼운다.
@@ -40,6 +62,16 @@ const uint16_t PWM_TOP = 2285;
 // 기본 주행 속도 (0~255 스케일). 122/255 ≈ 48% 듀티.
 const int DRIVE_SPEED = 122;
 
+// ----- 부드러운 가감속(ramp) -----
+// 명령은 '목표 속도'만 정하고, 실제 속도는 RAMP_INTERVAL_MS 마다 RAMP_STEP 씩
+// 목표로 다가간다. 방향 반전은 0 을 거쳐 일어나므로 급격한 반전이 없다.
+// 더 빠릿한 반응을 원하면 RAMP_STEP 을 키우거나 RAMP_INTERVAL_MS 를 줄인다.
+const int RAMP_STEP = 6;                    // 한 스텝당 속도 증감
+const unsigned long RAMP_INTERVAL_MS = 15;  // 스텝 주기(ms). 약 (DRIVE_SPEED/STEP)*INTERVAL ≈ 300ms 로 0↔최고속.
+int targetLeft = 0, targetRight = 0;        // 명령된 목표 속도 (-255..255)
+int currentLeft = 0, currentRight = 0;      // 현재 적용 속도
+unsigned long lastRampMs = 0;
+
 // 0~255 속도값을 현재 PWM_TOP 스케일의 OCR 값으로 변환
 uint16_t speedToOcr(int speed) {
   if (speed < 0) speed = 0;
@@ -51,11 +83,11 @@ uint16_t speedToOcr(int speed) {
 void setupPwm7kHz() {
   pinMode(LEFT_PWM, OUTPUT);
   pinMode(RIGHT_PWM, OUTPUT);
-  TCCR3A = _BV(COM3B1) | _BV(COM3C1) | _BV(WGM31);  // 비반전, Fast PWM 하위 비트
-  TCCR3B = _BV(WGM33) | _BV(WGM32) | _BV(CS30);     // Fast PWM 상위 비트, 프리스케일러 1
-  ICR3 = PWM_TOP;                                   // TOP -> 주파수 결정
-  OCR3B = 0;                                        // 왼쪽 듀티
-  OCR3C = 0;                                        // 오른쪽 듀티
+  TCCR4A = _BV(COM4A1) | _BV(COM4B1) | _BV(WGM41);  // 비반전, Fast PWM 하위 비트
+  TCCR4B = _BV(WGM43) | _BV(WGM42) | _BV(CS40);     // Fast PWM 상위 비트, 프리스케일러 1
+  ICR4 = PWM_TOP;                                   // TOP -> 주파수 결정
+  OCR4A = 0;                                        // 왼쪽 듀티 (핀 6)
+  OCR4B = 0;                                        // 오른쪽 듀티 (핀 7)
 }
 
 // 한 채널 제어. speed 범위 -255..255 (음수=후진, 0=정지)
@@ -70,9 +102,46 @@ void setMotor(uint8_t dirPin, volatile uint16_t &ocr, int speed) {
 }
 
 // 좌/우 모터를 동시에 지정
+// 명령은 '목표 속도'만 설정한다. 실제 출력은 updateMotors() 가 부드럽게 따라간다.
 void drive(int leftSpeed, int rightSpeed) {
-  setMotor(LEFT_DIR, OCR3B, leftSpeed);
-  setMotor(RIGHT_DIR, OCR3C, rightSpeed);
+  targetLeft = leftSpeed;
+  targetRight = rightSpeed;
+}
+
+// current 를 target 쪽으로 step 만큼 한 칸 이동(목표를 지나치지 않음)
+int rampToward(int current, int target, int step) {
+  if (current < target) {
+    current += step;
+    if (current > target) current = target;
+  } else if (current > target) {
+    current -= step;
+    if (current < target) current = target;
+  }
+  return current;
+}
+
+// 주기적으로 호출: 현재 속도를 목표로 한 스텝 가감속하고 모터에 적용
+void updateMotors() {
+  currentLeft  = rampToward(currentLeft,  targetLeft,  RAMP_STEP);
+  currentRight = rampToward(currentRight, targetRight, RAMP_STEP);
+
+  // 엔코더 방향 부호 = 현재 적용 속도 부호 (0 이면 직전 값 유지)
+  if (currentLeft  > 0) dirLeft  = 1; else if (currentLeft  < 0) dirLeft  = -1;
+  if (currentRight > 0) dirRight = 1; else if (currentRight < 0) dirRight = -1;
+
+  setMotor(LEFT_DIR, OCR4A, currentLeft);
+  setMotor(RIGHT_DIR, OCR4B, currentRight);
+}
+
+// 엔코더 카운트를 "ENC <left> <right>" 형식으로 응답 (32비트 읽기는 인터럽트 보호)
+void printEncoders() {
+  noInterrupts();
+  long l = encLeft, r = encRight;
+  interrupts();
+  Serial.print("ENC ");
+  Serial.print(l);
+  Serial.print(' ');
+  Serial.println(r);
 }
 
 // 수신한 명령 문자열을 모터 동작으로 변환
@@ -87,6 +156,16 @@ void applyCommand(const String &cmd) {
     drive(DRIVE_SPEED, 0);          // 왼쪽 전진, 오른쪽 정지
   } else if (cmd == "STOP") {
     drive(0, 0);
+  } else if (cmd == "ENC") {
+    printEncoders();   // 현재 카운트만 응답하고 종료
+    return;
+  } else if (cmd == "ENCRESET") {
+    noInterrupts();
+    encLeft = 0;
+    encRight = 0;
+    interrupts();
+    printEncoders();
+    return;
   } else {
     Serial.print("UNKNOWN: ");
     Serial.println(cmd);
@@ -103,6 +182,12 @@ void setup() {
   pinMode(RIGHT_DIR, OUTPUT);
   setupPwm7kHz();
 
+  // 엔코더 입력 + 인터럽트 (단일 채널, 상승 에지마다 카운트)
+  pinMode(LEFT_ENC, INPUT_PULLUP);
+  pinMode(RIGHT_ENC, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(LEFT_ENC), onLeftPulse, RISING);
+  attachInterrupt(digitalPinToInterrupt(RIGHT_ENC), onRightPulse, RISING);
+
   drive(0, 0);  // 부팅 시 안전하게 정지 상태
 
   Serial.begin(115200);
@@ -114,7 +199,13 @@ void loop() {
   if (Serial.available() > 0) {
     String cmd = Serial.readStringUntil('\n');
     cmd.trim();                 // 앞뒤 공백 / \r 제거
-    if (cmd.length() == 0) return;
-    applyCommand(cmd);
+    if (cmd.length() > 0) applyCommand(cmd);
+  }
+
+  // 부드러운 가감속: 일정 주기마다 현재 속도를 목표로 한 스텝 이동
+  unsigned long now = millis();
+  if (now - lastRampMs >= RAMP_INTERVAL_MS) {
+    lastRampMs = now;
+    updateMotors();
   }
 }

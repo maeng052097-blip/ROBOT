@@ -23,6 +23,9 @@ ddd/data/_temp_images/
 .vscode/
 .idea/
 
+# PlatformIO (펌웨어 빌드 산출물)
+.pio/
+
 # OS
 Thumbs.db
 .DS_Store

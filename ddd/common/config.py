@@ -22,7 +22,7 @@ CONVERTED_DATA_DIR = Path(r"C:\Users\MSY\Desktop\main\data\converted")
 # LiDAR와 Arduino는 서로 다른 포트를 사용해야 한다 (보고서 9장).
 #   Windows 예) LiDAR=COM3, Arduino=COM4
 #   라즈베리파이 예) "/dev/ttyUSB0", "/dev/ttyUSB1"
-MOTOR_PORT = "COM4"
+MOTOR_PORT = "COM10"
 MOTOR_BAUDRATE = 115200
 LIDAR_PORT = "COM3"
 LIDAR_BAUDRATE = 115200

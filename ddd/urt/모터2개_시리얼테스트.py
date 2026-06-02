@@ -59,6 +59,7 @@ def main():
     print("a: TURN_LEFT   오른쪽 모터만 전진")
     print("d: TURN_RIGHT  왼쪽 모터만 전진")
     print("s: STOP        양쪽 모터 정지")
+    print("e: 엔코더 카운트 조회 (ENC)")
     print("exit: 종료")
     print()
 
@@ -72,8 +73,15 @@ def main():
                 send_command(arduino, "STOP")
                 break
 
+            if key == "e":
+                arduino.reset_input_buffer()
+                send_command(arduino, "ENC")
+                line = arduino.readline().decode("utf-8", "ignore").strip()
+                print(f"엔코더 카운트: {line}")
+                continue
+
             if key not in KEY_COMMANDS:
-                print("알 수 없는 명령입니다. w/a/d/s/exit 중 하나를 입력하세요.")
+                print("알 수 없는 명령입니다. w/a/d/s/e/exit 중 하나를 입력하세요.")
                 continue
 
             command = KEY_COMMANDS[key]
