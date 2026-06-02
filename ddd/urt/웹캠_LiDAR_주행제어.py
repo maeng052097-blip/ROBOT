@@ -61,16 +61,16 @@ def decide_drive_command(camera_state, lidar_state):
     """LiDAR(안전) 우선, 웹캠(추적) 차순으로 최종 명령을 만든다 (보고서 4장).
 
     우선순위:
-      1) LiDAR DANGER     -> 무조건 STOP
+      1) LiDAR DANGER     -> 무조건 ESTOP (즉시정지, ramp 무시)
       2) 웹캠 목표 추적 (LEFT / RIGHT / CENTER)
          단, LiDAR SLOW 구간에서는 전방 직진(CENTER)만 막아 STOP 하고,
          좌/우 회전 추적은 허용한다 (정책 A).
          (펌웨어에 SLOW_FORWARD 가 추가되면 CENTER -> 감속 직진으로 승격 가능.)
       3) 목표 없음(NONE)  -> STOP
     """
-    # 1순위: LiDAR 위험 -> 즉시 정지
+    # 1순위: LiDAR 위험 -> 즉시 정지 (ESTOP: ramp 무시)
     if lidar_state == LIDAR_DANGER:
-        return "STOP"
+        return "ESTOP"
 
     # 2순위: 웹캠 목표 추적
     if camera_state == CAMERA_LEFT:
@@ -190,7 +190,7 @@ def main():
         # 안전 최우선: 종료 시 반드시 모터 정지 후 장치 해제 (None 안전 처리)
         if arduino is not None:
             try:
-                send_command(arduino, "STOP")
+                send_command(arduino, "ESTOP")  # 종료 시 즉시 정지
             except Exception:
                 pass
         if cap is not None:

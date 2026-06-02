@@ -13,7 +13,8 @@
 //    BACKWARD    -> 양쪽 모터 후진
 //    TURN_LEFT   -> 오른쪽 모터만 전진 (왼쪽 정지) -> 차체 좌회전
 //    TURN_RIGHT  -> 왼쪽 모터만 전진 (오른쪽 정지) -> 차체 우회전
-//    STOP        -> 양쪽 모터 정지
+//    STOP        -> 양쪽 모터 정지 (부드럽게 감속)
+//    ESTOP       -> 즉시 정지 (ramp 무시, 안전용)
 //    ENC         -> 엔코더 카운트 응답 "ENC <left> <right>"
 //    ENCRESET    -> 엔코더 카운트 0 으로 리셋 후 응답
 //
@@ -156,6 +157,14 @@ void applyCommand(const String &cmd) {
     drive(DRIVE_SPEED, 0);          // 왼쪽 전진, 오른쪽 정지
   } else if (cmd == "STOP") {
     drive(0, 0);
+  } else if (cmd == "ESTOP") {
+    // 즉시 정지(ramp 무시) — 안전용. 목표·현재 속도를 0 으로, 출력도 바로 0.
+    targetLeft = 0;
+    targetRight = 0;
+    currentLeft = 0;
+    currentRight = 0;
+    setMotor(LEFT_DIR, OCR4A, 0);
+    setMotor(RIGHT_DIR, OCR4B, 0);
   } else if (cmd == "ENC") {
     printEncoders();   // 현재 카운트만 응답하고 종료
     return;
