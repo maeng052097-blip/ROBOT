@@ -12,6 +12,7 @@ from common.config import (
     MOTOR_PORT, MOTOR_BAUDRATE, LIDAR_PORT, LIDAR_BAUDRATE,
     SERIAL_TIMEOUT, CAMERA_INDEX, WEIGHTS_PATH,
 )
+from common.camera import open_camera
 from drivers.LidarX2 import LidarX2
 
 
@@ -47,8 +48,7 @@ def check_lidar():
 
 
 def check_camera():
-    import cv2
-    cap = cv2.VideoCapture(CAMERA_INDEX)
+    cap = open_camera(CAMERA_INDEX)
     try:
         if not cap.isOpened():
             return False, f"index {CAMERA_INDEX} 열기 실패"

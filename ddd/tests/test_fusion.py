@@ -18,6 +18,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from common.config import (
     CAMERA_INDEX, LIDAR_PORT, LIDAR_BAUDRATE, WEIGHTS_PATH,
 )
+from common.camera import open_camera
 from common.fusion import bearing_to_lidar_angle, object_distance_mm
 from drivers.LidarX2 import LidarX2
 from inference.detector import TargetDetector
@@ -42,7 +43,7 @@ def main():
         print(f"YOLO 로드 실패: {exc}")
         lidar.close()
         return
-    cap = cv2.VideoCapture(CAMERA_INDEX)
+    cap = open_camera(CAMERA_INDEX)
     if not cap.isOpened():
         print(f"카메라(index {CAMERA_INDEX}) 열기 실패.")
         lidar.close()
@@ -61,12 +62,12 @@ def main():
                 bd = info["bearing_deg"]
                 la = bearing_to_lidar_angle(bd)
                 dist = object_distance_mm(bd, lidar.getDistanceDict())
-                dist_txt = f"{dist/1000:.2f} m ({dist} mm)" if dist else "LiDAR: no reading"
+                dist_txt = f"{dist/10:.0f} cm" if dist else "LiDAR: no reading"
                 print(f"  {info['label']:11} conf={info['conf']:.2f} "
                       f"bearing={bd:+5.0f}deg (lidar {la:5.0f}deg) -> {dist_txt}      ", end="\r")
                 if SHOW_WINDOW:
                     x1, y1, x2, y2 = (int(v) for v in info["box"])
-                    short = f"{dist/1000:.2f}m" if dist else "no-LiDAR"
+                    short = f"{dist/10:.0f}cm" if dist else "no-LiDAR"
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(frame, f"{info['label']} {short}", (x1, max(20, y1 - 8)),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)

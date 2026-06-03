@@ -30,6 +30,9 @@ SERIAL_TIMEOUT = 1.0  # 초
 
 # ===== 카메라 / 주행 루프 =====
 CAMERA_INDEX = 1  # Logitech(외장). 0 = 노트북 내장캠. tests/find_camera.py 로 확인.
+# 캡처 해상도(16:9). HFOV(70°)가 16:9 기준이라 4:3 기본값(640x480) 대신 권장.
+CAMERA_WIDTH = 1280
+CAMERA_HEIGHT = 720
 LOOP_DELAY = 0.05  # 초. 주행 루프 주기.
 
 # ===== LiDAR 안전 판단 =====
@@ -54,7 +57,7 @@ LIDAR_MAX_AGE = 0.5
 REQUIRE_LIDAR = True
 
 # ===== 비전(YOLO) =====
-CONF_THRESHOLD = 0.5  # 탐지 신뢰도 임계값
+CONF_THRESHOLD = 0.3  # 탐지 신뢰도 임계값(낮출수록 더 많이 잡힘·오탐↑). 0.25~0.4 권장.
 
 # ===== 카메라-LiDAR 융합 =====
 # StreamCam 수평 화각(deg). 공식은 대각 78°만 표기 -> 16:9 기준 유도값(~70.4).

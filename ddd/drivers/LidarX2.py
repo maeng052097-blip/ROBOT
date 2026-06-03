@@ -7,8 +7,12 @@ LidarX2.py — YDLIDAR X2 전용 드라이버
 """
 import time
 import threading
+from statistics import median
 
 import serial
+
+# 누적 측정점 상한(평활용). 늘리면 노이즈는 더 줄지만 반응 지연(latency)이 커진다.
+MAX_POINTS = 720
 
 
 class LidarX2:
@@ -55,13 +59,15 @@ class LidarX2:
             return list(self.measures)
 
     def getDistanceDict(self):
-        """각도(0~359) → 거리(mm) 딕셔너리 반환"""
-        result = {}
+        """각도(0~359) → 거리(mm). 각 각도는 최근 측정들의 '중앙값'(노이즈 평활)."""
+        buckets = {}
         with self.lock:
             for angle, distance in self.measures:
+                if distance <= 0:
+                    continue
                 int_angle = int(round(angle)) % 360
-                result[int_angle] = distance
-        return result
+                buckets.setdefault(int_angle, []).append(distance)
+        return {a: int(median(v)) for a, v in buckets.items()}
 
     def seconds_since_update(self):
         """마지막 데이터 수신 후 경과 시간(초). 한 번도 못 받았으면 None."""
@@ -119,7 +125,7 @@ class LidarX2:
 
             for j in range(sample_count):
                 idx = 10 + j * 2
-                distance = buf[idx] | (buf[idx + 1] << 8)
+                distance = (buf[idx] | (buf[idx + 1] << 8)) / 4.0  # YDLIDAR: raw/4 = mm
                 if sample_count > 1:
                     angle = start_angle + (angle_diff / (sample_count - 1)) * j
                 else:
@@ -148,8 +154,8 @@ class LidarX2:
                     with self.lock:
                         self.measures.extend(new_measures)
                         # 최근 720개만 유지 (약 2회전)
-                        if len(self.measures) > 720:
-                            self.measures = self.measures[-720:]
+                        if len(self.measures) > MAX_POINTS:
+                            self.measures = self.measures[-MAX_POINTS:]
 
             except serial.SerialException:
                 break

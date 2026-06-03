@@ -33,7 +33,7 @@ from common.config import (
 )
 from drivers.LidarX2 import LidarX2
 
-RMAX_MM = 4000        # 레이더 표시 최대 거리(mm). 필요시 조정.
+RMAX_MM = 6000        # 레이더 표시 최대 거리(mm). X2 최대 ~8m. 필요시 조정.
 SELECT_TOL_DEG = 5    # 선택 방향에서 이 각도 이내의 측정값을 그 방향 거리로 본다.
 
 
@@ -99,7 +99,7 @@ def main():
                 best_diff, best = diff, (a, d)
         if best is not None:
             target["angle"] = best[0]
-            print(f"선택: {best[0]}deg -> {best[1]} mm")
+            print(f"선택: {best[0]}deg -> {best[1]/10:.0f} cm")
         else:
             rel = math.degrees(click_theta) % 360
             target["angle"] = round((rel + FORWARD_ANGLE_DEG) % 360)
@@ -143,10 +143,10 @@ def main():
                     th = to_plot_theta(na)
                     ax.scatter([th], [nd], s=150, facecolors="none",
                                edgecolors="blue", linewidths=2, zorder=5)
-                    ax.annotate(f"{nd} mm", xy=(th, nd),
+                    ax.annotate(f"{nd/10:.0f} cm", xy=(th, nd),
                                 xytext=(th, min(nd + 450, RMAX_MM)),
                                 color="blue", fontsize=12, ha="center", zorder=6)
-                    sel_text = f"selected: {na}deg -> {nd} mm"
+                    sel_text = f"selected: {na}deg -> {nd/10:.0f} cm"
                 else:
                     th = to_plot_theta(target["angle"])
                     ax.plot([th, th], [0, RMAX_MM], color="blue", lw=0.8, alpha=0.6)

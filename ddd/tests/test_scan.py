@@ -64,8 +64,8 @@ def main():
             fmin = forward_min_distance(dd)
             state = classify_safety(dd)
             ca, cd = closest_point(dd)
-            fwd = "-" if fmin is None else f"{fmin}mm"
-            near = "-" if ca is None else f"{ca}deg {cd}mm"
+            fwd = "-" if fmin is None else f"{fmin/10:.0f}cm"
+            near = "-" if ca is None else f"{ca}deg {cd/10:.0f}cm"
             print(f"  [{fresh}] pts {len(dd):3d} | 전방최소 {fwd:>8} {state:<6} | 최근접 {near:>14}   ", end="\r")
             time.sleep(0.1)
     except KeyboardInterrupt:

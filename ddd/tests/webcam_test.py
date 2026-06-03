@@ -13,6 +13,7 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+from common.camera import open_camera
 from common.config import CAMERA_INDEX, WEIGHTS_PATH
 from inference.detector import TargetDetector
 
@@ -22,7 +23,7 @@ SHOW_WINDOW = True  # cv2 창으로 방향을 표시. 콘솔 출력만 원하면
 def main():
     import cv2
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
+    cap = open_camera(CAMERA_INDEX)
     if not cap.isOpened():
         print(f"카메라(index {CAMERA_INDEX}) 열기 실패. config.py 의 CAMERA_INDEX 를 확인하세요.")
         return

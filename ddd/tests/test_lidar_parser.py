@@ -22,7 +22,8 @@ def make_packet(sample_count, start_deg, end_deg, distances, ptype=0):
                      sr & 0xFF, (sr >> 8) & 0xFF, er & 0xFF, (er >> 8) & 0xFF,
                      0x00, 0x00])  # 바이트 8,9: 미사용(체크섬 자리)
     for d in distances:
-        pkt += bytearray([d & 0xFF, (d >> 8) & 0xFF])
+        raw = int(round(d * 4))  # YDLIDAR 원시값 = 거리(mm) * 4
+        pkt += bytearray([raw & 0xFF, (raw >> 8) & 0xFF])
     return pkt
 
 
