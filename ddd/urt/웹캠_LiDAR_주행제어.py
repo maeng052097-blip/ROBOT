@@ -24,7 +24,7 @@ if _REPO_ROOT not in sys.path:
 
 from common.config import (
     MOTOR_PORT, MOTOR_BAUDRATE, LIDAR_PORT, LIDAR_BAUDRATE, SERIAL_TIMEOUT,
-    CAMERA_INDEX, LOOP_DELAY, WEIGHTS_PATH, REQUIRE_LIDAR,
+    CAMERA_INDEX, LOOP_DELAY, WEIGHTS_PATH, REQUIRE_LIDAR, LIDAR_MAX_AGE,
 )
 from common.safety import classify_safety
 from drivers.LidarX2 import LidarX2
@@ -53,7 +53,10 @@ def analyze_lidar_safety(lidar):
 
     실제 판단 로직은 common.safety.classify_safety 에 있다
     (LiDAR 스모크 테스트 tests/test_scan.py 와 동일 로직 공유).
+    LiDAR 데이터가 끊기면(오래되면) 안전하게 DANGER 로 처리한다(fail-safe).
     """
+    if not lidar.is_fresh(LIDAR_MAX_AGE):
+        return LIDAR_DANGER
     return classify_safety(lidar.getDistanceDict())
 
 

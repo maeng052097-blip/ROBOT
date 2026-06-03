@@ -60,7 +60,8 @@ ddd/
 ├── common/                      # 공용 모듈
 │   ├── config.py                #   포트·임계값·경로 중앙 설정
 │   ├── classes.py               #   재활용 7개 클래스 정의
-│   └── safety.py                #   LiDAR 전방 안전판단(SAFE/SLOW/DANGER)
+│   ├── safety.py                #   LiDAR 전방 안전판단(SAFE/SLOW/DANGER)
+│   └── fusion.py                #   카메라 베어링 + LiDAR 거리 융합
 ├── config/
 │   └── data.yaml                # YOLO 학습 설정
 ├── data/scripts/                # 데이터 변환·검증
@@ -71,10 +72,15 @@ ddd/
 ├── inference/
 │   └── detector.py              # YOLO 목표 탐지(좌/중/우 방향)
 ├── models/weights/best.pt       # 학습 가중치 (직접 배치, git 제외)
-├── tests/                       # 하드웨어 스모크 테스트
+├── tests/                       # 하드웨어 스모크 테스트 + 단위 테스트
 │   ├── check_devices.py         #   Arduino/LiDAR/웹캠 연결 점검
-│   ├── test_scan.py             #   LiDAR 전방거리·안전상태
+│   ├── find_camera.py           #   카메라 인덱스 찾기(내장캠 vs Logitech)
+│   ├── test_scan.py             #   LiDAR 전방거리·안전상태(텍스트)
+│   ├── test_lidar_parser.py     #   LiDAR 패킷 파서 단위테스트(HW 불필요)
+│   ├── test_fusion.py           #   카메라+LiDAR 물체거리 융합 테스트
 │   └── webcam_test.py           #   웹캠 + YOLO 탐지
+├── visualization/
+│   └── realtime_radar.py        #   LiDAR 실시간 레이더(극좌표) 시각화
 ├── urt/                         # 통합 주행 + 모터
 │   ├── 웹캠_LiDAR_주행제어.py     #   통합 주행 컨트롤러
 │   ├── 모터2개_시리얼테스트.py    #   모터 수동 테스트(w/a/d/s)

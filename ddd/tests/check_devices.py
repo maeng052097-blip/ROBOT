@@ -60,8 +60,20 @@ def check_camera():
         cap.release()
 
 
+def list_ports_line():
+    try:
+        import serial.tools.list_ports
+        ports = list(serial.tools.list_ports.comports())
+    except Exception as exc:
+        return f"조회 실패: {exc}"
+    if not ports:
+        return "없음 (장치 연결 확인)"
+    return ", ".join(f"{p.device}({p.description})" for p in ports)
+
+
 def main():
     print("=== 장치 연결 점검 (preflight) ===")
+    print(f"  COM 포트: {list_ports_line()}")
     for name, fn in (("Arduino", check_arduino), ("LiDAR", check_lidar), ("웹캠", check_camera)):
         try:
             ok, info = fn()

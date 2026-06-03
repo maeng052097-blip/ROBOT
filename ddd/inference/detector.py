@@ -8,7 +8,7 @@ ultralytics(torch)는 무거우므로 모델을 만들 때만 임포트한다.
 """
 import pathlib
 
-from common.config import WEIGHTS_PATH, CONF_THRESHOLD
+from common.config import WEIGHTS_PATH, CONF_THRESHOLD, CAMERA_HFOV_DEG
 from common.classes import CLASS_NAMES
 
 # 목표 방향 (컨트롤러의 CAMERA_* 값과 동일한 문자열)
@@ -29,6 +29,13 @@ def _direction_from_center_x(cx, width):
     return DIR_CENTER
 
 
+def bearing_from_cx(cx, width, hfov_deg):
+    """박스 중심 x(px) -> 카메라 베어링(deg). 화면 중앙=0, 오른쪽 +, 왼쪽 -."""
+    if width <= 0:
+        return 0.0
+    return (cx / width - 0.5) * hfov_deg
+
+
 class TargetDetector:
     """YOLO 모델을 1회 로드해 두고, 프레임마다 목표 방향을 판단한다."""
 
@@ -44,30 +51,40 @@ class TargetDetector:
         self.conf = conf
         self.last = None  # 최근 탐지(디버그용): (label, confidence, direction)
 
-    def detect_direction(self, frame):
-        """프레임에서 가장 신뢰도 높은 목표의 방향을 반환. 목표 없으면 NONE.
+    def detect(self, frame):
+        """가장 신뢰도 높은 목표의 상세 정보. 목표 없으면 None.
 
-        타겟 선택 정책: 신뢰도 최고 박스(클래스 무관). 필요 시 클래스 필터 추가 가능.
+        반환 dict: label, conf, box=(x1,y1,x2,y2), cx, width, direction, bearing_deg
+          - bearing_deg: 화면 중앙=0, 오른쪽 +, 왼쪽 - (CAMERA_HFOV_DEG 기준).
+        타겟 선택 정책: 신뢰도 최고 박스(클래스 무관).
         """
         results = self.model(frame, conf=self.conf, verbose=False)
         if not results:
             self.last = None
-            return DIR_NONE
+            return None
 
         boxes = results[0].boxes
         if boxes is None or len(boxes) == 0:
             self.last = None
-            return DIR_NONE
+            return None
 
-        # 신뢰도 최고 박스 선택
         confs = boxes.conf.tolist()
         best_i = max(range(len(confs)), key=lambda i: confs[i])
-        x1, _y1, x2, _y2 = boxes.xyxy[best_i].tolist()
+        x1, y1, x2, y2 = boxes.xyxy[best_i].tolist()
         cx = (x1 + x2) / 2.0
         width = frame.shape[1]
         direction = _direction_from_center_x(cx, width)
-
+        bearing = bearing_from_cx(cx, width, CAMERA_HFOV_DEG)
         cls_id = int(boxes.cls[best_i].item())
         label = CLASS_NAMES.get(cls_id, str(cls_id))
         self.last = (label, confs[best_i], direction)
-        return direction
+        return {
+            "label": label, "conf": confs[best_i],
+            "box": (x1, y1, x2, y2), "cx": cx, "width": width,
+            "direction": direction, "bearing_deg": bearing,
+        }
+
+    def detect_direction(self, frame):
+        """프레임에서 목표 방향(LEFT/CENTER/RIGHT/NONE)만 반환(통합 컨트롤러용 래퍼)."""
+        info = self.detect(frame)
+        return info["direction"] if info else DIR_NONE

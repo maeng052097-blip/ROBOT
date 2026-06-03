@@ -20,16 +20,16 @@ CONVERTED_DATA_DIR = Path(r"C:\Users\MSY\Desktop\main\data\converted")
 
 # ===== 시리얼 포트 / 통신 =====
 # LiDAR와 Arduino는 서로 다른 포트를 사용해야 한다 (보고서 9장).
-#   Windows 예) LiDAR=COM3, Arduino=COM4
+#   이 PC 기준) Arduino(MOTOR)=COM10, LiDAR=COM8
 #   라즈베리파이 예) "/dev/ttyUSB0", "/dev/ttyUSB1"
 MOTOR_PORT = "COM10"
 MOTOR_BAUDRATE = 115200
-LIDAR_PORT = "COM3"
+LIDAR_PORT = "COM8"
 LIDAR_BAUDRATE = 115200
 SERIAL_TIMEOUT = 1.0  # 초
 
 # ===== 카메라 / 주행 루프 =====
-CAMERA_INDEX = 0
+CAMERA_INDEX = 1  # Logitech(외장). 0 = 노트북 내장캠. tests/find_camera.py 로 확인.
 LOOP_DELAY = 0.05  # 초. 주행 루프 주기.
 
 # ===== LiDAR 안전 판단 =====
@@ -43,6 +43,10 @@ SLOW_MM = 700             # 이보다 가까우면 SLOW
 #   False -> fail-safe 로 DANGER 처리
 EMPTY_ARC_IS_SAFE = True
 
+# LiDAR 데이터 신선도 한계(초). 이 시간 안에 새 데이터가 없으면 '끊김'으로 보고
+# 안전하게 DANGER(정지) 처리한다.
+LIDAR_MAX_AGE = 0.5
+
 # LiDAR 필수 여부.
 #   True(기본) -> 미연결 시 통합 주행을 중단(안전 우선).
 #   False      -> 저하 모드로 LiDAR 없이 진행(전방 직진 금지=SLOW 취급, 회전 추적만).
@@ -51,3 +55,12 @@ REQUIRE_LIDAR = True
 
 # ===== 비전(YOLO) =====
 CONF_THRESHOLD = 0.5  # 탐지 신뢰도 임계값
+
+# ===== 카메라-LiDAR 융합 =====
+# StreamCam 수평 화각(deg). 공식은 대각 78°만 표기 -> 16:9 기준 유도값(~70.4).
+# 융합 테스트(test_fusion)에서 실제와 비교해 보정 권장.
+CAMERA_HFOV_DEG = 70.0
+# 카메라 오른쪽(+베어링)이 LiDAR 각도 증가 방향이면 +1, 반대면 -1 (보정 대상).
+CAMERA_LIDAR_SIGN = 1
+# 베어링 <-> LiDAR 각도 매칭 허용오차(deg).
+FUSION_TOL_DEG = 4.0
