@@ -16,9 +16,11 @@ MAX_POINTS = 720
 
 
 class LidarX2:
-    def __init__(self, port, baudrate=115200):
+    def __init__(self, port, baudrate=115200, dist_scale=1.0, dist_offset_mm=0.0):
         self.port = port
         self.baudrate = baudrate
+        self.dist_scale = dist_scale          # 거리 보정: corrected = raw*scale + offset(mm)
+        self.dist_offset_mm = dist_offset_mm
         self.serial = None
         self.thread = None
         self.running = False
@@ -37,6 +39,7 @@ class LidarX2:
                 stopbits=serial.STOPBITS_ONE,
                 timeout=1.0
             )
+            self._on_port_open()  # 하위 클래스 훅(예: X4 스캔 시작 명령). 기본은 no-op.
             self.running = True
             self.thread = threading.Thread(target=self._read_loop, daemon=True)
             self.thread.start()
@@ -52,6 +55,14 @@ class LidarX2:
             self.thread.join(timeout=2)
         if self.serial and self.serial.is_open:
             self.serial.close()
+
+    def _on_port_open(self):
+        """포트를 연 직후(읽기 스레드 시작 전) 호출되는 훅.
+
+        X2 는 전원 연결 시 자동 스캔이라 기본은 아무것도 하지 않는다.
+        하위 클래스(LidarX4)가 스캔 시작 명령 전송 등을 위해 재정의한다.
+        """
+        pass
 
     def getMeasures(self):
         """현재 스캔 데이터 반환: [(angle, distance), ...]"""
@@ -151,6 +162,12 @@ class LidarX2:
 
                 new_measures, buf = self._parse_packets(buf)
                 if new_measures:
+                    if self.dist_scale != 1.0 or self.dist_offset_mm:
+                        new_measures = [
+                            (a, d * self.dist_scale + self.dist_offset_mm)
+                            for a, d in new_measures
+                            if d * self.dist_scale + self.dist_offset_mm > 0
+                        ]
                     with self.lock:
                         self.measures.extend(new_measures)
                         # 최근 720개만 유지 (약 2회전)

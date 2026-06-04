@@ -3,7 +3,7 @@
 포트 / 통신속도 / 카메라 / 주행 루프 / LiDAR 안전 임계값 / 경로를
 한 곳에서 관리한다. 여러 파일에 흩어져 있던 상수를 여기로 모은다.
 
-다른 환경(예: 라즈베리파이)으로 옮길 때는 이 파일의 포트 값만 바꾸면 된다.
+다른 노트북/PC로 옮길 때는 이 파일의 포트 값(COM 번호)만 바꾸면 된다.
 """
 from pathlib import Path
 
@@ -21,11 +21,23 @@ CONVERTED_DATA_DIR = Path(r"C:\Users\MSY\Desktop\main\data\converted")
 # ===== 시리얼 포트 / 통신 =====
 # LiDAR와 Arduino는 서로 다른 포트를 사용해야 한다 (보고서 9장).
 #   이 PC 기준) Arduino(MOTOR)=COM10, LiDAR=COM8
-#   라즈베리파이 예) "/dev/ttyUSB0", "/dev/ttyUSB1"
+#   다른 노트북으로 옮기면 장치관리자에서 COM 번호 확인 후 수정
 MOTOR_PORT = "COM10"
 MOTOR_BAUDRATE = 115200
 LIDAR_PORT = "COM8"
 LIDAR_BAUDRATE = 115200
+# YDLIDAR X4(선택): 128000 bps. X4 의 COM 포트는 장치관리자에서 확인 후 --port 로 지정.
+LIDAR_X4_BAUDRATE = 128000
+
+# ===== 2-LiDAR 동시 사용 구성 =====
+# 역할: X4=물체 거리 주력(앞-하단), X2=벽 맵핑 주력(뒤-상단). 포트는 장치관리자 기준.
+LIDAR_X4_PORT = "COM8"
+LIDAR_X2_PORT = "COM12"
+LIDAR_X2_BAUDRATE = 115200
+# X2 거리 보정 (실측으로 결정): corrected_mm = raw_mm * SCALE + OFFSET_MM.
+# tests/lidar_calibrate.py 에 (실제cm:측정cm) 쌍을 넣어 값을 구한 뒤 여기에 기입.
+LIDAR_X2_DIST_SCALE = 1.0
+LIDAR_X2_DIST_OFFSET_MM = 0
 SERIAL_TIMEOUT = 1.0  # 초
 
 # ===== 카메라 / 주행 루프 =====
