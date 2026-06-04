@@ -6,16 +6,15 @@
 
 카메라와 LiDAR를 활용하여 재활용 쓰레기(비닐, 스티로폼, 유리병, 종이류, 캔류, 페트병, 플라스틱류)를 실시간으로 인식하고, 물체까지의 거리를 측정하는 시스템입니다.
 
-최종 목표는 Raspberry Pi 5에 탑재하여 자율주행 로봇으로 운용하는 것입니다.
+최종 목표는 노트북(HP VICTUS 15, RTX 4060)에서 직접 실행하여 자율주행 로봇으로 운용하는 것입니다.
 
 ## 시스템 구성
 
 | 장비 | 용도 |
 |------|------|
-| HP VICTUS 15 (RTX 4060, 8GB VRAM) | 모델 학습 및 검증 |
+| HP VICTUS 15 (RTX 4060, 8GB VRAM) | 모델 학습·검증 + 실행(최종 배포 타겟) |
 | Logitech StreamCam x2 | 물체 인식 카메라 |
 | YDLIDAR X2 | 2D 거리 측정 (360°, 8m) |
-| Raspberry Pi 5 (예정) | 최종 배포 타겟 |
 
 ## 인식 가능한 쓰레기 분류 (7개 클래스)
 
@@ -159,7 +158,7 @@ python urt/웹캠_LiDAR_주행제어.py     # 통합 주행 (웹캠+LiDAR+Arduin
 - [x] 하드웨어 브링업 스모크 테스트 (장치점검 / LiDAR / 웹캠)
 - [ ] 실하드웨어 통합 주행 검증 및 임계값 튜닝
 - [ ] 추가 데이터로 재학습 (정확도 향상)
-- [ ] Raspberry Pi 5 이식 (ONNX/NCNN)
+- [ ] 노트북 실시간 추론 최적화 (TensorRT/FP16, 선택)
 
 ## 데이터셋 출처
 
@@ -172,7 +171,7 @@ python urt/웹캠_LiDAR_주행제어.py     # 통합 주행 (웹캠+LiDAR+Arduin
 - **거리 측정:** YDLIDAR X2 (커스텀 드라이버)
 - **카메라:** OpenCV + Logitech StreamCam
 - **학습 GPU:** NVIDIA RTX 4060 Laptop (8GB VRAM)
-- **배포 타겟:** Raspberry Pi 5 + NCNN
+- **실행 환경:** 노트북 (HP VICTUS 15, RTX 4060) — ultralytics + CUDA 직접 실행
 
 ## 라이선스
 
