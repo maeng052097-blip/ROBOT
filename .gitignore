@@ -18,6 +18,9 @@ env/
 ddd/data/converted/
 ddd/data/_temp_images/
 
+# LiDAR 실측 로그 (lidar_range_probe.py 출력)
+ddd/lidar_probe_log.csv
+
 # IDE / 에디터
 *.code-workspace
 .vscode/
