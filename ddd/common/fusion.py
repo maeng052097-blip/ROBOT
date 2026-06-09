@@ -8,7 +8,10 @@ LiDAR 거리(mm)를 얻는다. => "탐지한 물체까지의 거리".
   - LiDAR 각도: FORWARD_ANGLE_DEG 가 정면. CAMERA_LIDAR_SIGN 으로 좌우 방향을 맞춘다.
 순수 함수라 하드웨어 없이 단위 테스트 가능.
 """
+import math
+
 from common.config import FORWARD_ANGLE_DEG, CAMERA_LIDAR_SIGN, FUSION_TOL_DEG
+from common.lidar_metrics import angular_diff
 
 
 def bearing_to_lidar_angle(bearing_deg):
@@ -22,7 +25,7 @@ def distance_at_angle(distance_dict, target_deg, tol_deg=FUSION_TOL_DEG):
     for a, d in distance_dict.items():
         if d <= 0:
             continue
-        diff = abs((a - target_deg + 180) % 360 - 180)
+        diff = angular_diff(a, target_deg)
         if diff <= tol_deg and (best_diff is None or diff < best_diff):
             best_diff, best_d = diff, d
     return best_d
@@ -31,3 +34,68 @@ def distance_at_angle(distance_dict, target_deg, tol_deg=FUSION_TOL_DEG):
 def object_distance_mm(bearing_deg, distance_dict, tol_deg=FUSION_TOL_DEG):
     """카메라 베어링 방향에 있는 물체까지의 LiDAR 거리(mm). 측정값 없으면 None."""
     return distance_at_angle(distance_dict, bearing_to_lidar_angle(bearing_deg), tol_deg)
+
+
+def min_distance_in_arc(distance_dict, center_deg, half_arc_deg):
+    """center_deg ± half_arc_deg 안의 점들 중 '가장 가까운' 거리(mm). 없으면 None.
+
+    물체(예: 사람)는 그 각도 폭 안에서 배경을 가리는 '전경'이므로, 그 구간의
+    최소 거리가 곧 물체까지의 거리다. (중심 한 각도의 최근접점보다 배경 오염에 강함)
+    """
+    best = None
+    for a, d in distance_dict.items():
+        if d <= 0:
+            continue
+        if angular_diff(a, center_deg) <= half_arc_deg and (best is None or d < best):
+            best = d
+    return best
+
+
+def view_bearing_deg(cx_view, view_w, hfov_deg, zoom=1.0):
+    """줌(중앙 크롭)된 뷰에서 물체 중심 cx_view(px) -> 카메라 베어링(deg, 중앙0/우+).
+
+    핀홀 모델: bearing = atan( 2*(cx/view_w - 0.5) * tan(hfov/2) / zoom ).
+    선형근사 (cx/view_w-0.5)*hfov 와 달리 화면 중간대역에서 참 핀홀각과 일치한다
+    (선형은 70도 화각에서 최대 ~1.8도 편향). 디지털 줌은 중앙 크롭이라 같은 물체는
+    줌 배율과 무관하게 같은 베어링(불변). 카메라-LiDAR 동일선상=시차0 이면 곧 LiDAR 방향.
+    (호출측은 검출이 크롭 위에서 일어나므로 cx_view 가 [0, view_w] 안임을 보장.)
+    """
+    if view_w <= 0 or zoom <= 0:
+        return 0.0
+    u = cx_view / view_w - 0.5
+    return math.degrees(math.atan(2.0 * u * math.tan(math.radians(hfov_deg) / 2.0) / zoom))
+
+
+def distance_along_ray(dd, off_x_mm, off_y_mm, ray_bearing_deg,
+                       forward_deg=0.0, perp_tol_mm=200.0, align_tol_mm=20.0):
+    """LiDAR에서 (off_x,off_y)mm 비켜난 카메라의 시선(ray) 위 물체의 LiDAR 거리.
+
+    카메라가 옆으로 떨어져 있으면(시차) 카메라 베어링과 LiDAR 방향이 다르다. 시선:
+        P(t) = (off_x, off_y) + t*(sin b, cos b)   (전방+Y, 우+X, b=ray_bearing_deg)
+    선택 규칙(중요): 수직거리(perp) <= perp_tol 인 점들 중 '시선에 가장 잘 정렬된
+    (perp 최소)' 점을 고른다. perp 가 비슷하면(align_tol 이내) 더 가까운(전경) 점을
+    택한다. -> 시선 '옆'을 스치는 더 가까운 클러터/배경점을 시선 위 물체로 오인하지
+    않는다(과거엔 '가장 가까운 t'를 골라 옆 점을 오인했음). 없으면 (None, None).
+    """
+    b = math.radians(ray_bearing_deg)
+    dx, dy = math.sin(b), math.cos(b)
+    best = None  # (perp, t, range_mm, angle_deg)
+    for a, d in dd.items():
+        if d <= 0:
+            continue
+        ar = math.radians(a - forward_deg)
+        wx = d * math.sin(ar) - off_x_mm
+        wy = d * math.cos(ar) - off_y_mm
+        t = wx * dx + wy * dy                 # 시선 따라 전방 투영거리
+        if t <= 0:
+            continue
+        perp = math.hypot(wx - t * dx, wy - t * dy)
+        if perp > perp_tol_mm:
+            continue
+        if best is None:
+            best = (perp, t, d, a)
+        elif perp < best[0] - align_tol_mm:                       # 분명히 더 정렬됨
+            best = (perp, t, d, a)
+        elif abs(perp - best[0]) <= align_tol_mm and t < best[1]:  # 정렬 비슷 -> 전경(가까운) 우선
+            best = (perp, t, d, a)
+    return (best[2], best[3]) if best else (None, None)

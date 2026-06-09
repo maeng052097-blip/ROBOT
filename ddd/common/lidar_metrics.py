@@ -88,3 +88,47 @@ def aggregate(snapshots):
 def theoretical_spacing_mm(distance_mm, res_deg):
     """이론 점간격(mm) = 거리 × tan(분해능). '가정(분해능)' 기반 참고값."""
     return distance_mm * math.tan(math.radians(res_deg))
+
+
+def normalize_deg(x):
+    """각도를 (-180, 180] 범위로 정규화."""
+    return ((x + 180) % 360) - 180
+
+
+def nearest_point(measures, min_mm=120.0, max_mm=None):
+    """가장 가까운 (angle, dist). min_mm 미만·0이하 제외, max_mm 초과 제외.
+
+    두 LiDAR 정렬 시 '같은 근접 물체'의 방위를 비교하는 데 쓴다. 없으면 (None, None).
+    """
+    best_a = best_d = None
+    for a, d in measures:
+        if d < min_mm:
+            continue
+        if max_mm is not None and d > max_mm:
+            continue
+        if best_d is None or d < best_d:
+            best_a, best_d = a, d
+    return best_a, best_d
+
+
+def nearest_point_2d(measures, target_angle, target_dist_mm):
+    """(target_angle, target_dist_mm) 위치에 2D(극→직교)로 가장 가까운 (angle, dist, 거리mm).
+
+    레이더에서 한 점을 클릭/추적할 때 '방향+거리' 모두 가까운 점을 고른다.
+    measures 는 {angle:dist} 또는 [(angle,dist),...]. 없으면 (None, None, None).
+    """
+    items = measures.items() if hasattr(measures, "items") else measures
+    tx = target_dist_mm * math.sin(math.radians(target_angle))
+    ty = target_dist_mm * math.cos(math.radians(target_angle))
+    best_a = best_d = best_d2 = None
+    for a, d in items:
+        if d <= 0:
+            continue
+        px = d * math.sin(math.radians(a))
+        py = d * math.cos(math.radians(a))
+        d2 = (px - tx) ** 2 + (py - ty) ** 2
+        if best_d2 is None or d2 < best_d2:
+            best_d2, best_a, best_d = d2, a, d
+    if best_a is None:
+        return None, None, None
+    return best_a, best_d, math.sqrt(best_d2)

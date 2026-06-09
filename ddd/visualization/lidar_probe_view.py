@@ -43,27 +43,8 @@ DEFAULT_CSV = PROJECT_ROOT / "lidar_probe_log.csv"
 RES_MIN_DEG, RES_MAX_DEG = 0.6, 0.96
 
 
-def zone_bgr(d):
-    if d < DANGER_MM:
-        return (0, 0, 255)
-    if d < SLOW_MM:
-        return (0, 165, 255)
-    return (0, 200, 0)
-
-
-def _txt(img, s, org, color, scale=0.5, thick=1):
-    """검은 외곽선 + 색 글씨(점 위에서도 읽히게)."""
-    import cv2
-    cv2.putText(img, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), thick + 2, cv2.LINE_AA)
-    cv2.putText(img, s, org, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick, cv2.LINE_AA)
-
-
-def ring_step_mm(rmax):
-    """rmax 에 맞춰 링 간격(mm)을 정한다 (화면에 약 6~12개 링이 나오도록)."""
-    for step in (100, 200, 250, 500, 1000, 2000):
-        if rmax / step <= 12:
-            return step
-    return 2000
+# 공용 UI 헬퍼는 common/viz.py 로 이동. 여기서 import 해 재노출(기존 import 경로 유지).
+from common.viz import zone_bgr, _txt, ring_step_mm  # noqa: F401
 
 
 def draw(measures, bearing, window, s, hitrate, pipe, labels, rmax):

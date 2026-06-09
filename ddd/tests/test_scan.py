@@ -15,7 +15,6 @@ import pathlib
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
 from common.config import (
     LIDAR_PORT, LIDAR_BAUDRATE, SAFETY_ARC_DEG, DANGER_MM, SLOW_MM, LIDAR_MAX_AGE,
 )
@@ -27,7 +26,7 @@ def list_ports():
     """사용 가능한 COM 포트 출력(포트를 못 찾을 때 도움)."""
     try:
         import serial.tools.list_ports
-        ports = list(serial.tools.list_ports.comports(8))
+        ports = list(serial.tools.list_ports.comports())
     except Exception:
         ports = []
     if ports:
@@ -64,8 +63,8 @@ def main():
             fmin = forward_min_distance(dd)
             state = classify_safety(dd)
             ca, cd = closest_point(dd)
-            fwd = "-" if fmin is None else f"{fmin/10:.0f}cm"
-            near = "-" if ca is None else f"{ca}deg {cd/10:.0f}cm"
+            fwd = "-" if fmin is None else f"{fmin}mm"
+            near = "-" if ca is None else f"{ca}deg {cd}mm"
             print(f"  [{fresh}] pts {len(dd):3d} | 전방최소 {fwd:>8} {state:<6} | 최근접 {near:>14}   ", end="\r")
             time.sleep(0.1)
     except KeyboardInterrupt:

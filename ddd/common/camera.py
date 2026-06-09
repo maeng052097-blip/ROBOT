@@ -39,3 +39,19 @@ def open_camera(index, width=CAMERA_WIDTH, height=CAMERA_HEIGHT):
         cap.release()
 
     return cv2.VideoCapture(index)  # 마지막 폴백(호출측에서 처리)
+
+
+def crop_center_zoom(frame, zoom):
+    """디지털 줌: 중앙을 zoom 배 잘라 '확대된 시야'(view)를 반환. zoom<=1 이면 원본.
+
+    유효 화각은 호출측에서 hfov/zoom 으로 계산한다(여기선 크롭만). 순수 슬라이싱이라
+    cv2 불필요. color_detect / dual_camera_aim 이 공유한다.
+    """
+    if zoom is None or zoom <= 1.0:
+        return frame
+    h, w = frame.shape[:2]
+    cw = int(w / zoom)
+    ch = int(h / zoom)
+    ox = (w - cw) // 2
+    oy = (h - ch) // 2
+    return frame[oy:oy + ch, ox:ox + cw]

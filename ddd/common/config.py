@@ -13,6 +13,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = PROJECT_ROOT / "models"
 # YOLO 학습 가중치. 저장소에는 포함되지 않으므로 직접 이 위치에 두어야 한다.
 WEIGHTS_PATH = MODELS_DIR / "weights" / "best.pt"
+# COCO 사전학습 가중치(person 등 80클래스) — 사람 인식용. 없으면 ultralytics 자동 다운로드.
+COCO_WEIGHTS_PATH = MODELS_DIR / "yolov8n.pt"
+
+# ===== 2-카메라(LiDAR 양 옆) 구성 =====
+# 좌/우 카메라 인덱스 + LiDAR 중심에서의 가로 오프셋(mm). 좌=-OFFSET, 우=+OFFSET.
+CAM_LEFT_INDEX = 1
+CAM_RIGHT_INDEX = 2
+CAM_SIDE_OFFSET_MM = 100   # 각 카메라가 LiDAR에서 10cm 옆
 # YOLO 변환 데이터셋(images/labels) 위치. 대용량이라 저장소 밖(main)에 둔다.
 # 현재 실제 데이터는 아래 위치에 있다(5,601장). 환경이 바뀌면 이 값만 수정.
 # 재학습(train.py)·라벨검증(verify_labels.py)·변환(convert_*) 이 공유한다.
@@ -38,6 +46,14 @@ LIDAR_X2_BAUDRATE = 115200
 # tests/lidar_calibrate.py 에 (실제cm:측정cm) 쌍을 넣어 값을 구한 뒤 여기에 기입.
 LIDAR_X2_DIST_SCALE = 1.0
 LIDAR_X2_DIST_OFFSET_MM = 0
+# 두 LiDAR 방향(yaw) 정렬 오프셋(deg): 같은 물체가 두 LiDAR 에서 같은 방위에 오도록.
+# lidar_dual_view 의 'c'(대략 자동) + a/d(미세, 먼 벽 기준)로 맞춘 값을 여기에 기입.
+LIDAR_X4_OFFSET_DEG = 0.0
+LIDAR_X2_OFFSET_DEG = 0.0
+
+# ===== 점유격자 맵(occupancy grid) =====
+MAP_SIZE_M = 8.0     # 맵 반경(m): 맵은 [-SIZE,+SIZE] 정사각 (X2 사거리에 맞춤)
+MAP_RES_M = 0.05     # 셀 크기(m) = 5cm
 SERIAL_TIMEOUT = 1.0  # 초
 
 # ===== 카메라 / 주행 루프 =====

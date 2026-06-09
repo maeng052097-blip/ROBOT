@@ -22,17 +22,19 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from common.config import (
     LIDAR_X4_PORT, LIDAR_X4_BAUDRATE, LIDAR_X2_PORT, LIDAR_X2_BAUDRATE,
     LIDAR_MAX_AGE, FORWARD_ANGLE_DEG, DANGER_MM, SLOW_MM,
+    LIDAR_X4_OFFSET_DEG, LIDAR_X2_OFFSET_DEG,
 )
+from common.lidar_metrics import nearest_point, normalize_deg
 from visualization.lidar_probe_view import ring_step_mm, _txt
 
-RMAX_MM = 2000          # 표시 기본 최대거리(mm)=2m (근거리 잘 보이게). 멀리는 . 줌아웃 / --rmax
+RMAX_MM = 6000          # 듀얼뷰 기본 6m (정렬/오버뷰용). 근거리는 , 줌인, 더 멀리는 . / --rmax
 PANEL = 760
 
 X4_COLOR = (0, 255, 0)      # green
 X2_COLOR = (255, 0, 255)    # magenta
 
 
-def draw(scans, rmax, info):
+def draw(scans, rmax, info, click_xy):
     import cv2
     import numpy as np
 
@@ -56,8 +58,9 @@ def draw(scans, rmax, info):
     cv2.line(img, (cx, cy), (cx, cy - max_r), (0, 150, 0), 1)
     _txt(img, "front", (cx + 5, cy - max_r + 16), (0, 200, 0), 0.45)
 
-    # 측정점 (LiDAR 별 색 + 각도 오프셋)
-    for measures, color, off in scans:
+    # 측정점 (LiDAR 별 색 + 각도 오프셋) + 클릭 시 LiDAR 별 클릭-최근접 점 추적
+    picks = {}  # name -> (x, y, angle, dist, color, dist2click_px2)
+    for name, measures, color, off in scans:
         for a, d in measures:
             if not (0 < d <= rmax):
                 continue
@@ -65,6 +68,10 @@ def draw(scans, rmax, info):
             r = d / rmax * max_r
             x = int(cx + r * math.sin(rel)); y = int(cy - r * math.cos(rel))
             cv2.circle(img, (x, y), 2, color, -1)
+            if click_xy is not None:
+                dp = (x - click_xy[0]) ** 2 + (y - click_xy[1]) ** 2
+                if name not in picks or dp < picks[name][5]:
+                    picks[name] = (x, y, a, d, color, dp)
 
     # 범례
     y = 28
@@ -73,8 +80,25 @@ def draw(scans, rmax, info):
              (14, y), color, 0.55)
         y += 26
     _txt(img, f"range {rmax/1000:.1f}m", (14, y), (235, 235, 235), 0.5)
-    _txt(img, "q quit  , . zoom  a/d X2 rot  [ ] X4 rot", (14, size - 12),
-         (160, 160, 160), 0.45)
+
+    # 클릭 측정: 클릭 근처의 각 LiDAR 점(거리·방위) + 그 물체 기준 X2 오프셋
+    if click_xy is not None:
+        cv2.drawMarker(img, click_xy, (255, 255, 255), cv2.MARKER_CROSS, 16, 1)
+        ang = {}
+        ty = size - 104
+        for name in ("X4", "X2"):
+            if name in picks and picks[name][5] <= 45 * 45:
+                px, py, a, d, color, _ = picks[name]
+                cv2.circle(img, (px, py), 9, color, 2)
+                _txt(img, f"{name}: {a:.1f}deg  {d/10:.0f}cm", (14, ty), color, 0.55)
+                ty += 24
+                ang[name] = a
+        if "X4" in ang and "X2" in ang:
+            offv = normalize_deg(ang["X4"] - ang["X2"])
+            _txt(img, f"=> X2 offset {offv:+.1f}deg (click obj)", (14, ty), (255, 255, 255), 0.6)
+
+    _txt(img, "q quit  L-click measure  c auto  a/d X2  [ ] X4  , . zoom  R-click clear",
+         (14, size - 12), (150, 150, 150), 0.42)
     return img
 
 
@@ -82,8 +106,8 @@ def main():
     ap = argparse.ArgumentParser(description="두 LiDAR(X4+X2) 동시 표시")
     ap.add_argument("--x4-port", default=LIDAR_X4_PORT)
     ap.add_argument("--x2-port", default=LIDAR_X2_PORT)
-    ap.add_argument("--x4-offset", type=float, default=0.0, help="X4 각도 오프셋(deg)")
-    ap.add_argument("--x2-offset", type=float, default=0.0, help="X2 각도 오프셋(deg)")
+    ap.add_argument("--x4-offset", type=float, default=float(LIDAR_X4_OFFSET_DEG), help="X4 각도 오프셋(deg)")
+    ap.add_argument("--x2-offset", type=float, default=float(LIDAR_X2_OFFSET_DEG), help="X2 각도 오프셋(deg)")
     ap.add_argument("--rmax", type=float, default=float(RMAX_MM))
     args = ap.parse_args()
 
@@ -113,19 +137,27 @@ def main():
 
     win = "dual LiDAR view"
     cv2.namedWindow(win, cv2.WINDOW_AUTOSIZE)
+    state = {"click": None}
+
+    def on_mouse(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            state["click"] = (x, y)
+        elif event == cv2.EVENT_RBUTTONDOWN:
+            state["click"] = None
+    cv2.setMouseCallback(win, on_mouse)
     try:
         while True:
             scans, info = [], []
             if x4 is not None:
-                scans.append((x4.getMeasures(), X4_COLOR, off["X4"]))
+                scans.append(("X4", x4.getMeasures(), X4_COLOR, off["X4"]))
                 info.append(("X4", X4_COLOR, len(x4.getDistanceDict()),
                              x4.is_fresh(LIDAR_MAX_AGE), args.x4_port, off["X4"]))
             if x2 is not None:
-                scans.append((x2.getMeasures(), X2_COLOR, off["X2"]))
+                scans.append(("X2", x2.getMeasures(), X2_COLOR, off["X2"]))
                 info.append(("X2", X2_COLOR, len(x2.getDistanceDict()),
                              x2.is_fresh(LIDAR_MAX_AGE), args.x2_port, off["X2"]))
 
-            img = draw(scans, rmax, info)
+            img = draw(scans, rmax, info, state["click"])
             cv2.imshow(win, img)
 
             k = cv2.waitKey(30) & 0xFF
@@ -143,6 +175,15 @@ def main():
                 off["X4"] -= 1.0
             elif k == ord("]"):
                 off["X4"] += 1.0
+            elif k == ord("c"):
+                a4 = nearest_point(x4.getMeasures())[0] if x4 is not None else None
+                a2 = nearest_point(x2.getMeasures())[0] if x2 is not None else None
+                if a4 is not None and a2 is not None:
+                    off["X2"] = normalize_deg(a4 - a2 + off["X4"])
+                    print(f"[auto-align] X4근접 {a4:.1f}deg, X2근접 {a2:.1f}deg "
+                          f"-> X2 offset {off['X2']:+.1f}deg (가까운 단일물체 기준 '대략값')")
+                else:
+                    print("[auto-align] 두 LiDAR 모두에 '가장 가까운 단일 물체'가 필요합니다.")
 
             if cv2.getWindowProperty(win, cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -154,7 +195,8 @@ def main():
         if x2 is not None:
             x2.close()
         cv2.destroyAllWindows()
-        print("종료")
+        print(f"종료. config 기입용 -> LIDAR_X4_OFFSET_DEG = {off['X4']:.1f} / "
+              f"LIDAR_X2_OFFSET_DEG = {off['X2']:.1f}")
 
 
 if __name__ == "__main__":

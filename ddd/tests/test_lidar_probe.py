@@ -86,6 +86,29 @@ def test_theoretical_spacing_monotonic():
     print("  OK theoretical spacing monotonic")
 
 
+def test_nearest_point():
+    m = [(10, 800), (350, 500), (90, 1200), (5, 90)]  # 90mm < min 120 -> 제외
+    assert probe.nearest_point(m) == (350, 500), probe.nearest_point(m)
+    assert probe.nearest_point(m, max_mm=400) == (None, None)
+    print("  OK nearest_point")
+
+
+def test_normalize_deg():
+    assert probe.normalize_deg(350) == -10
+    assert probe.normalize_deg(190) == -170
+    assert probe.normalize_deg(10) == 10
+    assert probe.normalize_deg(-190) == 170
+    print("  OK normalize_deg")
+
+
+def test_nearest_point_2d():
+    dd = {0: 1000, 90: 1000}
+    assert probe.nearest_point_2d(dd, 0, 1050)[:2] == (0, 1000), probe.nearest_point_2d(dd, 0, 1050)
+    assert probe.nearest_point_2d(dd, 88, 1000)[:2] == (90, 1000)
+    assert probe.nearest_point_2d({}, 0, 1000) == (None, None, None)
+    print("  OK nearest_point_2d")
+
+
 def main():
     print("test_lidar_probe:")
     test_angular_diff_wrap()
@@ -94,6 +117,9 @@ def main():
     test_summarize_empty()
     test_aggregate_hit_rate()
     test_theoretical_spacing_monotonic()
+    test_nearest_point()
+    test_normalize_deg()
+    test_nearest_point_2d()
     print("OK (all passed)")
 
 
