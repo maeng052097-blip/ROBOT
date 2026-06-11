@@ -64,6 +64,58 @@ def main():
     assert crop_center_zoom(img, 2.0).shape == (50, 100, 3)
     assert crop_center_zoom(img, 4.0).shape == (25, 50, 3)
     print("  OK crop_center_zoom shapes (1x/2x/4x)")
+
+    # 세로 앵커: 0.0=상단 유지, 1.0=하단 유지(가까운/낮은 물체용), 가로는 항상 중앙.
+    # 픽셀값 = 행 번호인 이미지를 만들어 어느 행이 보존되는지 '내용'으로 검증.
+    rows = np.repeat(np.arange(100, dtype=np.uint8).reshape(100, 1, 1), 200, axis=1)
+    rows = np.repeat(rows, 3, axis=2)                      # (100, 200, 3), 값=행번호
+    v_top = crop_center_zoom(rows, 2.0, 0.0)
+    v_mid = crop_center_zoom(rows, 2.0, 0.5)
+    v_bot = crop_center_zoom(rows, 2.0, 1.0)
+    assert v_top.shape == (50, 100, 3) and v_bot.shape == (50, 100, 3)
+    assert v_top[0, 0, 0] == 0 and v_top[-1, 0, 0] == 49      # 상단 0~49 보존
+    assert v_mid[0, 0, 0] == 25 and v_mid[-1, 0, 0] == 74     # 중앙(기존과 동일)
+    assert v_bot[0, 0, 0] == 50 and v_bot[-1, 0, 0] == 99     # 하단 50~99 보존(근거리용)
+    print("  OK crop anchor_y keeps top/center/bottom rows (0.0/0.5/1.0)")
+
+    # 수동 포커스 클램프: UVC 규약(0~250, 5의 배수)
+    from common.camera import clamp_focus
+    assert clamp_focus(-10) == 0 and clamp_focus(0) == 0
+    assert clamp_focus(7) == 5 and clamp_focus(8) == 10
+    assert clamp_focus(250) == 250 and clamp_focus(999) == 250
+    print("  OK clamp_focus (0~250, step5)")
+
+    # view_x_from_bearing 은 view_bearing_deg 의 역함수 (왕복 일치) — LiDAR각->카메라픽셀에 사용
+    from common.fusion import view_x_from_bearing
+    for beta2 in (-20.0, -5.0, 0.0, 7.5, 25.0):
+        cxb = view_x_from_bearing(beta2, 1280.0, 70.0, 1.0)
+        assert approx(view_bearing_deg(cxb, 1280.0, 70.0, 1.0), beta2, 1e-6), f"roundtrip {beta2}"
+    print("  OK view_x_from_bearing roundtrip (inverse of view_bearing_deg)")
+
+    # 유효 반화각: 줌 z 에서 뷰가 덮는 각도 = atan(tan(hfov/2)/z). FOV 게이트는 이걸 써야 함.
+    from common.fusion import effective_half_fov_deg
+    assert approx(effective_half_fov_deg(70.0, 1.0), 35.0, 1e-9)
+    e2 = effective_half_fov_deg(70.0, 2.0)
+    assert approx(e2, math.degrees(math.atan(math.tan(math.radians(35.0)) / 2.0)), 1e-9)
+    # 뷰 가장자리(cx=view_w)의 베어링 == 유효 반화각 (정의 일치)
+    assert approx(view_bearing_deg(1280.0, 1280.0, 70.0, 2.0), e2, 1e-9)
+    # 줌 상태 왕복: 유효 FOV 안의 베어링은 픽셀로 갔다가 정확히 돌아온다 (줌 클릭/박스 근거)
+    for z in (1.0, 2.0, 4.0):
+        for b2 in (-10.0, 0.0, 12.0):
+            if abs(b2) < effective_half_fov_deg(70.0, z):
+                cxz = view_x_from_bearing(b2, 1280.0, 70.0, z)
+                assert approx(view_bearing_deg(cxz, 1280.0, 70.0, z), b2, 1e-6), (z, b2)
+    print(f"  OK effective_half_fov (70deg: 1x=35.00, 2x={e2:.2f}) + zoomed roundtrip")
+
+    # 단안(크기 기반) 거리: 9cm 물체@2m 의 픽셀폭을 핀홀로 만들고 역산 -> 2m 복원.
+    # 중앙 크롭 줌은 픽셀 밀도 불변 -> 같은 픽셀폭이면 줌 배율과 무관하게 같은 거리.
+    from common.fusion import monocular_range_mm
+    f_full = 1920.0 / (2.0 * math.tan(math.radians(35.0)))
+    wpx = 90.0 * f_full / 2000.0
+    assert approx(monocular_range_mm(wpx, 1920.0, 70.0, 1.0, 90.0), 2000.0, 1e-6)
+    assert approx(monocular_range_mm(wpx, 960.0, 70.0, 2.0, 90.0), 2000.0, 1e-6)  # 줌 불변
+    assert monocular_range_mm(0, 1920.0, 70.0, 1.0, 90.0) is None
+    print("  OK monocular_range (9cm@2m roundtrip, zoom-invariant, guard)")
     print("OK (all passed)")
 
 

@@ -15,7 +15,12 @@ def make_lidar(model, port, baud=None):
     m = (model or "x2").lower()
     if m == "x4":
         from drivers.LidarX4 import LidarX4
-        return LidarX4(port, baud or 128000)
+        try:
+            from common.config import LIDAR_X4_DIST_SCALE, LIDAR_X4_DIST_OFFSET_MM
+        except Exception:
+            LIDAR_X4_DIST_SCALE, LIDAR_X4_DIST_OFFSET_MM = 1.0, 0.0
+        return LidarX4(port, baud or 128000,
+                       dist_scale=LIDAR_X4_DIST_SCALE, dist_offset_mm=LIDAR_X4_DIST_OFFSET_MM)
     from drivers.LidarX2 import LidarX2
     try:
         from common.config import LIDAR_X2_DIST_SCALE, LIDAR_X2_DIST_OFFSET_MM

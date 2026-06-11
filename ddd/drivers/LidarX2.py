@@ -69,15 +69,27 @@ class LidarX2:
         with self.lock:
             return list(self.measures)
 
-    def getDistanceDict(self):
-        """각도(0~359) → 거리(mm). 각 각도는 최근 측정들의 '중앙값'(노이즈 평활)."""
-        buckets = {}
+    def getDistanceDict(self, freshest=False):
+        """각도(0~359) → 거리(mm).
+
+        freshest=False(기본): 각 각도의 최근 측정들의 '중앙값'(노이즈↓, 단 누적 median이라
+            '움직이는' 물체는 stale 배경과 섞여 마스킹/지연될 수 있음 - 정적 장면용).
+        freshest=True: 각 각도의 '가장 최근' 값(저지연·반응↑ -> 움직이는 물체 추적용.
+            노이즈는 약간↑). measures 는 시간순 append 라 뒤쪽이 최신.
+        """
         with self.lock:
-            for angle, distance in self.measures:
-                if distance <= 0:
-                    continue
-                int_angle = int(round(angle)) % 360
-                buckets.setdefault(int_angle, []).append(distance)
+            ms = list(self.measures)
+        if freshest:
+            latest = {}
+            for angle, distance in ms:        # 시간순 -> 같은 각도는 뒤(최신)가 덮어씀
+                if distance > 0:
+                    latest[int(round(angle)) % 360] = int(distance)
+            return latest
+        buckets = {}
+        for angle, distance in ms:
+            if distance <= 0:
+                continue
+            buckets.setdefault(int(round(angle)) % 360, []).append(distance)
         return {a: int(median(v)) for a, v in buckets.items()}
 
     def seconds_since_update(self):

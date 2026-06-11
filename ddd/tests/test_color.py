@@ -55,6 +55,20 @@ def main():
     hsv = np.full((20, 20, 3), (175, 255, 255), np.uint8)
     assert dominant_color(cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR))[0] == "red"
     print("  OK red hue-wrap (175) -> red")
+
+    # '클릭-색 잠금' 근거 회귀: 파란 배경(지배색) 속 작은 빨강 패치 ->
+    #   지배색 방식은 blue 를 고르지만(현장 5번 이미지 버그 재현), 잠근 색('red')의
+    #   color_mask 는 패치 위치만 정확히 잡는다(잠금이 이기는 시나리오).
+    scene = solid(255, 0, 0)                          # 24x24 파랑
+    scene = np.repeat(np.repeat(scene, 4, 0), 4, 1)   # 96x96 파랑
+    scene[60:84, 36:60] = (0, 0, 255)                 # 24x24 빨강 패치(약 6% 면적)
+    assert dominant_color(scene)[0] == "blue", "지배색은 blue(버그 재현 전제)"
+    rm = color_mask(scene, "red")
+    assert rm[60:84, 36:60].min() > 0, "잠근 red 마스크가 패치를 잡아야 함"
+    assert rm[:60, :].max() == 0 and rm[:, :36].max() == 0, "패치 밖(파랑)은 0이어야 함"
+    frac = float((rm > 0).mean())
+    assert 0.01 <= frac <= 0.10, f"패치 면적비 {frac:.3f} (min-area 0.01 게이트 통과 확인)"
+    print("  OK click-color-lock: dominant=blue 장면에서 red 잠금이 패치만 검출")
     print("OK (all passed)")
 
 
