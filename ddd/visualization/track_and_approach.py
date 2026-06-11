@@ -40,7 +40,11 @@
     감싸는 '유동 테두리'(minAreaRect, 매 프레임 표면 모양에 맞춰 변형. 동시감지=초록).
     점 1개면 고정 사각, 거리 미확보면 가장자리 틱. 이전 스캔 2~3개를 어둡게 잔상 표시.
   단안 거리: LiDAR 미검출인데 색 박스가 있으면 'cam~NNcm'(크기 기반, --obj-width-cm=9).
-    표시용 보조값 — 자율접근(ARM)은 여전히 LiDAR 거리 필수(정밀 정지).
+  자율접근(ARM, 'g') 2단계:
+    [원거리] LiDAR 가 표적을 아직 못 잡으면 단안 거리로 '서행' 접근(정렬->전진 22%).
+       안전: 전방 ±20° 라이다 장애물 <35cm 정지 / 단안 60cm 까지 와도 LiDAR 미획득이면
+       정지+해제(스캔평면 문제 의심 — 맹목 접근 금지).
+    [정밀] LiDAR 가 잡히는 순간 자동 인계 -> 목표거리(기본 18cm) 정지. 정밀 정지는 항상 LiDAR.
   거리 표시(원거리 안정화): 직전값 ±300mm 게이트. 배경 점프/빔 미스는 0.8s 유지(HOLD
     표시) 후 상실 — 2m+ 소형 물체에서 빔이 ~5개 이하라 미스 시 배경값이 튀는 것을 억제.
   레이더 범위: [ = 축소(줌인, 가까운 물체 크게) / ] = 확대(줌아웃, 멀리까지)
@@ -68,10 +72,11 @@ from common.config import (                       # noqa: E402
     APPROACH_FACE_TOL_DEG, APPROACH_ARC_DEG, APPROACH_KX, APPROACH_KW,
     APPROACH_VX_MAX, APPROACH_W_MAX, APPROACH_COLOR_MIN_AREA,
     APPROACH_GATE_MM, APPROACH_HOLD_S,
+    CAM_APPROACH_MIN_MM, CAM_APPROACH_VX, OBSTACLE_STOP_MM, FORWARD_ANGLE_DEG,
 )
 from common.fusion import (                        # noqa: E402
     lidar_bearing, bearing_to_lidar_angle, view_x_from_bearing, view_bearing_deg,
-    effective_half_fov_deg, min_distance_in_arc, monocular_range_mm,
+    effective_half_fov_deg, min_distance_in_arc, monocular_range_mm, blocking_distance,
 )
 from common.lidar_metrics import angular_diff          # noqa: E402
 from common.camera import (                           # noqa: E402
@@ -79,7 +84,7 @@ from common.camera import (                           # noqa: E402
     FrameGrabber, camera_info,
 )
 from common.color import dominant_color, color_mask  # noqa: E402
-from common.approach import approach_command, RangeGate  # noqa: E402
+from common.approach import approach_command, cam_approach_command, RangeGate  # noqa: E402
 
 CHROMATIC = {"red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"}
 # 수동 주행 키 -> (vx, vy, w) 단위방향(속도는 mspeed 배율). hold-to-drive:
@@ -435,25 +440,69 @@ def main():
             if state["armed"]:
                 if lidar is not None and not fresh:
                     send("STOP")
+                    if time.time() - state.get("wait_t", 0) > 1.0:
+                        state["wait_t"] = time.time()
+                        print("[자율대기] LiDAR STALE — 데이터 끊김")
                 elif co_detect:
-                    try:
-                        # 반환: (vx[+전진], vy[+우strafe], w[+우회전CW], state)
-                        vx, vy, w, st = approach_command(
-                            obj_range, bearing, args.target_mm,
-                            deadband_mm=APPROACH_DEADBAND_MM, min_safe_mm=APPROACH_MIN_SAFE_MM,
-                            face_tol_deg=APPROACH_FACE_TOL_DEG, kx=APPROACH_KX, kw=APPROACH_KW,
-                            vx_max=APPROACH_VX_MAX, w_max=APPROACH_W_MAX)
-                        send(f"V {vx} {vy} {w}")
-                        if st in ("ARRIVED", "TOO_CLOSE", "LOST"):
-                            send("STOP")
-                            state["armed"] = False
-                            print(f"[자율정지] {st} (range={obj_range})")
-                    except Exception as exc:                 # 제어 예외 -> 안전 정지 + 해제
+                    # 차단물 가드: 표적보다 20cm 이상 가까운 점이 전방 ±20° + 35cm 안에
+                    # 난입하면 즉시 정지. (RangeGate 는 난입을 스파이크로 거부하고 직전
+                    # 표적거리로 계속 전진하므로 이 가드가 없으면 가로막혀도 박는다.)
+                    blocker = blocking_distance(dd, obj_range) if fresh else None
+                    if blocker is not None and blocker < OBSTACLE_STOP_MM:
                         send("STOP")
                         state["armed"] = False
-                        print(f"[오류] approach 중단 -> STOP: {exc}")
+                        print(f"[자율정지] 전방 차단물 {blocker/10:.0f}cm"
+                              f" (표적 {obj_range/10:.0f}cm 앞을 가로막음)")
+                    else:
+                        try:
+                            # 반환: (vx[+전진], vy[+우strafe], w[+우회전CW], state)
+                            vx, vy, w, st = approach_command(
+                                obj_range, bearing, args.target_mm,
+                                deadband_mm=APPROACH_DEADBAND_MM, min_safe_mm=APPROACH_MIN_SAFE_MM,
+                                face_tol_deg=APPROACH_FACE_TOL_DEG, kx=APPROACH_KX, kw=APPROACH_KW,
+                                vx_max=APPROACH_VX_MAX, w_max=APPROACH_W_MAX)
+                            send(f"V {vx} {vy} {w}")
+                            if st in ("ARRIVED", "TOO_CLOSE", "LOST"):
+                                send("STOP")
+                                state["armed"] = False
+                                print(f"[자율정지] {st} (range={obj_range})")
+                        except Exception as exc:             # 제어 예외 -> 안전 정지 + 해제
+                            send("STOP")
+                            state["armed"] = False
+                            print(f"[오류] approach 중단 -> STOP: {exc}")
+                elif color_present and cam_range is not None:
+                    # Q1-b 카메라 단독 원거리 단계: LiDAR 가 표적을 아직 못 잡는 구간을
+                    # 단안 거리로 서행 접근. LiDAR 가 잡히는 순간 위 co_detect 분기로 인계.
+                    obst = min_distance_in_arc(dd, FORWARD_ANGLE_DEG, 20.0) if fresh else None
+                    if obst is not None and obst < OBSTACLE_STOP_MM:
+                        send("STOP")                          # 표적이 아니어도 전방 장애물 정지
+                        state["armed"] = False
+                        print(f"[자율정지] OBSTACLE {obst/10:.0f}cm (전방 장애물)")
+                    else:
+                        try:
+                            vx, vy, w, st = cam_approach_command(
+                                cam_range, bearing, CAM_APPROACH_MIN_MM,
+                                face_tol_deg=APPROACH_FACE_TOL_DEG, kw=APPROACH_KW,
+                                vx_far=CAM_APPROACH_VX, w_max=APPROACH_W_MAX)
+                            send(f"V {vx} {vy} {w}")
+                            if st in ("CAM_LIMIT", "LOST"):
+                                send("STOP")
+                                state["armed"] = False
+                                print(f"[자율정지] {st} — LiDAR 미획득 상태로 60cm 도달"
+                                      f"(cam~{cam_range/10:.0f}cm). 스캔평면/레벨링 확인 필요")
+                        except Exception as exc:
+                            send("STOP")
+                            state["armed"] = False
+                            print(f"[오류] cam approach 중단 -> STOP: {exc}")
                 else:
                     send("STOP")  # 동시감지 안되면 정지 후 대기
+                    if time.time() - state.get("wait_t", 0) > 1.0:   # 막힌 이유를 말한다
+                        state["wait_t"] = time.time()
+                        print(f"[자율대기] 색={'O' if color_present else 'X'}"
+                              f" 라이다거리={'O' if obj_range is not None else 'X'}"
+                              f" cam거리={'O' if cam_range is not None else 'X'}"
+                              f" bearing={'없음(클릭 필요)' if bearing is None else f'{bearing:+.0f}deg'}"
+                              f" lock={state['color'] or 'auto(카메라쪽 물체를 클릭해 색 잠금 권장)'}")
 
             # ----- 수동 주행(hold-to-drive): 키 누르는 동안 반복 전송, 떼면 STOP -----
             if state["manual"] is not None and not state["armed"]:
@@ -574,8 +623,18 @@ def main():
             elif k == ord('g'):
                 state["armed"] = not state["armed"]
                 state["manual"] = None
-                if not state["armed"]:
+                if state["armed"]:
+                    issues = []
+                    if ser is None:
+                        issues.append("모터 미연결(시작 로그의 [경고] 확인) — 절대 못 움직임")
+                    if state["bearing"] is None:
+                        issues.append("추적 대상 없음 — 먼저 물체를 클릭")
+                    if not state["color"]:
+                        issues.append("색 잠금 없음 — 카메라 화면의 물체를 클릭하면 잠김")
+                    print("[ARM] 자율접근 켜짐" + (" | 주의: " + " / ".join(issues) if issues else ""))
+                else:
                     send("STOP")
+                    print("[DISARM] 자율접근 꺼짐")
             elif k == ord(' '):
                 state["armed"] = False
                 state["manual"] = None

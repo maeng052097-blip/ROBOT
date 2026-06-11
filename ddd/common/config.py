@@ -129,3 +129,9 @@ APPROACH_COLOR_MIN_AREA = 0.01
 # HOLD_S 동안 직전값 유지 후 상실. (2m+ 소형 물체는 빔 ~5개 이하라 미스 시 배경값이 튐)
 APPROACH_GATE_MM = 300
 APPROACH_HOLD_S = 0.8
+# 카메라 단독 원거리 접근(Q1-b): LiDAR 가 표적을 아직 못 잡는 구간에서 단안 거리로 서행.
+#   - CAM_APPROACH_MIN_MM 까지 왔는데도 LiDAR 미획득이면 정지(스캔평면 문제 -> 맹목 접근 금지)
+#   - 전방 ±20° 에 OBSTACLE_STOP_MM 미만 장애물(라이다)이 보이면 정지(표적이 아니어도 안전)
+CAM_APPROACH_MIN_MM = 600
+CAM_APPROACH_VX = 22        # 서행 전진 속도(%)
+OBSTACLE_STOP_MM = 350

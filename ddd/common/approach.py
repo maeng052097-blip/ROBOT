@@ -19,6 +19,25 @@ def _clamp(v, m):
     return max(-m, min(m, v))
 
 
+def cam_approach_command(cam_range_mm, bearing_deg, min_cam_mm=600.0,
+                         face_tol_deg=8.0, kw=1.2, vx_far=22, w_max=30):
+    """카메라 단독(단안 거리) '원거리' 접근 — LiDAR 가 표적을 아직 못 잡는 구간용.
+
+    동작: 표적을 회전으로 정면 정렬(±face_tol) -> 정면일 때만 서행 전진(vx_far).
+    LiDAR 가 잡히면 호출측이 일반 approach_command 로 인계한다(이 함수는 모름).
+    안전: cam_range < min_cam_mm 인데도 여기 머문다(=LiDAR 미획득)면 'CAM_LIMIT'
+    정지 — 단안 오차(±수~10%)로 더 파고드는 맹목 접근을 금지. 측정 없으면 LOST.
+    returns (vx, vy, w, state)  state: CAM_APPROACH | CAM_LIMIT | LOST
+    """
+    if cam_range_mm is None:
+        return 0, 0, 0, "LOST"
+    if cam_range_mm < min_cam_mm:
+        return 0, 0, 0, "CAM_LIMIT"
+    w = int(round(_clamp(kw * bearing_deg, w_max)))
+    vx = int(vx_far) if abs(bearing_deg) <= face_tol_deg else 0
+    return vx, 0, w, "CAM_APPROACH"
+
+
 class RangeGate:
     """원거리 거리 추적 게이트(스파이크 억제) — 순수 로직, 하드웨어 불필요.
 

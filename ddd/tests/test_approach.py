@@ -71,6 +71,37 @@ def main():
         t += 0.15
     print("  OK RangeGate follows approaching target (window re-centers)")
 
+    # ---- cam_approach_command: 카메라 단독 원거리 단계(Q1-b) ----
+    from common.approach import cam_approach_command
+    # 측정 없음 -> LOST 정지
+    assert cam_approach_command(None, 0.0) == (0, 0, 0, "LOST")
+    # 60cm 한계 미만인데 아직 이 단계(=LiDAR 미획득) -> CAM_LIMIT 정지
+    assert cam_approach_command(550.0, 0.0, min_cam_mm=600.0) == (0, 0, 0, "CAM_LIMIT")
+    # 멀고 정면 -> 서행 전진
+    vx, vy, w, st = cam_approach_command(2000.0, 0.0, min_cam_mm=600.0, vx_far=22)
+    assert (vx, vy, w, st) == (22, 0, 0, "CAM_APPROACH"), (vx, vy, w, st)
+    # 옆에 있으면 회전만(정면 정렬 전 전진 금지)
+    vx, vy, w, st = cam_approach_command(2000.0, 25.0, face_tol_deg=8.0, w_max=30)
+    assert vx == 0 and w == 30 and st == "CAM_APPROACH", (vx, vy, w, st)
+    # 좌측 표적 -> 좌회전(-)
+    _, _, w, _ = cam_approach_command(2000.0, -25.0, w_max=30)
+    assert w == -30, w
+    print("  OK cam_approach: LOST/CAM_LIMIT stop, align-then-creep, turn signs")
+
+    # ---- blocking_distance: 접근 중 난입 차단물 감지(표적은 차단물 아님) ----
+    from common.fusion import blocking_distance
+    # 표적 1m 추적 중 전방 2도에 20cm 난입 -> 차단물 200
+    assert blocking_distance({0: 1000, 2: 200}, 1000.0) == 200
+    # 표적 점만 있음 -> None (1000 >= 1000-200)
+    assert blocking_distance({0: 1000, 3: 950}, 1000.0) is None
+    # 도착 직전(표적 18cm): 표적 자체로는 절대 오발 불가(d < -20 불가능)
+    assert blocking_distance({0: 180, 1: 175}, 180.0) is None
+    # 옆(90도)의 가까운 점은 전방 호 밖 -> 무시
+    assert blocking_distance({90: 150, 0: 1000}, 1000.0) is None
+    # 표적 거리 미상 -> None
+    assert blocking_distance({0: 200}, None) is None
+    print("  OK blocking_distance: intruder caught, target/side/arrival never trigger")
+
     print("OK (all passed)")
 
 

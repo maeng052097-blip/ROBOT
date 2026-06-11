@@ -117,6 +117,27 @@ def view_x_from_bearing(bearing_deg, view_w, hfov_deg, zoom=1.0):
     return 0.0 if cx < 0 else (view_w if cx > view_w else cx)
 
 
+def blocking_distance(dd, target_range_mm, clear_margin_mm=200.0,
+                      half_arc_deg=20.0, forward_deg=FORWARD_ANGLE_DEG):
+    """접근 경로의 '차단물' 거리(mm). 없으면 None.
+
+    차단물 = 전방 ±half_arc 안이면서 '표적보다 clear_margin 이상 가까운' 점.
+    표적 자체는 차단물이 아니므로(d >= target - margin) 도착 직전(표적 18cm)에도
+    오발하지 않는다 — 표적보다 20cm 이상 앞을 가로막는 것만 잡는다.
+    (RangeGate 는 난입 물체를 '스파이크'로 거부하고 직전 표적거리로 계속 전진하므로,
+    이 함수가 없으면 가로막힌 줄 모르고 박는다 — 자율접근 분기 필수 가드.)
+    """
+    if target_range_mm is None:
+        return None
+    best = None
+    for a, d in dd.items():
+        if d <= 0 or d >= target_range_mm - clear_margin_mm:
+            continue
+        if angular_diff(a, forward_deg) <= half_arc_deg and (best is None or d < best):
+            best = d
+    return best
+
+
 def monocular_range_mm(box_w_px, view_w_px, hfov_deg, zoom=1.0, obj_width_mm=90.0):
     """크기를 아는 물체의 '카메라 단독' 거리(mm). 핀홀: D = W_real * f_view / w_px.
 
