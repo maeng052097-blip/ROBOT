@@ -18,9 +18,16 @@ COCO_WEIGHTS_PATH = MODELS_DIR / "yolov8n.pt"
 
 # ===== 2-카메라(LiDAR 양 옆) 구성 =====
 # 좌/우 카메라 인덱스 + LiDAR 중심에서의 가로 오프셋(mm). 좌=-OFFSET, 우=+OFFSET.
-CAM_LEFT_INDEX = 1
-CAM_RIGHT_INDEX = 2
-CAM_SIDE_OFFSET_MM = 100   # 각 카메라가 LiDAR에서 10cm 옆
+CAM_LEFT_INDEX = 1    # 왼쪽 카메라(=하양/white). off_x=-170. cv2 인덱스는 find_camera 로 확인.
+CAM_RIGHT_INDEX = 2   # 오른쪽 카메라(=검정/black). off_x=+170.
+# ⚠ 색(검정/하양)은 표시 라벨일 뿐 계산과 무관. 중요한 건 '왼/오른쪽 위치'->off_x 부호.
+#   인덱스↔좌/우 확인: 왼쪽 카메라를 손으로 가려 어느 창이 어두워지는지로 확정(가려진 쪽=왼쪽=CAM_LEFT_INDEX).
+# 두 카메라 간격 34cm -> LiDAR 중앙 기준 각 카메라 ±17cm. 좌=-170, 우=+170 (off_x).
+# ⚠ 가정: LiDAR 가 두 카메라 정중앙. 비대칭 장착이면 좌/우 오프셋을 따로 둬야 함(현재 대칭).
+CAM_SIDE_OFFSET_MM = 170
+# 카메라 toe(수렴) 각도(deg). 0 = 두 카메라 평행(가정). 바깥/안쪽으로 벌어졌으면 실측해 설정
+# (정면 1m 물체를 좌/우 카메라가 대칭으로 ±5.7° 에 보면 평행). ray_bearing 에 가산됨.
+CAM_TOE_DEG = 0.0
 # YOLO 변환 데이터셋(images/labels) 위치. 대용량이라 저장소 밖(main)에 둔다.
 # 현재 실제 데이터는 아래 위치에 있다(5,601장). 환경이 바뀌면 이 값만 수정.
 # 재학습(train.py)·라벨검증(verify_labels.py)·변환(convert_*) 이 공유한다.
@@ -105,8 +112,10 @@ CAMERA_LIDAR_SIGN = 1
 #   뒤집힘 -> 라이다 각도 증가 방향이 좌우로 '거울 반전'(전방=빨간 점은 그대로).
 #   True 면 코드가 raw 각도를 전방축 기준으로 미러링해 로봇 좌표(정면0/우측+)와 맞춘다.
 #   유효 부호 = (LIDAR_FLIPPED?-1:+1) * CAMERA_LIDAR_SIGN  (fusion.lidar_dir_sign()).
-#   ※ 실제 미러 방향과 전방각(빨간 점)은 하드웨어에서 확인 후 확정(검증절차 참고). 반대면 토글.
-LIDAR_FLIPPED = True
+#   ※ 2026-06 라이다를 '원상태(정방향, 뒤집힘 아님)'로 재장착 -> False 로 변경.
+#   ⚠ 재장착 후 미검증: tests/test_flip.py + 정면/우측 20° 물체를 두고 레이더에서
+#     오른쪽 물체가 오른쪽에 찍히는지 확인. 반대면 다시 True 로 토글. FORWARD_ANGLE_DEG 도 재측정.
+LIDAR_FLIPPED = False
 # 베어링 <-> LiDAR 각도 매칭 허용오차(deg).
 FUSION_TOL_DEG = 4.0
 

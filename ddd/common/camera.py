@@ -12,16 +12,23 @@ import time
 from common.config import CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS
 
 
-def open_camera(index, width=CAMERA_WIDTH, height=CAMERA_HEIGHT):
+def open_camera(index, width=CAMERA_WIDTH, height=CAMERA_HEIGHT, fps=CAMERA_FPS):
     """카메라를 연다. cv2.VideoCapture 반환(isOpened()/read()로 확인).
 
     여러 조합을 순서대로 시도해, '실제 프레임이 나오는' 첫 조합을 쓴다.
       1) DSHOW + 지정 해상도(빠름)   2) DSHOW + 기본 해상도
       3) 기본 백엔드 + 지정 해상도   4) 기본 백엔드 + 기본 해상도
     (열리기만 하고 프레임을 못 주는 경우 'isOpened=True'여도 다음으로 넘어간다.)
+
+    ★ 두 카메라 동시 구동 시 MJPG(압축) 가 '필수'다: YUY2(무압축) 1080p 는 한 대가
+      ~250MB/s 라 같은 USB 버스의 두 대는 대역폭 초과 -> 한 대가 검게 끊긴다. 일부
+      드라이버는 해상도를 바꾸면 FOURCC 를 YUY2 로 되돌리므로 MJPG 를 크기설정 '뒤'에
+      한 번 더 못박는다. 그래도 YUY2 로 남으면 camera_info 로 확인 후 해상도/FPS 를
+      낮추거나 두 카메라를 서로 다른 USB 컨트롤러(허브)에 분리 연결해야 한다.
     """
     import cv2
 
+    mjpg = cv2.VideoWriter_fourcc(*"MJPG")
     attempts = [
         (cv2.CAP_DSHOW, True),
         (cv2.CAP_DSHOW, False),
@@ -35,12 +42,11 @@ def open_camera(index, width=CAMERA_WIDTH, height=CAMERA_HEIGHT):
             continue
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)   # 내부 지연버퍼 최소화(미지원 드라이버는 무시)
         if set_res:
-            # StreamCam 의 1080p60 은 MJPEG 전용(YUY2 는 USB 대역폭상 불가).
-            # FOURCC 는 해상도보다 '먼저' 설정해야 적용된다(Windows/DSHOW 레시피).
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            cap.set(cv2.CAP_PROP_FOURCC, mjpg)              # MJPG 먼저
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-            cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
+            cap.set(cv2.CAP_PROP_FPS, fps)
+            cap.set(cv2.CAP_PROP_FOURCC, mjpg)              # 크기변경 후 YUY2 로 되돌림 방지(재설정)
         ok, _ = cap.read()
         if ok:
             return cap          # 프레임 확인됨 -> 이 조합 사용
