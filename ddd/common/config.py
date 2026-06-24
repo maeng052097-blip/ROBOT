@@ -25,8 +25,10 @@ CAM_RIGHT_INDEX = 2   # 오른쪽 카메라(=검정/black). off_x=+170.
 # 두 카메라 간격 34cm -> LiDAR 중앙 기준 각 카메라 ±17cm. 좌=-170, 우=+170 (off_x).
 # ⚠ 가정: LiDAR 가 두 카메라 정중앙. 비대칭 장착이면 좌/우 오프셋을 따로 둬야 함(현재 대칭).
 CAM_SIDE_OFFSET_MM = 170
-# 카메라 toe(수렴) 각도(deg). 0 = 두 카메라 평행(가정). 바깥/안쪽으로 벌어졌으면 실측해 설정
-# (정면 1m 물체를 좌/우 카메라가 대칭으로 ±5.7° 에 보면 평행). ray_bearing 에 가산됨.
+# 카메라 toe 각도(deg). 0=평행. ray_bearing 에 가산되는 시차 보정값.
+# ※ 2026-06: 카메라를 toe-IN(안쪽 수렴)으로 재장착 -> track 의 state["toe"]는 보통 '양수'에서 맞음
+#   (이전 toe-out 은 음수였음). 정확값은 track 에서 n/m 으로 '정면 물체가 좌/우 클릭 모두
+#   rb≈0' 되게 현장 튜닝 후 여기 기입. (config 기본값은 0, 미튜닝 시 한 카메라 편향 가능)
 CAM_TOE_DEG = 0.0
 # YOLO 변환 데이터셋(images/labels) 위치. 대용량이라 저장소 밖(main)에 둔다.
 # 현재 실제 데이터는 아래 위치에 있다(5,601장). 환경이 바뀌면 이 값만 수정.
@@ -120,9 +122,12 @@ LIDAR_FLIPPED = False
 FUSION_TOL_DEG = 4.0
 
 # ===== 메카넘 물체-접근 (visualization/track_and_approach.py) =====
-# 정지 목표 거리(mm). X4 최소측정 120mm보다 충분히 커야 신뢰(요청 10cm는 사거리 밖이라 완화).
+# 정지 목표 거리(mm) = LiDAR(중앙)에서 물체까지. 18cm 목표.
+# ※ 물체가 18cm보다 가까우면 카메라(toe-in 수렴축+근접 사각)에서 사라짐(사용자 실측).
+#   그래서 목표 180 + deadband 15 -> 멀리서 접근하면 deadband 상단(~19.5cm)에서 ARRIVED 발화,
+#   18cm 사각 진입 '전'에 정지(가시범위 유지). 더 파고들지 않게 함.
 APPROACH_TARGET_MM = 180
-APPROACH_DEADBAND_MM = 25       # 목표 ± 이 값이면 '도착'으로 보고 정지
+APPROACH_DEADBAND_MM = 15       # 접근 중 ~19.5cm 에서 도착판정(18cm 사각 진입 전 정지)
 APPROACH_MIN_SAFE_MM = 130      # 이보다 가까우면(X4 사거리 한계) 정지(블라인드존 보호)
 APPROACH_FACE_TOL_DEG = 8.0     # 베어링이 이 안이면 '정면 향함' -> 전진 허용
 APPROACH_ARC_DEG = 6.0          # 추적각 ± 이 부채꼴의 최소거리를 물체거리로 사용

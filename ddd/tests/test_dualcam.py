@@ -17,8 +17,7 @@ def approx(a, b, t=1e-6):
 
 
 def main():
-    from visualization.track_and_approach import (
-        classify_click, side_off_x, side_toe, deoverlap_keep_w)
+    from visualization.track_and_approach import classify_click, side_off_x, side_toe
     from common.config import CAM_SIDE_OFFSET_MM
     from common.fusion import distance_along_ray
     from common.lidar_metrics import normalize_deg
@@ -70,22 +69,6 @@ def main():
     assert approx(rb, 0.0, 1e-6), (la, rb)   # 로봇기준 정면 = 0
     assert la == 30                          # 반환은 raw 각도(30)
     print("  OK robot_bearing = signed_diff(lidar_angle, FORWARD) (no double-flip)")
-
-    # ⑤ 대안1 겹침제거 크롭 기하 + 크롭-인지 클릭 라운드트립
-    W = 640
-    assert deoverlap_keep_w(W, 0.0, 70.0) == 320            # 평행 -> 절반 유지(안 넓어짐)
-    assert deoverlap_keep_w(W, -35.0, 70.0) == 640          # toe=hfov/2 -> 겹침0(전체 유지)
-    kw = deoverlap_keep_w(W, -10.0, 70.0)                   # toe-out 10도
-    assert 320 < kw < 640                                   # 절반보다 넓고 전체보단 작게
-    # 우패널 좌끝(x=kw) = 씸 = 원본 우카메라 x = cam_w-kw (bearing 0 지점)
-    assert classify_click(kw, W, kw) == ("R", W - kw)
-    # 좌패널 우끝(x=kw-1) = 원본 좌카메라 x = kw-1
-    assert classify_click(kw - 1, W, kw) == ("L", kw - 1)
-    # radar 는 2*kw 이후, 로컬좌표 = x-2*kw
-    assert classify_click(2 * kw + 5, W, kw) == ("radar", 5)
-    # keep_w=None(크롭 없음)은 종전 동작과 동일해야(상단 ①과 일관)
-    assert classify_click(650, W) == ("R", 10)
-    print(f"  OK de-overlap crop geometry + click round-trip (kw@10deg={kw})")
 
     print("OK (all passed)")
 

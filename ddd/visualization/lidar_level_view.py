@@ -21,6 +21,12 @@ import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+try:    # 콘솔(cp949)에 없는 문자를 print 해도 앱이 죽지 않게(? 로 대체). 한글은 그대로.
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+except Exception:
+    pass
+
 from common.config import LIDAR_X4_PORT, LIDAR_X4_BAUDRATE, FORWARD_ANGLE_DEG  # noqa: E402
 from common.fusion import lidar_bearing, min_distance_in_arc                   # noqa: E402
 

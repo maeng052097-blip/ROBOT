@@ -1,4 +1,4 @@
-"""camera_align_view.py — 두 카메라 '위치/중심' 물리 정렬 전용 도구. LiDAR/모터 없음.
+"""camera_align_view.py - 두 카메라 '위치/중심' 물리 정렬 전용 도구. LiDAR/모터 없음.
 
 목적: 본격 작업(겹침제거 crop, toe 보정) 전에 두 카메라를 손으로 맞춘다.
       lidar_level_view.py 의 카메라판. 화면 가이드 + 클릭 측정만 본다.
@@ -35,6 +35,12 @@ import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+try:    # 콘솔(cp949)에 없는 문자를 print 해도 앱이 죽지 않게(? 로 대체). 한글은 그대로.
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+except Exception:
+    pass
+
 from common.config import (CAM_LEFT_INDEX, CAM_RIGHT_INDEX, CAMERA_HFOV_DEG)  # noqa: E402
 from common.fusion import view_bearing_deg                                     # noqa: E402
 
@@ -62,7 +68,7 @@ def main():
             print(f"[{name}] open 예외: {e}")
             return None
         if cap is None or not cap.isOpened():
-            print(f"[{name}] 카메라({idx}) 열기 실패 — 인덱스/USB 확인.")
+            print(f"[{name}] 카메라({idx}) 열기 실패 - 인덱스/USB 확인.")
             return None
         print(f"[{name}] 카메라({idx}) OK  {camera_info(cap)}")
         return FrameGrabber(cap)
@@ -110,7 +116,7 @@ def main():
         # 카메라 영상 중심 십자(=광축 기준)
         cv2.line(panel, (cx, 0), (cx, PH), (0, 200, 200), 1)
         cv2.line(panel, (0, cy), (PW, cy), (0, 200, 200), 1)
-        # 공용 수평 기준선(양 패널 동일 y) — roll/높이 정렬용
+        # 공용 수평 기준선(양 패널 동일 y) - roll/높이 정렬용
         cv2.line(panel, (0, state["ref_y"]), (PW, state["ref_y"]), (0, 220, 255), 1)
         # 표식
         m = state["mark"][side]
@@ -132,8 +138,8 @@ def main():
                 diff = cv2.convertScaleAbs(cv2.absdiff(pL, pR), alpha=2.0)
                 cv2.line(blend, (0, state["ref_y"]), (PW, state["ref_y"]), (0, 220, 255), 1)
                 cv2.line(blend, (PW // 2, 0), (PW // 2, PH), (0, 200, 200), 1)
-                txt(blend, "BLEND (L+R) — 원거리물체가 겹치면 roll/높이 정렬됨", (6, 18), (0, 255, 255), 0.45)
-                txt(diff, "DIFF (|L-R|) — 어두울수록 정렬 양호", (6, 18), (200, 200, 0), 0.45)
+                txt(blend, "BLEND (L+R) - 원거리물체가 겹치면 roll/높이 정렬됨", (6, 18), (0, 255, 255), 0.45)
+                txt(diff, "DIFF (|L-R|) - 어두울수록 정렬 양호", (6, 18), (200, 200, 0), 0.45)
                 canvas = np.hstack([blend, diff])
             else:
                 draw_guides(pL, "L")

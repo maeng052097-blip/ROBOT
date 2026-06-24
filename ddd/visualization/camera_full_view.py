@@ -1,8 +1,8 @@
-"""camera_full_view.py — 두 카메라를 '각각 전체 화면'으로 따로 띄우는 정렬용 뷰어.
+"""camera_full_view.py - 두 카메라를 '각각 전체 화면'으로 따로 띄우는 정렬용 뷰어.
 
 용도: 물리적으로 카메라 위치를 맞출 때, 각 카메라의 '풀 프레임'을 독립 창으로 크게 보고
       가운데 기준선(세로/가로 십자)에 기준 물체를 올려 좌/우 카메라를 같은 중심에 맞춘다.
-      (작은 패널로 줄이지 않음 — 창 2개를 각각 옮기거나 최대화해서 본다.)
+      (작은 패널로 줄이지 않음 - 창 2개를 각각 옮기거나 최대화해서 본다.)
       기준이 잡히면 합쳐 보는 건 track_and_approach.py 의 와이드/겹침제거(o) 로 본다.
 
 표시(각 창):
@@ -23,6 +23,12 @@ import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+try:    # 콘솔(cp949)에 없는 문자를 print 해도 앱이 죽지 않게(? 로 대체). 한글은 그대로.
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+except Exception:
+    pass
 
 from common.config import CAM_LEFT_INDEX, CAM_RIGHT_INDEX  # noqa: E402
 
@@ -53,7 +59,7 @@ def main():
             print(f"[{name}] open 예외: {e}")
             return None
         if cap is None or not cap.isOpened():
-            print(f"[{name}] 카메라({idx}) 열기 실패 — 인덱스/USB 확인(find_camera).")
+            print(f"[{name}] 카메라({idx}) 열기 실패 - 인덱스/USB 확인(find_camera).")
             return None
         info = camera_info(cap)
         print(f"[{name}] 카메라({idx}) OK  {info}")

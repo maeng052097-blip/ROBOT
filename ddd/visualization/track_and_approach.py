@@ -1,4 +1,4 @@
-"""track_and_approach.py — LiDAR + 2카메라(양옆) 클릭 추적 + 색/거리(시차보정) + 메카넘 접근.
+"""track_and_approach.py - LiDAR + 2카메라(양옆) 클릭 추적 + 색/거리(시차보정) + 메카넘 접근.
 
 장착(2026-06 재설계):
   - 카메라 2대가 LiDAR 양옆에 부착(간격 34cm). 왼쪽=하양/white(off_x -170mm),
@@ -9,12 +9,19 @@
   카메라가 LiDAR 에서 10cm 옆이라 '카메라 베어링 != 로봇 방위'. 클릭한 카메라의 off_x 로
   fusion.distance_along_ray 를 쓰면 (거리, 라이다각도)를 얻고, 그 라이다각도가 곧 '로봇 기준'
   방위(검증: 정면 물체 -> 0°, 우측 20° -> 20°). 이 로봇 방위로 접근을 조향한다.
-  ⚠ 로봇 방위 = signed_diff(lidar_angle, FORWARD) — lidar_bearing() 재적용 금지(플립 이중적용).
+  ⚠ 로봇 방위 = signed_diff(lidar_angle, FORWARD) - lidar_bearing() 재적용 금지(플립 이중적용).
 
-흐름:
-  1) 두 카메라 중 한쪽 화면에서 물체 클릭 -> 그 카메라(side) 고정 + 그 지점 색 잠금.
-  2) 매 프레임 그 카메라에서 색 박스 추적(추종) + 시차로 거리/로봇방위 산출, 레이더에 표시.
+흐름(수동):
+  1) 두 카메라 중 한쪽 화면에서 물체 클릭 -> 그 지점 색 잠금(화면은 3분할, 합치지 않음).
+  2) 매 프레임 '양 카메라'에서 잠근 색을 검출: 둘 다 보이면 둘 다 포커싱(각자 박스),
+     한쪽만 보이면 그쪽만. 시차로 거리/로봇방위 산출(둘 다면 박스 큰 쪽이 대표), 레이더 표시.
   3) 색 + LiDAR 거리 동시 감지 & ARM('g') -> 메카넘으로 목표거리(기본 18cm) 접근/정지.
+흐름(자율 'u'):
+  클릭 없이 매 프레임 '가장 큰 유채색 블롭'을 자동 표적선택 -> 자동 ARM -> 양 카메라가 동시에
+  보며 그 평균 방위로 조향(물체가 '로봇 중심'에 오도록) -> 18cm 앞까지 접근/정지.
+  (물체는 18cm보다 가까우면 카메라 사각이라, ~19.5cm 도착판정 또는 근접상실=도착으로 정지.)
+  원거리에서 표적을 오래 놓치면 해제하고 재탐색. space/e/g 는 자율을 끈다.
+  ⚠ 자율은 로봇이 스스로 움직임 -> 첫 시험은 반드시 '바퀴 들고'. 차단물·데드맨 안전 유지.
 
 안전: 기본 DISARM. 차단물(<35cm)·도착·놓침·스테일 -> STOP+DISARM. 펌웨어 데드맨 1.5s.
   ⚠ 융합상수(LIDAR_FLIPPED/FORWARD_ANGLE_DEG/HFOV/CAM_TOE_DEG/카메라인덱스)는 재장착 후
@@ -23,12 +30,11 @@
 실행: py -3.13 visualization/track_and_approach.py --cam-left 1 --cam-right 2 --port COM8 --motor-port COM3
 키:
   좌클릭(좌/우 카메라)=그 물체 추적 + 색 잠금 | 좌클릭(레이더)=로봇방위 지정(색없음/표시용)
-  우클릭=해제, g=ARM/DISARM, space=STOP, e=ESTOP, ESC=종료
+  우클릭=해제, u=자율주행(클릭없이 자동접근) 토글, g=수동ARM/DISARM, space=STOP, e=ESTOP, ESC=종료
   수동 주행(hold-to-drive): 방향키 ↑↓=전후 ←→=좌우회전 | w/s a/d z/c q/r v/b (메카넘 8방향)
     1/2/3=속도 20/35/50%, x=미세모드
   카메라줌 =/- (양 카메라 공유), 세로앵커 i/k, 포커스 f(AF토글) ,/.(±5, 양 카메라 동기)
-  toe보정 n/m (±0.5°): toe-out 카메라의 시차 거리 보정. 정면 물체를 좌/우 클릭 모두 rb≈0 되게.
-  겹침제거 o (대안1): 두 카메라 중복(가운데)을 잘라 비겹침 와이드. toe-out 클수록 더 넓어짐.
+  toe보정 n/m (±0.5°): toe-out 카메라의 시차 거리 보정. 정면 물체를 좌/우 클릭 모두 rb~0 되게.
   레이더범위 [ ]
   접근알림: 20cm 이내 진입 시 5초 배너(영문 'WITHIN 20 cm', 콘솔 한글)
 """
@@ -40,6 +46,12 @@ import pathlib
 from collections import deque
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+try:    # 콘솔(cp949)에 없는 문자를 print 해도 앱이 죽지 않게(? 로 대체). 한글은 그대로.
+    sys.stdout.reconfigure(errors="replace")
+    sys.stderr.reconfigure(errors="replace")
+except Exception:
+    pass
 
 from common.config import (                       # noqa: E402
     LIDAR_X4_PORT, LIDAR_X4_BAUDRATE, MOTOR_PORT, MOTOR_BAUDRATE,
@@ -84,37 +96,19 @@ NOTICE_S = 5.0
 NOTICE_REARM_MM = 250.0
 FOLLOW_ALPHA = 0.5
 REACQ_MISS_N = 5
+# 자율('u'): 클릭 없이 가장 큰 유채색 블롭을 자동 표적선택 -> 자동 ARM -> 접근.
+AUTO_MIN_AREA = 0.02   # 자동선택 최소 면적비(다운스케일 뷰 기준). 작은 노이즈 제외.
+AUTO_RELEASE_S = 1.5   # 표적을 이 시간 이상 놓치면 해제(재탐색 or 도착판정).
+CLOSE_ARRIVED_MM = 240  # 마지막 본 거리가 이 안(<=24cm)에서 사라지면 '도착'(18cm 사각)으로 보고 재탐색 금지.
 
 
-def deoverlap_keep_w(cam_w, toe_deg, hfov_deg):
-    """겹침 제거(대안1) 후 각 패널이 유지할 폭(px).
-
-    물리 외향각 tau = -toe_deg (state['toe']는 toe-out 이면 음수 -> tau 양수).
-    좌패널은 원본 [0, keep], 우패널은 원본 [cam_w-keep, cam_w] 만 남겨 씸(경계)을
-    robot bearing 0 에 맞춘다. 핀홀: bearing 0 픽셀 = cam_w/2 + (cam_w/2)*tan(tau)/tan(hfov/2).
-      keep = (cam_w/2) * (1 + tan(tau)/tan(hfov/2))
-      tau=0(평행)  -> keep=절반(겹침 전부 제거, 시야는 안 넓어짐)
-      tau=hfov/2   -> keep=전체(겹침 0, 두 카메라가 맞닿음). 총 시야 = hfov + 2*tau.
-    """
-    tau = math.radians(-toe_deg)
-    half = math.radians(hfov_deg) / 2.0
-    frac = math.tan(tau) / math.tan(half) if half > 1e-6 else 0.0
-    keep = (cam_w / 2.0) * (1.0 + frac)
-    return int(max(cam_w * 0.15, min(float(cam_w), keep)))
-
-
-def classify_click(x, cam_w, keep_w=None):
-    """캔버스 x -> ('L'|'R'|'radar', 원본 패널내 x).
-
-    레이아웃: [좌패널 keep_w | 우패널 keep_w | radar]. keep_w=None 이면 크롭 없음(=cam_w).
-    좌패널 표시 [0,keep_w] = 원본 [0,keep_w]; 우패널 표시는 원본 [cam_w-keep_w, cam_w] 라
-    원본 x 로 환산해 반환(=클릭->카메라 정체->off_x->시차거리 경로 보존)."""
-    kw = cam_w if keep_w is None else int(keep_w)
-    if x < kw:
+def classify_click(x, cam_w):
+    """캔버스 x -> ('L'|'R'|'radar', 패널내 x). 레이아웃: camL | camR | radar (각 cam_w)."""
+    if x < cam_w:
         return "L", int(x)
-    if x < 2 * kw:
-        return "R", int((cam_w - kw) + (x - kw))
-    return "radar", int(x - 2 * kw)
+    if x < 2 * cam_w:
+        return "R", int(x - cam_w)
+    return "radar", int(x - 2 * cam_w)
 
 
 def side_off_x(side):
@@ -129,7 +123,7 @@ def side_toe(side):
 
 def main():
     ap = argparse.ArgumentParser(description="LiDAR + 2카메라 클릭추적 + 시차거리 + 메카넘 접근")
-    ap.add_argument("--port", default=LIDAR_X4_PORT, help="LiDAR COM 포트")
+    ap.add_argument("--port", default=LIDAR_X4_PORT, help="LiDAR COM 포트. 'auto'=자동탐지(모터 제외)")
     ap.add_argument("--baud", type=int, default=LIDAR_X4_BAUDRATE)
     ap.add_argument("--lidar", default="x4", choices=["x2", "x4"])
     ap.add_argument("--cam-left", type=int, default=CAM_LEFT_INDEX, help="왼쪽(=하양) 카메라 인덱스")
@@ -143,7 +137,8 @@ def main():
     ap.add_argument("--anchor-y", type=float, default=0.65)
     ap.add_argument("--focus", type=int, default=-1, help="시작 수동포커스(0~250). -1=AF")
     ap.add_argument("--min-area", type=float, default=APPROACH_COLOR_MIN_AREA)
-    ap.add_argument("--ui-scale", type=float, default=1.2, help="화면 배율(2카메라+레이더라 1.2 기본)")
+    ap.add_argument("--ui-scale", type=float, default=1.2, help="내부 렌더 배율(2카메라+레이더라 1.2 기본)")
+    ap.add_argument("--win-w", type=int, default=1600, help="창 초기 가로폭(px). 화면보다 작게. 더 넓은 캔버스는 비율유지 축소")
     ap.add_argument("--obj-width-cm", type=float, default=9.0)
     ap.add_argument("--cam-offset-mm", type=float, default=float(CAM_SIDE_OFFSET_MM))
     # 두 카메라 동시구동 대역폭 조절(검정 끊김 방지). YUY2 면 낮추거나 USB 분리.
@@ -156,12 +151,54 @@ def main():
     import numpy as np
     from drivers import make_lidar
 
-    lidar = make_lidar(args.lidar, args.port, args.baud)
-    if lidar.open():
-        print(f"[OK] LiDAR({args.lidar}) {args.port}")
+    import serial.tools.list_ports as _lp
+
+    def _avail_ports():
+        try:
+            return [(p.device, (p.description or "").encode("ascii", "replace").decode())
+                    for p in _lp.comports()]
+        except Exception:
+            return []
+
+    lidar = None
+    if str(args.port).lower() == "auto":
+        # 자동탐지: 모터 포트를 빼고 각 COM 을 열어 '라이다 데이터가 오는' 포트를 찾는다.
+        cands = [d for d, _ in _avail_ports() if d != args.motor_port]
+        print(f"[라이다 자동탐지] 후보 {cands or '(없음)'}")
+        for d in cands:
+            lz = make_lidar(args.lidar, d, args.baud)
+            if not lz.open():
+                continue
+            t0 = time.time(); got = False
+            while time.time() - t0 < 1.5:
+                if lz.is_fresh(0.5):
+                    got = True; break
+                time.sleep(0.05)
+            if got:
+                lidar = lz; print(f"[OK] 라이다 자동탐지 = {d}"); break
+            lz.close()
+        if lidar is None:
+            print("[경고] 라이다 자동탐지 실패 - USB/전원 확인. 거리/추적 비활성")
     else:
-        print(f"[경고] LiDAR 열기 실패 {args.port} -> 거리/추적 비활성")
-        lidar = None
+        lidar = make_lidar(args.lidar, args.port, args.baud)
+        if lidar.open():
+            t0 = time.time()    # 포트는 열려도 모터가 안 돌면 데이터가 없을 수 있다(스핀업/STOP상태)
+            while time.time() - t0 < 2.0 and not lidar.is_fresh(0.5):
+                time.sleep(0.05)
+            if lidar.is_fresh(0.5):
+                print(f"[OK] LiDAR({args.lidar}) {args.port} 스트리밍 중")
+            else:
+                print(f"[주의] LiDAR({args.lidar}) {args.port}: 포트는 열렸으나 데이터 없음"
+                      f" -> 모터 회전/전원 확인(스핀업 중이면 곧 들어옴). 계속 진행")
+        else:
+            ports = _avail_ports()
+            names = ", ".join(d for d, _ in ports) or "(COM 포트 없음 = 장치 미연결)"
+            print(f"[경고] LiDAR 열기 실패 {args.port} -> 거리/추적 비활성")
+            print(f"  현재 COM 포트: {names}")
+            for d, desc in ports:
+                print(f"    {d}: {desc}")
+            print("  -> 라이다 USB/전원 확인 후 위 목록의 라이다 포트를 --port 로 지정 (또는 --port auto)")
+            lidar = None
 
     # ---- 두 카메라 (각각 선택적) ----
     cams = {}    # side -> {"cap","grabber","ok","off_x"}
@@ -219,18 +256,26 @@ def main():
     RAD = CAM_H
     cx0, cy0 = RAD // 2, RAD // 2
     win = "track_and_approach (dual cam)"
-    cv2.namedWindow(win)
+    # 캔버스(카메라2+레이더)가 화면보다 넓으면 AUTOSIZE 창은 오른쪽(레이더)이 잘린다.
+    # 리사이즈 가능 창 + 화면에 맞춘 초기 폭(캔버스 비율 유지)으로 레이더까지 보이게.
+    cv2.namedWindow(win, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+    _canvas_w = 2 * CAM_W + RAD
+    _disp_w = min(_canvas_w, args.win_w)
+    cv2.resizeWindow(win, int(_disp_w), max(1, int(CAM_H * _disp_w / _canvas_w)))
 
     # mode: None | 'cam'(카메라 잠금) | 'radar'(로봇방위만)
-    state = {"mode": None, "cam_side": None, "cam_bearing": 0.0, "robot_bearing": 0.0,
+    state = {"mode": None, "cam_side": None, "robot_bearing": 0.0,
              "color": None, "armed": False, "rmax": float(args.rmax), "cam_zoom": 1.0,
              "anchor_y": max(0.0, min(1.0, args.anchor_y)),
              "af": args.focus < 0, "focus": max(0, min(250, args.focus)),
              "views": {"L": None, "R": None},
              "manual": None, "manual_t": 0.0, "mspeed": 30,
-             "notice_t": -1e9, "notice_armed": True, "miss": 0, "fine": False, "wait_t": 0.0,
-             "toe": float(CAM_TOE_DEG),   # 카메라 toe 보정(n/m 키로 튜닝). toe-out이면 보통 음수로 맞음
-             "crop": True, "keep_w": CAM_W}  # 겹침제거(대안1) on/off + 패널 유지폭(매 프레임 갱신)
+             "notice_t": -1e9, "notice_armed": True, "fine": False, "wait_t": 0.0,
+             "toe": float(CAM_TOE_DEG),   # 카메라 toe 보정(n/m 키). 양 카메라 시차거리 보정.
+             "cb": {"L": 0.0, "R": 0.0},  # 각 카메라가 추종 중인 베어링(deg)
+             "miss": {"L": 0, "R": 0},    # 각 카메라 색 상실 프레임 카운트(재탐색용)
+             "auto": False, "lost_t": 0.0,  # 자율주행 on/off + 표적 상실 시각
+             "last_seen_range": None}       # 마지막으로 본 표적 거리(근접 도착 판정용)
 
     range_gate = RangeGate(APPROACH_GATE_MM, APPROACH_HOLD_S)
     hist = deque(maxlen=3)
@@ -253,14 +298,15 @@ def main():
 
     def on_mouse(event, x, y, flags, _param):
         if event == cv2.EVENT_LBUTTONDOWN:
-            side, xl = classify_click(x, CAM_W, state["keep_w"])
+            side, xl = classify_click(x, CAM_W)
             if side in ("L", "R"):
                 if not cams[side]["ok"]:
                     return
                 cb = view_bearing_deg(float(xl), float(CAM_W), CAMERA_HFOV_DEG, state["cam_zoom"])
                 state["mode"] = "cam"
                 state["cam_side"] = side
-                state["cam_bearing"] = cb
+                state["cb"] = {"L": cb, "R": cb}   # 양 카메라 같은 색을 클릭 베어링 근처서 탐색 시작
+                state["miss"] = {"L": 0, "R": 0}; state["last_seen_range"] = None
                 # 색 잠금: 클릭 지점 주변 패치
                 vw = state["views"][side]
                 if vw is not None:
@@ -292,6 +338,8 @@ def main():
                 print(f"[클릭] 레이더 -> robot_bearing={state['robot_bearing']:+.1f}deg (색없음)")
         elif event == cv2.EVENT_RBUTTONDOWN:
             state.update(mode=None, cam_side=None, color=None, armed=False)
+            state["cb"] = {"L": 0.0, "R": 0.0}; state["miss"] = {"L": 0, "R": 0}
+            state["last_seen_range"] = None
             range_gate.reset()
             send("STOP")
             print("[해제] 추적/색 잠금 해제")
@@ -352,88 +400,141 @@ def main():
                 cam_fps[0] = (ntot - fps_n0[0]) / (time.time() - fps_t[0])
                 fps_t[0] = time.time(); fps_n0[0] = ntot
 
+            # ----- 자율: 클릭 없이 표적 자동선택(가장 큰 유채색 블롭) -----
+            if state["auto"] and (state["mode"] != "cam" or not state["color"]):
+                best = None   # (area, side, color, cb)
+                for s in ("L", "R"):
+                    v = views.get(s)
+                    if not cams[s]["ok"] or v is None:
+                        continue
+                    small = cv2.resize(v, (160, 90))
+                    for col in CHROMATIC:
+                        m = color_mask(small, col)
+                        if float((m > 0).mean()) < AUTO_MIN_AREA:
+                            continue
+                        cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        if not cnts:
+                            continue
+                        cc = max(cnts, key=cv2.contourArea)
+                        bx, _by, bw, _bh = cv2.boundingRect(cc)
+                        ccx = (bx + bw / 2.0) * v.shape[1] / 160.0     # 원본 view x
+                        cbb = view_bearing_deg(ccx, float(v.shape[1]), CAMERA_HFOV_DEG, zcam)
+                        if abs(cbb) > eff_half:
+                            continue
+                        area = cv2.contourArea(cc)
+                        if best is None or area > best[0]:
+                            best = (area, s, col, cbb)
+                if best is not None:
+                    _, bs, bcol, bcb = best
+                    state["mode"] = "cam"; state["cam_side"] = bs; state["color"] = bcol
+                    state["cb"] = {"L": bcb, "R": bcb}; state["miss"] = {"L": 0, "R": 0}
+                    state["lost_t"] = 0.0; state["last_seen_range"] = None
+                    range_gate.reset()
+                    print(f"[자율선택] {bcol} (cam {bs}, bearing {bcb:+.1f}deg)")
+
             # ----- 추적 분석 -----
             mode = state["mode"]
-            side = state["cam_side"]
-            lock_view = views.get(side) if mode == "cam" else None
             robot_bearing = None
             obj_range = None
-            color_name = None
-            color_present = False
-            box = None
             gate_state = "IDLE"
             track_raw = None     # 클러스터/표면박스용 raw 라이다각
             cam_range = None
+            boxes = {"L": None, "R": None}     # 각 카메라 검출 박스(view 좌표)
+            present = {"L": False, "R": False}  # 각 카메라가 잠근 색 물체를 봄(=포커싱)
 
-            if mode == "cam" and side is not None:
-                cb = state["cam_bearing"]
-                # toe 보정: 카메라 광축이 정면과 어긋난 각(좌/우 대칭). n/m 로 실시간 튜닝.
-                ray_bearing = CAMERA_LIDAR_SIGN * cb + (state["toe"] if side == "L" else -state["toe"])
-                raw_range, lidar_angle = (None, None)
-                if fresh:
-                    raw_range, lidar_angle = distance_along_ray(
-                        dd, cams[side]["off_x"], 0.0, ray_bearing, FORWARD_ANGLE_DEG, PERP_TOL_MM)
-                obj_range, gate_state = range_gate.update(raw_range, time.time())
-                if lidar_angle is not None:
-                    robot_bearing = normalize_deg(lidar_angle - FORWARD_ANGLE_DEG)  # ★플립 이중적용 금지
-                    track_raw = lidar_angle
-                else:
-                    robot_bearing = CAMERA_LIDAR_SIGN * cb   # LiDAR 미획득 -> 카메라 베어링 근사(원거리)
-                # ROI 색/박스 (잠근 카메라에서만)
-                if lock_view is not None and abs(cb) <= eff_half:
-                    H, W = lock_view.shape[:2]
-                    cxpx = view_x_from_bearing(cb, W, CAMERA_HFOV_DEG, zcam)
-                    halfpx = abs(view_x_from_bearing(args.roi_half_deg, W, CAMERA_HFOV_DEG, zcam)
-                                 - view_x_from_bearing(0.0, W, CAMERA_HFOV_DEG, zcam))
-                    x1 = int(max(0, cxpx - halfpx)); x2 = int(min(W, cxpx + halfpx))
-                    y1, y2 = int(H * args.roi_y1), int(H * args.roi_y2)
-                    if x2 - x1 >= 4:
-                        roi = lock_view[y1:y2, x1:x2]
-                        if state["color"]:
-                            color_name = state["color"]
-                        else:
-                            try:
-                                color_name, _b = dominant_color(roi)
-                            except Exception:
-                                color_name = None
-                        if color_name in CHROMATIC:
-                            mask = color_mask(roi, color_name)
-                            if float((mask > 0).mean()) >= args.min_area:
-                                color_present = True
-                                cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                                if cnts:
-                                    cc = max(cnts, key=cv2.contourArea)
-                                    bx, by, bw, bh = cv2.boundingRect(cc)
-                                    box = (x1 + bx, y1 + by, x1 + bx + bw, y1 + by + bh)
-                # 카메라-추종(색 잠금): 박스 중심으로 cam_bearing 갱신, 상실 시 재탐색
-                if state["color"] and lock_view is not None:
-                    if box is not None:
-                        state["miss"] = 0
-                        bcx = (box[0] + box[2]) / 2.0
-                        nb = view_bearing_deg(bcx, float(lock_view.shape[1]), CAMERA_HFOV_DEG, zcam)
-                        state["cam_bearing"] = (1 - FOLLOW_ALPHA) * cb + FOLLOW_ALPHA * nb
+            if mode == "cam":
+                rb_side = {"L": None, "R": None}; rng_side = {"L": None, "R": None}
+                craw_side = {"L": None, "R": None}; camrng_side = {"L": None, "R": None}
+                area_side = {"L": 0, "R": 0}
+                # 색 잠금이 있으면 '양 카메라' 모두 검출(같은 색=교차매칭). 무채색(자동)이면
+                # 교차매칭 불가 -> 클릭한 카메라만.
+                sides_try = ("L", "R") if state["color"] else \
+                    ((state["cam_side"],) if state["cam_side"] in ("L", "R") else ())
+                for s in sides_try:
+                    v = views.get(s)
+                    if not cams[s]["ok"] or v is None:
+                        continue
+                    H, W = v.shape[:2]
+                    cb = state["cb"][s]
+                    box_s = None
+                    # 1) cb 가 화면 안이면 그 주변 ROI 검출
+                    if abs(cb) <= eff_half:
+                        cxpx = view_x_from_bearing(cb, W, CAMERA_HFOV_DEG, zcam)
+                        halfpx = abs(view_x_from_bearing(args.roi_half_deg, W, CAMERA_HFOV_DEG, zcam)
+                                     - view_x_from_bearing(0.0, W, CAMERA_HFOV_DEG, zcam))
+                        x1 = int(max(0, cxpx - halfpx)); x2 = int(min(W, cxpx + halfpx))
+                        y1, y2 = int(H * args.roi_y1), int(H * args.roi_y2)
+                        if x2 - x1 >= 4:
+                            roi = v[y1:y2, x1:x2]
+                            col = state["color"]
+                            if not col:
+                                try:
+                                    col, _b = dominant_color(roi)
+                                except Exception:
+                                    col = None
+                            if col in CHROMATIC:
+                                m = color_mask(roi, col)
+                                if float((m > 0).mean()) >= args.min_area:
+                                    cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                                    if cnts:
+                                        cc = max(cnts, key=cv2.contourArea)
+                                        bx, by, bw, bh = cv2.boundingRect(cc)
+                                        box_s = (x1 + bx, y1 + by, x1 + bx + bw, y1 + by + bh)
+                    # 2) ROI 실패 + 색 잠금 있으면 전체뷰 재탐색(반대편 첫 획득/상실 복구)
+                    if box_s is None and state["color"]:
+                        fm = color_mask(v, state["color"])
+                        cs, _ = cv2.findContours(fm, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        if cs:
+                            c2 = max(cs, key=cv2.contourArea)
+                            if cv2.contourArea(c2) >= 0.0008 * H * W:
+                                bx, by, bw, bh = cv2.boundingRect(c2)
+                                box_s = (bx, by, bx + bw, by + bh)
+                    if box_s is not None:
+                        boxes[s] = box_s; present[s] = True; state["miss"][s] = 0
+                        area_side[s] = (box_s[2] - box_s[0]) * (box_s[3] - box_s[1])
+                        bcx = (box_s[0] + box_s[2]) / 2.0
+                        nb = view_bearing_deg(bcx, float(W), CAMERA_HFOV_DEG, zcam)
+                        if state["color"]:   # 색잠금만 추종(전체뷰 복구 가능). 무채색은 클릭 ROI 고정(구버전)
+                            state["cb"][s] = ((1 - FOLLOW_ALPHA) * cb + FOLLOW_ALPHA * nb
+                                              if abs(cb) <= eff_half else nb)
+                        wpx = box_s[2] - box_s[0]
+                        if args.obj_width_cm > 0 and wpx > 2:
+                            camrng_side[s] = monocular_range_mm(
+                                float(wpx), float(W), CAMERA_HFOV_DEG, zcam, args.obj_width_cm * 10.0)
+                        # toe 보정한 시선으로 LiDAR 거리/방위(그 카메라 off_x ±170)
+                        ray = CAMERA_LIDAR_SIGN * state["cb"][s] + (state["toe"] if s == "L" else -state["toe"])
+                        if fresh:
+                            rr, la = distance_along_ray(
+                                dd, cams[s]["off_x"], 0.0, ray, FORWARD_ANGLE_DEG, PERP_TOL_MM)
+                            rng_side[s] = rr
+                            if la is not None:
+                                rb_side[s] = normalize_deg(la - FORWARD_ANGLE_DEG)  # ★플립 이중적용 금지
+                                craw_side[s] = la
+                        if rb_side[s] is None:
+                            rb_side[s] = CAMERA_LIDAR_SIGN * state["cb"][s]   # LiDAR 미획득 근사(원거리)
                     else:
-                        state["miss"] += 1
-                        if state["miss"] >= REACQ_MISS_N:
-                            try:
-                                fm = color_mask(lock_view, state["color"])
-                                cs, _ = cv2.findContours(fm, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                                if cs:
-                                    c2 = max(cs, key=cv2.contourArea)
-                                    if cv2.contourArea(c2) >= 0.0005 * lock_view.shape[0] * lock_view.shape[1]:
-                                        rx2, _ry, rw2, _rh = cv2.boundingRect(c2)
-                                        state["cam_bearing"] = view_bearing_deg(
-                                            rx2 + rw2 / 2.0, float(lock_view.shape[1]), CAMERA_HFOV_DEG, zcam)
-                                        state["miss"] = 0
-                                        print(f"[재획득] {state['color']}")
-                            except Exception:
-                                pass
-                # 단안 거리(LiDAR 미검출 시 표시/원거리 접근용)
-                if box is not None and args.obj_width_cm > 0 and lock_view is not None:
-                    wpx = box[2] - box[0]
-                    if wpx > 2:
-                        cam_range = monocular_range_mm(float(wpx), float(lock_view.shape[1]),
-                                                       CAMERA_HFOV_DEG, zcam, args.obj_width_cm * 10.0)
+                        present[s] = False; state["miss"][s] += 1
+                # 제어 대표값: 둘 다 보이면 양 카메라 robot-bearing/거리를 '평균' -> 물체가
+                # 로봇 중심(LiDAR축, bearing 0)에 도착하도록 조향(한 카메라 편향 상쇄, 대칭).
+                # 한쪽만 보이면 그쪽으로(시야 안으로 끌어옴). area_side 는 더 안 씀.
+                focus_sides = [s for s in ("L", "R") if present[s]]
+                if focus_sides:
+                    # 거리·방위는 '같은 소스'로 묶어야 조향이 안 흔들린다(섞으면 편향).
+                    # LiDAR 실측각(craw_side)이 있는 side 들로 거리+방위 함께 평균(로봇중심).
+                    lidar_sides = [s for s in focus_sides if craw_side[s] is not None]
+                    if lidar_sides:
+                        robot_bearing = sum(rb_side[s] for s in lidar_sides) / len(lidar_sides)
+                        raw_fused = sum(rng_side[s] for s in lidar_sides) / len(lidar_sides)
+                        track_raw = craw_side[lidar_sides[0]]
+                    else:   # LiDAR 미획득 -> 카메라근사 방위만(거리는 RangeGate HOLD 에 맡김)
+                        robot_bearing = sum(rb_side[s] for s in focus_sides) / len(focus_sides)
+                        raw_fused = None
+                        track_raw = None
+                    crs = [camrng_side[s] for s in focus_sides if camrng_side[s] is not None]
+                    cam_range = sum(crs) / len(crs) if crs else None
+                    obj_range, gate_state = range_gate.update(raw_fused, time.time())
+                else:
+                    obj_range, gate_state = range_gate.update(None, time.time())
 
             elif mode == "radar":
                 robot_bearing = state["robot_bearing"]
@@ -444,7 +545,33 @@ def main():
                     raw_range = None
                 obj_range, gate_state = range_gate.update(raw_range, time.time())
 
+            color_present = present["L"] or present["R"]   # 어느 한 카메라라도 색 물체를 봄
             co_detect = (obj_range is not None) and color_present
+            if co_detect and gate_state == "TRACK":
+                state["last_seen_range"] = obj_range        # 근접 도착 판정용(HOLD 부풀림 제외, 실측만)
+
+            # 자율: 표적 보이면 자동 ARM(안전게이트는 아래 armed 블록), 오래 놓치면:
+            #   - 마지막 거리 <=24cm 였으면 '도착'(18cm 사각 진입)으로 보고 정지(재탐색 금지)
+            #   - 그 외(원거리 상실)면 표적 해제 후 재탐색
+            if state["auto"] and state["mode"] == "cam":
+                if color_present:
+                    state["lost_t"] = 0.0
+                    state["armed"] = True
+                else:
+                    if state["lost_t"] == 0.0:
+                        state["lost_t"] = time.time()
+                    elif time.time() - state["lost_t"] > AUTO_RELEASE_S:
+                        lr = state["last_seen_range"]
+                        if lr is not None and lr <= CLOSE_ARRIVED_MM:
+                            send("STOP"); state["armed"] = False; state["auto"] = False
+                            print(f"[자율완료] 근접 도달(마지막 {lr/10:.0f}cm, <18cm는 카메라 사각) - 자율 해제")
+                        else:
+                            state.update(mode=None, color=None, armed=False)
+                            state["cb"] = {"L": 0.0, "R": 0.0}; state["miss"] = {"L": 0, "R": 0}
+                            state["last_seen_range"] = None
+                            send("STOP"); range_gate.reset()
+                            print("[자율] 표적 상실(원거리) -> 재탐색")
+                        state["lost_t"] = 0.0
 
             # 표면 클러스터(레이더 유동 테두리용)
             cluster = []
@@ -477,8 +604,8 @@ def main():
                 elif co_detect:
                     blocker = blocking_distance(dd, obj_range) if fresh else None
                     if blocker is not None and blocker < OBSTACLE_STOP_MM:
-                        send("STOP"); state["armed"] = False
-                        print(f"[자율정지] 전방 차단물 {blocker/10:.0f}cm (표적 {obj_range/10:.0f}cm 앞)")
+                        send("STOP"); state["armed"] = False; state["auto"] = False
+                        print(f"[자율정지] 전방 차단물 {blocker/10:.0f}cm (표적 {obj_range/10:.0f}cm 앞) - 자율 해제, 안전확인 후 u")
                     else:
                         try:
                             vx, vy, w, st = approach_command(
@@ -488,16 +615,16 @@ def main():
                                 vx_max=APPROACH_VX_MAX, w_max=APPROACH_W_MAX)
                             send(f"V {vx} {vy} {w}")
                             if st in ("ARRIVED", "TOO_CLOSE", "LOST"):
-                                send("STOP"); state["armed"] = False
-                                print(f"[자율정지] {st} (range={obj_range})")
+                                send("STOP"); state["armed"] = False; state["auto"] = False
+                                print(f"[자율완료/정지] {st} (range={obj_range}) - 자율 해제(다음 물체는 우클릭 후 u)")
                         except Exception as exc:
-                            send("STOP"); state["armed"] = False
+                            send("STOP"); state["armed"] = False; state["auto"] = False
                             print(f"[오류] approach -> STOP: {exc}")
                 elif color_present and cam_range is not None and robot_bearing is not None:
                     obst = min_distance_in_arc(dd, FORWARD_ANGLE_DEG, 20.0) if fresh else None
                     if obst is not None and obst < OBSTACLE_STOP_MM:
-                        send("STOP"); state["armed"] = False
-                        print(f"[자율정지] OBSTACLE {obst/10:.0f}cm")
+                        send("STOP"); state["armed"] = False; state["auto"] = False
+                        print(f"[자율정지] OBSTACLE {obst/10:.0f}cm - 자율 해제, 안전확인 후 u")
                     else:
                         try:
                             vx, vy, w, st = cam_approach_command(
@@ -506,10 +633,10 @@ def main():
                                 vx_far=CAM_APPROACH_VX, w_max=APPROACH_W_MAX)
                             send(f"V {vx} {vy} {w}")
                             if st in ("CAM_LIMIT", "LOST"):
-                                send("STOP"); state["armed"] = False
-                                print(f"[자율정지] {st} — 60cm 도달 LiDAR 미획득(cam~{cam_range/10:.0f}cm)")
+                                send("STOP"); state["armed"] = False; state["auto"] = False
+                                print(f"[자율정지] {st} - 60cm 도달 LiDAR 미획득(cam~{cam_range/10:.0f}cm) - 자율 해제")
                         except Exception as exc:
-                            send("STOP"); state["armed"] = False
+                            send("STOP"); state["armed"] = False; state["auto"] = False
                             print(f"[오류] cam approach -> STOP: {exc}")
                 else:
                     send("STOP")
@@ -528,36 +655,38 @@ def main():
                 else:
                     send("STOP"); state["manual"] = None
 
-            # ----- 그리기 -----
+            # ----- 그리기 (3분할: camL | camR | radar) -----
             panels = []
             for pside in ("L", "R"):
                 pv = views.get(pside)
                 panel = np.zeros((CAM_H, CAM_W, 3), np.uint8)
+                seen = present[pside]            # 그 카메라가 물체를 보고 포커싱 중인지
                 if pv is not None:
                     disp = pv.copy()
-                    if pside == side and box is not None:   # 잠근 카메라에만 박스
+                    b_s = boxes[pside]
+                    if b_s is not None:          # 그 카메라가 본 물체에 박스(둘 다 보면 둘 다)
                         bcol = (0, 255, 0) if co_detect else (0, 180, 255)
-                        cv2.rectangle(disp, box[:2], box[2:], bcol, 3)
-                        lbl = state["color"] or color_name or "?"
+                        cv2.rectangle(disp, b_s[:2], b_s[2:], bcol, 3)
+                        lbl = state["color"] or "obj"
                         if obj_range is not None:
                             lbl += f" {obj_range/10:.0f}cm"
                         elif cam_range is not None:
                             lbl += f" cam~{cam_range/10:.0f}cm"
-                        cv2.putText(disp, lbl, (box[0], max(18, box[1] - 8)),
+                        cv2.putText(disp, lbl, (b_s[0], max(18, b_s[1] - 8)),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, bcol, 2)
                     panel = cv2.resize(disp, (CAM_W, CAM_H))
-                # 잠근 카메라 조준선
-                if pside == side and mode == "cam" and abs(state["cam_bearing"]) <= eff_half:
-                    axp = int(view_x_from_bearing(state["cam_bearing"], CAM_W, CAMERA_HFOV_DEG, zcam))
+                # 포커싱 중인 카메라 조준선
+                if seen and abs(state["cb"][pside]) <= eff_half:
+                    axp = int(view_x_from_bearing(state["cb"][pside], CAM_W, CAMERA_HFOV_DEG, zcam))
                     cv2.line(panel, (axp, 0), (axp, CAM_H), (0, 200, 255), 1)
-                tag = ("하양/L" if pside == "L" else "검정/R") + (" *LOCK" if pside == side else "")
+                tag = ("하양/L" if pside == "L" else "검정/R") + (" *FOCUS" if seen else "")
                 cv2.putText(panel, tag, (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (0, 255, 255) if pside == side else (150, 150, 150), 1)
+                            (0, 255, 255) if seen else (150, 150, 150), 1)
                 if not cams[pside]["ok"]:
                     cv2.putText(panel, "cam off", (CAM_W // 3, CAM_H // 2),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (120, 120, 120), 2)
-                # 20cm 배너(잠근 카메라)
-                if pside == side and time.time() - state["notice_t"] <= NOTICE_S:
+                # 20cm 배너(포커싱 중인 카메라마다)
+                if seen and time.time() - state["notice_t"] <= NOTICE_S:
                     cv2.rectangle(panel, (int(CAM_W * 0.12), int(CAM_H * 0.06)),
                                   (int(CAM_W * 0.88), int(CAM_H * 0.22)), (25, 25, 25), -1)
                     cv2.rectangle(panel, (int(CAM_W * 0.12), int(CAM_H * 0.06)),
@@ -597,33 +726,15 @@ def main():
                 if 0 <= npx < RAD and 0 <= npy < RAD:
                     cv2.circle(radar, (npx, npy), max(4, int(4 * sui)), (255, 0, 255), -1)
 
-            # 두 카메라를 '하나의 와이드 띠'로 통합(좌=하양/우=검정). 픽셀 블렌딩은 안 함
-            # (34cm 시차로 유령 발생 + 클릭 카메라 정체가 사라져 시차거리 붕괴).
-            # 대안1(crop): toe-out 으로 겹치는 안쪽을 잘라 중복 제거. 씸=robot bearing 0.
-            if state["crop"]:
-                KW = deoverlap_keep_w(CAM_W, state["toe"], CAMERA_HFOV_DEG)
-            else:
-                KW = CAM_W
-            state["keep_w"] = KW
-            cam_strip = np.hstack([panels[0][:, :KW], panels[1][:, CAM_W - KW:CAM_W]])
-            cv2.line(cam_strip, (KW, 0), (KW, CAM_H), (70, 70, 70), 1)
-            # 어느 반쪽이 어느 카메라인지(왼쪽=하양 유지 / 오른쪽=검정 유지) 확인용 라벨
-            cv2.putText(cam_strip, "L/white: keeps LEFT", (6, int(20 * sui)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.42 * sui, (0, 255, 255), 1)
-            cv2.putText(cam_strip, "R/black: keeps RIGHT", (KW + 6, int(20 * sui)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.42 * sui, (0, 255, 255), 1)
-            total_fov = CAMERA_HFOV_DEG + 2.0 * max(0.0, -state["toe"])
-            hdr = (f"WIDE VIEW  L=white/R=black  crop={'on' if state['crop'] else 'off'}(o)"
-                   f"  ~{total_fov:.0f}deg" if state["crop"] else
-                   "WIDE VIEW  L=white / R=black  crop=off(o)")
-            cv2.putText(cam_strip, hdr, (8, CAM_H - int(28 * sui)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.36 * sui, (180, 180, 180), 1)
-            canvas = np.hstack([cam_strip, radar])
-            arm_txt = "ARMED" if state["armed"] else "disarmed"
+            # 카메라 2개 + 레이더를 '각각 따로' 나란히(3분할). 합치기/겹침제거 없음.
+            canvas = np.hstack(panels + [radar])
+            arm_txt = ("AUTO " if state["auto"] else "") + ("ARMED" if state["armed"] else "disarmed")
             cv2.putText(canvas, arm_txt, (8, int(22 * sui)), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5 * sui, (0, 0, 255) if state["armed"] else (160, 160, 160), max(2, int(1.4 * sui)))
+                        0.5 * sui, (0, 0, 255) if (state["armed"] or state["auto"]) else (160, 160, 160),
+                        max(2, int(1.4 * sui)))
+            foc = "+".join([s for s in ("L", "R") if present[s]]) or (state["mode"] or "none")
             stat = (f"L={'OK' if cams['L']['ok'] else 'X'} R={'OK' if cams['R']['ok'] else 'X'}"
-                    f" lidar={'OK' if fresh else 'STALE'} lock={state['cam_side'] or state['mode'] or 'none'}")
+                    f" lidar={'OK' if fresh else 'STALE'} focus={foc}")
             if obj_range is not None:
                 stat += f" range={obj_range/10:.0f}cm" + ("(HOLD)" if gate_state == "HOLD" else "")
             if robot_bearing is not None:
@@ -631,8 +742,7 @@ def main():
             stat += (f" codet={'Y' if co_detect else 'N'} tgt={args.target_mm/10:.0f}cm"
                      f" view={rmax/1000:.1f}m zoom={zcam:.2f}x {'AF' if state['af'] else 'f'+str(state['focus'])}"
                      f" col={state['color'] or 'auto'} spd={state['mspeed']}{' FINE' if state['fine'] else ''}"
-                     f" toe={state['toe']:+.1f} crop={'on' if state['crop'] else 'off'}"
-                     f" fps={cam_fps[0]:.0f}")
+                     f" toe={state['toe']:+.1f} fps={cam_fps[0]:.0f}")
             cv2.putText(canvas, stat, (8, CAM_H - int(8 * sui)), cv2.FONT_HERSHEY_SIMPLEX,
                         0.34 * sui, (0, 255, 255), 1)
             if near_a is not None:
@@ -649,14 +759,21 @@ def main():
                 state["manual"] = (ux * sp, uy * sp, uw * sp); state["manual_t"] = time.time()
             elif k == 27:
                 break
+            elif k == ord('u'):
+                state["auto"] = not state["auto"]
+                if not state["auto"]:
+                    state["armed"] = False; send("STOP")
+                print("[자율주행] " + ("ON - 바퀴 들고 시험! 클릭없이 가장 큰 색물체로 로봇중심 접근(18cm)"
+                                      if state["auto"] else "OFF"))
             elif k == ord('g'):
+                state["auto"] = False                 # 수동 ARM 토글은 자율 끔
                 state["armed"] = not state["armed"]; state["manual"] = None
                 if state["armed"]:
                     issues = []
                     if ser is None:
                         issues.append("모터 미연결")
                     if state["mode"] is None:
-                        issues.append("추적 대상 없음 — 카메라의 물체를 클릭")
+                        issues.append("추적 대상 없음 - 카메라의 물체를 클릭")
                     elif state["mode"] == "cam" and not state["color"]:
                         issues.append("색 잠금 없음")
                     elif state["mode"] == "radar":
@@ -665,9 +782,9 @@ def main():
                 else:
                     send("STOP"); print("[DISARM]")
             elif k == ord(' '):
-                state["armed"] = False; state["manual"] = None; send("STOP")
+                state["auto"] = False; state["armed"] = False; state["manual"] = None; send("STOP")
             elif k == ord('e'):
-                state["armed"] = False; state["manual"] = None; send("ESTOP")
+                state["auto"] = False; state["armed"] = False; state["manual"] = None; send("ESTOP")
             elif k == ord('['):
                 state["rmax"] = max(500.0, state["rmax"] / 1.3)
             elif k == ord(']'):
@@ -701,12 +818,9 @@ def main():
             elif k == ord('x'):
                 state["fine"] = not state["fine"]; print(f"[미세모드] {'ON' if state['fine'] else 'OFF'}")
             elif k == ord('n'):
-                state["toe"] -= 0.5; print(f"[toe] {state['toe']:+.1f}deg (정면 물체가 좌/우 클릭 모두 rb≈0 될 때까지)")
+                state["toe"] -= 0.5; print(f"[toe] {state['toe']:+.1f}deg (정면 물체가 좌/우 클릭 모두 rb~0 될 때까지)")
             elif k == ord('m'):
                 state["toe"] += 0.5; print(f"[toe] {state['toe']:+.1f}deg")
-            elif k == ord('o'):
-                state["crop"] = not state["crop"]
-                print(f"[겹침제거] {'ON' if state['crop'] else 'OFF'} (toe-out 클수록 더 넓어짐. toe=n/m)")
             elif k in MANUAL_KEYS:
                 ux, uy, uw = MANUAL_KEYS[k]; sp = state["mspeed"]
                 if state["fine"]:
