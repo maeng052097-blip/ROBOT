@@ -15,11 +15,11 @@ env/
 *.ncnn.*
 
 # 변환 데이터셋 (대용량)
-ddd/data/converted/
-ddd/data/_temp_images/
+data/converted/
+data/_temp_images/
 
 # LiDAR 실측 로그 (lidar_range_probe.py 출력)
-ddd/lidar_probe_log.csv
+lidar_probe_log.csv
 
 # IDE / 에디터
 *.code-workspace
@@ -32,3 +32,11 @@ ddd/lidar_probe_log.csv
 # OS
 Thumbs.db
 .DS_Store
+
+# 런타임 로그/캡처 (대용량 임시 산출물)
+Log/
+captures/
+
+# KiCad 편집 히스토리(내장 git 저장소라 커밋 불가)
+.history/
+*.lck
