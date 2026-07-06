@@ -87,6 +87,28 @@ from common.color import dominant_color, color_mask  # noqa: E402
 from common.approach import approach_command, cam_approach_command, RangeGate  # noqa: E402
 
 CHROMATIC = {"red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"}
+
+
+def yolo_best_box(model, frame, target_class="any", conf=0.35):
+    """YOLO 로 frame 에서 표적 1개 선택 -> (box_xyxy_int, label, conf) 또는 (None, None, 0.0).
+    target_class='any' 면 최고신뢰도, 아니면 그 클래스 중 최고신뢰도. (GPU 자동 사용)"""
+    res = model(frame, conf=conf, verbose=False)
+    if not res:
+        return None, None, 0.0
+    boxes = res[0].boxes
+    if boxes is None or len(boxes) == 0:
+        return None, None, 0.0
+    names = model.names
+    best = None
+    for i in range(len(boxes)):
+        cf = float(boxes.conf[i])
+        lbl = names.get(int(boxes.cls[i]), str(int(boxes.cls[i])))
+        if target_class != "any" and lbl != target_class:
+            continue
+        if best is None or cf > best[2]:
+            x1, y1, x2, y2 = (int(v) for v in boxes.xyxy[i].tolist())
+            best = ((x1, y1, x2, y2), lbl, cf)
+    return best if best else (None, None, 0.0)
 # 수동 주행 키 -> (vx, vy, w) 단위방향(속도는 mspeed 배율). hold-to-drive:
 # 키를 누르는 동안 OS 키반복이 시각을 갱신해 계속 주행, 떼면 MANUAL_HOLD_S 후 STOP.
 MANUAL_KEYS = {
@@ -141,6 +163,15 @@ def main():
     ap.add_argument("--forward-angle", type=float, default=None,
                     help="전방 LiDAR raw각(deg). 미지정시 config.FORWARD_ANGLE_DEG. "
                          "실행 중 'p'(정면 물체 가리키고)로 즉시 캡처 가능")
+    ap.add_argument("--detect", choices=["color", "yolo"], default="color",
+                    help="표적 검출: color=색 기반(기본), yolo=학습모델(red_box/blue_cylinder)")
+    ap.add_argument("--weights",
+                    default=str(pathlib.Path(__file__).resolve().parent.parent
+                                / "YOLO" / "models" / "weights" / "best.pt"),
+                    help="YOLO 가중치 경로(--detect yolo 일 때)")
+    ap.add_argument("--yolo-conf", type=float, default=0.35, help="YOLO 신뢰도 임계값")
+    ap.add_argument("--yolo-class", default="any",
+                    help="추적 클래스(any=최고신뢰도 | red_box | blue_cylinder)")
     args = ap.parse_args()
 
     import cv2
@@ -196,6 +227,18 @@ def main():
             ser.write((line + "\n").encode("ascii"))
         except Exception:
             pass
+
+    # ---- YOLO 검출기(--detect yolo): 학습모델 1회 로드(GPU 자동). 실패 시 색 검출로 폴백 ----
+    detector_model = None
+    if args.detect == "yolo":
+        try:
+            from ultralytics import YOLO
+            detector_model = YOLO(args.weights)
+            print(f"[OK] YOLO {args.weights}  classes={detector_model.names}  "
+                  f"class-filter={args.yolo_class} conf>={args.yolo_conf}")
+        except Exception as exc:
+            print(f"[경고] YOLO 로드 실패({args.weights}): {exc} -> 색 검출로 폴백")
+            detector_model = None
 
     # ---- 화면 구성 (--ui-scale 로 확대. RAD=CAM_H 라 hstack 높이 일치) ----
     sui = max(1.0, args.ui_scale)
@@ -359,6 +402,21 @@ def main():
             box = None
             gate_state = "IDLE"
             cluster = []     # S2: 추적 클러스터 (raw각, 거리) — 표면 맞춤 테두리용
+            # ----- YOLO 검출(--detect yolo): 전체 뷰에서 표적 -> box/베어링(줌 반영). ROI/색/재획득 불필요 -----
+            if detector_model is not None and view is not None:
+                yb, ylabel, yconf = yolo_best_box(detector_model, view, args.yolo_class, args.yolo_conf)
+                if yb is not None:
+                    box = yb
+                    color_present = True
+                    color_name = f"{ylabel} {yconf:.2f}"
+                    ncx = (yb[0] + yb[2]) / 2.0
+                    nb = view_bearing_deg(ncx, float(view.shape[1]), CAMERA_HFOV_DEG, zcam)
+                    state["bearing"] = nb if state["bearing"] is None \
+                        else (1 - FOLLOW_ALPHA) * state["bearing"] + FOLLOW_ALPHA * nb
+                    state["miss"] = 0
+                else:
+                    state["miss"] += 1        # 표적 미검출(HOLD 후 상실은 RangeGate 가 처리)
+                bearing = state["bearing"]
             if bearing is not None:
                 raw_range = None
                 target_raw = bearing_to_lidar_angle(bearing)         # 베어링 -> raw 각도
@@ -371,7 +429,7 @@ def main():
                         if d2 > 0 and angular_diff(a2, target_raw) <= APPROACH_ARC_DEG + 2.0 \
                                 and abs(d2 - obj_range) <= APPROACH_GATE_MM:
                             cluster.append((a2, d2))
-                if view is not None and abs(bearing) <= eff_half:
+                if detector_model is None and view is not None and abs(bearing) <= eff_half:
                     H, W = view.shape[:2]
                     # ROI: 중심픽셀 ± 반각의 픽셀폭(줌 반영). 가장자리에서도 폭이 안 무너지게
                     # '중심기준'으로 계산(양끝 각각 클램프 -> 폭0 버그 회피).
@@ -402,7 +460,8 @@ def main():
                                     box = (x1 + bx, y1 + by, x1 + bx + bw, y1 + by + bh)
 
             # ----- S4 카메라-추종(색 잠금 시): 박스 중심으로 추적각 갱신, 상실 시 재획득 -----
-            if bearing is not None and state["color"] and view is not None:
+            #        (YOLO 모드는 위에서 이미 추적각을 갱신하므로 이 색-추종은 건너뜀)
+            if detector_model is None and bearing is not None and state["color"] and view is not None:
                 if box is not None:
                     state["miss"] = 0
                     bcx = (box[0] + box[2]) / 2.0

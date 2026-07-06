@@ -16,7 +16,11 @@ WEIGHTS_PATH = MODELS_DIR / "weights" / "best.pt"
 # COCO 사전학습 가중치(person 등 80클래스) — 사람 인식용. 없으면 ultralytics 자동 다운로드.
 COCO_WEIGHTS_PATH = MODELS_DIR / "yolov8n.pt"
 
-# ===== 2-카메라(LiDAR 양 옆) 구성 =====
+# ===== 카메라 구성 =====
+# ★ 2026-07 현행: 단일 StreamCam 을 LiDAR '중심 바로 위'에 장착 -> off_x=0(시차 없음), toe 불필요.
+#   주행 도구 = visualization/track_and_approach_single.py (카메라 베어링만 사용, 시차/toe 미적용).
+#   -> 카메라 베어링 = 로봇 방위(직결). 아래 CAMERA_INDEX / --cam-index 로 단일캠 지정.
+# --- (레거시) 2-카메라(LiDAR 양 옆) 구성: 구 track_and_approach.py 전용, 현재 미사용 ---
 # 좌/우 카메라 인덱스 + LiDAR 중심에서의 가로 오프셋(mm). 좌=-OFFSET, 우=+OFFSET.
 CAM_LEFT_INDEX = 1    # 왼쪽 카메라(=하양/white). off_x=-170. cv2 인덱스는 find_camera 로 확인.
 CAM_RIGHT_INDEX = 2   # 오른쪽 카메라(=검정/black). off_x=+170.
@@ -25,7 +29,7 @@ CAM_RIGHT_INDEX = 2   # 오른쪽 카메라(=검정/black). off_x=+170.
 # 두 카메라 간격 34cm -> LiDAR 중앙 기준 각 카메라 ±17cm. 좌=-170, 우=+170 (off_x).
 # ⚠ 가정: LiDAR 가 두 카메라 정중앙. 비대칭 장착이면 좌/우 오프셋을 따로 둬야 함(현재 대칭).
 CAM_SIDE_OFFSET_MM = 170
-# 카메라 toe 각도(deg). 0=평행. ray_bearing 에 가산되는 시차 보정값.
+# 카메라 toe 각도(deg). 0=평행. ★단일 중심캠(현행)에선 미사용(0 유지). 아래는 레거시 2-카메라 설명:
 # ※ 2026-06: 카메라를 toe-IN(안쪽 수렴)으로 재장착 -> track 의 state["toe"]는 보통 '양수'에서 맞음
 #   (이전 toe-out 은 음수였음). 정확값은 track 에서 n/m 으로 '정면 물체가 좌/우 클릭 모두
 #   rb≈0' 되게 현장 튜닝 후 여기 기입. (config 기본값은 0, 미튜닝 시 한 카메라 편향 가능)

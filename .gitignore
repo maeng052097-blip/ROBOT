@@ -40,3 +40,6 @@ captures/
 # KiCad 편집 히스토리(내장 git 저장소라 커밋 불가)
 .history/
 *.lck
+
+# 학습 YOLO 작업본(자체 git 저장소 + 대용량 모델 -> 메인 저장소 제외, 모델은 직접 배치)
+YOLO/
