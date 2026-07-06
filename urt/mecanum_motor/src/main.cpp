@@ -54,9 +54,9 @@ const int8_t  STRAFE_SIGN = -1;
 
 // ===== 구동 파라미터 =====
 const uint8_t  MAX_DUTY       = 200;  // 100% 명령 -> 이 듀티(0~255). 속도/전류 상한.
-// PWM 주파수 = 5kHz (요구사항). Fast PWM, TOP=ICR=PWM_TOP, prescaler=1, F_CPU=16MHz.
-//   freq = 16,000,000 / (1*(1+3199)) = 5000 Hz. 듀티(0~255)는 0~PWM_TOP 로 환산해 OCR 에 씀.
-const uint16_t PWM_TOP        = 3199;
+// PWM 주파수 = 3.9kHz (요구사항). Fast PWM, TOP=ICR=PWM_TOP, prescaler=1, F_CPU=16MHz.
+//   freq = 16,000,000 / (1*(1+4095)) = 3906.25 Hz. 듀티(0~255)는 0~PWM_TOP 로 환산해 OCR 에 씀.
+const uint16_t PWM_TOP        = 4095;
 const int      RAMP_STEP      = 8;    // 틱당 듀티 증감(소프트 가감속, 급반전 방지)
 const uint16_t TICK_MS        = 15;
 const uint16_t CMD_TIMEOUT_MS = 1500; // 데드맨: 이 시간 명령 없으면 정지(벤치 관찰용 1.5s.
@@ -95,10 +95,10 @@ void mixSet(int vx, int vy, int w) {
     target[POS_TO_MOTOR[pos]] = clampi((int)(logical[pos] * s * k), -MAX_DUTY, MAX_DUTY);
 }
 
-// PWM 5kHz 타이머 설정: Timer3(OC3A=pin5) + Timer4(OC4A/B/C=pin6/7/8).
-//   Fast PWM, TOP=ICR=PWM_TOP, prescaler=1 -> 5kHz. 비반전(COMx1).
+// PWM 3.9kHz 타이머 설정: Timer3(OC3A=pin5) + Timer4(OC4A/B/C=pin6/7/8).
+//   Fast PWM, TOP=ICR=PWM_TOP, prescaler=1 -> 3.9kHz. 비반전(COMx1).
 //   pins 2,3 은 엔코더 입력이라 OC3B/OC3C 출력은 켜지 않는다(외부 인터럽트와 무관).
-void setupPwm5kHz() {
+void setupPwm3900Hz() {
   TCCR3A = _BV(COM3A1) | _BV(WGM31);
   TCCR3B = _BV(WGM33) | _BV(WGM32) | _BV(CS30);
   ICR3 = PWM_TOP; OCR3A = 0;
@@ -107,7 +107,7 @@ void setupPwm5kHz() {
   ICR4 = PWM_TOP; OCR4A = OCR4B = OCR4C = 0;
 }
 
-// 듀티(0..255 스케일) -> 해당 모터 OCR(0..PWM_TOP) 직접 쓰기 (5kHz).
+// 듀티(0..255 스케일) -> 해당 모터 OCR(0..PWM_TOP) 직접 쓰기 (3.9kHz).
 //   M1=pin5=OC3A, M2=pin6=OC4A, M3=pin7=OC4B, M4=pin8=OC4C
 void writePwm(uint8_t i, uint16_t mag255) {
   uint16_t ocr = (uint16_t)((uint32_t)mag255 * PWM_TOP / 255);
@@ -125,7 +125,7 @@ void applyWheel(uint8_t i, int duty) {
   bool level = fwd ^ INVERT[i];                       // 전진여부 ^ 배선반전
   digitalWrite(DIR_PIN[i], level ? FWD_LEVEL : (FWD_LEVEL == HIGH ? LOW : HIGH));
   encDir[i] = fwd ? 1 : -1;
-  writePwm(i, (uint16_t)mag);                         // 5kHz OCR 쓰기
+  writePwm(i, (uint16_t)mag);                         // 3.9kHz OCR 쓰기
 }
 
 int rampToward(int cur, int tgt, int step) {
@@ -201,7 +201,7 @@ void setup() {
     pinMode(ENC_A[i], INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(ENC_A[i]), ISR_FN[i], RISING);
   }
-  setupPwm5kHz();                               // PWM 5kHz (요구사항), 듀티 0 으로 시작
+  setupPwm3900Hz();                               // PWM 3.9kHz (요구사항), 듀티 0 으로 시작
   Serial.begin(115200);
   lastTick = lastCmd = millis();
   Serial.println("READY");
