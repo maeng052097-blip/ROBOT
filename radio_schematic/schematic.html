@@ -1,0 +1,268 @@
+<style>
+  :root{
+    --paper:#FCFBF7; --board:#FFFFFF; --ink:#1C1D1A; --line:#26271F;
+    --muted:#6C6F63; --ref:#B5411F; --rail:#C0392B; --sig:#2C6E9B; --hair:#E4E1D6;
+    --sans:-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 18px 48px;background:var(--paper);
+    font-family:var(--sans);color:var(--ink)}
+  .hd{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
+    flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:6px}
+  .hd .k{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ref);font-weight:700}
+  .hd h1{margin:4px 0 0;font-size:23px;font-weight:800;letter-spacing:-.01em}
+  .hd .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .hd .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right;line-height:1.6}
+  .board{background:var(--board);border:1px solid var(--hair);border-radius:6px;
+    margin-top:14px;padding:8px;overflow-x:auto}
+  .board svg{display:block;width:100%;min-width:760px;height:auto}
+  .bom{margin-top:18px;columns:3;column-gap:26px;font-size:12.5px;color:var(--ink)}
+  @media(max-width:640px){.bom{columns:2}.hd .meta{text-align:left}}
+  .bom .row{break-inside:avoid;display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--hair)}
+  .bom .r{font-family:var(--mono);font-weight:700;color:var(--ref);min-width:34px}
+  .bom .v{color:var(--muted)}
+  .note{margin-top:16px;font-size:12.5px;color:var(--muted);line-height:1.6;
+    border-left:3px solid var(--hair);padding-left:12px}
+  .note b{color:var(--ink)}
+</style>
+
+<div class="wrap">
+  <header class="hd">
+    <div>
+      <div class="k">페라이트 안테나 · 재생식 수신기</div>
+      <h1>2석 AM 라디오 수신기 회로도</h1>
+      <div class="sub">참고 이미지 기반 재작도 · 2-transistor regenerative receiver</div>
+    </div>
+    <div class="meta">전원 +9 V<br>TR = 2SC3112 / 2SC2675<br>SPKR &gt; 10 Ω</div>
+  </header>
+
+  <div class="board">
+    <svg viewBox="0 0 940 600" xmlns="http://www.w3.org/2000/svg" role="img"
+         font-family="-apple-system,Segoe UI,system-ui,sans-serif">
+      <title>페라이트 안테나 2석 재생식 AM 라디오 수신기 회로도</title>
+      <desc>L1 동조코일과 C2 가변콘덴서, T1·T2 트랜지스터 2단 증폭, 스피커 출력으로 구성된 회로.</desc>
+
+      <!-- style tokens for svg -->
+      <g fill="none" stroke="#26271F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+
+        <!-- ================= RAILS ================= -->
+        <!-- +9V rail -->
+        <line x1="300" y1="62" x2="690" y2="62"/>
+        <line x1="690" y1="62" x2="726" y2="62"/>
+        <!-- switch -->
+        <circle cx="730" cy="62" r="3.4" fill="#26271F"/>
+        <line x1="732" y1="60" x2="756" y2="49"/>
+        <circle cx="760" cy="47" r="3.4" fill="#26271F"/>
+        <line x1="763" y1="47" x2="800" y2="47"/>
+        <!-- GND rail -->
+        <line x1="150" y1="552" x2="810" y2="552"/>
+
+        <!-- ================= L1 antenna coil ================= -->
+        <!-- ferrite core bars -->
+        <line x1="120" y1="168" x2="120" y2="360" stroke="#B7B4A6" stroke-width="3"/>
+        <line x1="126" y1="168" x2="126" y2="360" stroke="#B7B4A6" stroke-width="3"/>
+        <!-- 60 turn winding -->
+        <path d="M105,178 a10,10 0 0 0 0,20 a10,10 0 0 0 0,20 a10,10 0 0 0 0,20 a10,10 0 0 0 0,20 a10,10 0 0 0 0,20 a10,10 0 0 0 0,20"/>
+        <!-- 5 turn winding -->
+        <path d="M105,312 a9,9 0 0 0 0,18 a9,9 0 0 0 0,18 a9,9 0 0 0 0,18"/>
+        <!-- coil terminal leads -->
+        <line x1="105" y1="178" x2="105" y2="172"/><line x1="105" y1="172" x2="245" y2="172"/>
+        <line x1="105" y1="298" x2="105" y2="305"/>
+        <line x1="105" y1="305" x2="170" y2="305"/><line x1="170" y1="305" x2="170" y2="300"/><line x1="170" y1="300" x2="245" y2="300"/>
+        <line x1="105" y1="366" x2="105" y2="378"/><line x1="105" y1="378" x2="245" y2="378"/>
+
+        <!-- C2 variable tuning cap (across A..C) -->
+        <line x1="182" y1="172" x2="182" y2="256"/>
+        <line x1="170" y1="256" x2="194" y2="256"/>
+        <path d="M170,268 q12,-6 24,0" />
+        <line x1="182" y1="268" x2="182" y2="378"/>
+        <!-- variable arrow -->
+        <line x1="166" y1="286" x2="200" y2="246"/>
+        <path d="M200,246 l-8,1 l4,7 z" fill="#26271F"/>
+
+        <!-- nodes A B C -->
+        <circle cx="245" cy="172" r="4.5" fill="#FFFFFF"/>
+        <circle cx="245" cy="300" r="4.5" fill="#FFFFFF"/>
+        <circle cx="245" cy="378" r="4.5" fill="#FFFFFF"/>
+
+        <!-- C from bottom to GND -->
+        <line x1="245" y1="378" x2="245" y2="552"/>
+
+        <!-- ================= A -> C1 -> T1 base ================= -->
+        <line x1="245" y1="172" x2="300" y2="172"/><line x1="300" y1="172" x2="300" y2="210"/>
+        <!-- C1 (0.1) horizontal -->
+        <line x1="300" y1="210" x2="316" y2="210"/>
+        <line x1="316" y1="198" x2="316" y2="222"/>
+        <line x1="324" y1="198" x2="324" y2="222"/>
+        <line x1="324" y1="210" x2="360" y2="210"/>
+
+        <!-- ================= T1 ================= -->
+        <circle cx="400" cy="210" r="26"/>
+        <line x1="386" y1="194" x2="386" y2="226"/>       <!-- base bar -->
+        <line x1="360" y1="210" x2="386" y2="210"/>       <!-- base lead -->
+        <line x1="386" y1="203" x2="411" y2="191"/>       <!-- collector -->
+        <line x1="411" y1="191" x2="411" y2="158"/>
+        <line x1="386" y1="217" x2="411" y2="229"/>       <!-- emitter -->
+        <line x1="411" y1="229" x2="411" y2="300"/>
+        <path d="M402,223 l9,6 l-10,3 z" fill="#26271F" stroke="none"/> <!-- emitter arrow -->
+
+        <!-- T1 base bias R3 + regen P1 -->
+        <line x1="345" y1="210" x2="345" y2="248"/>
+        <!-- R3 (1M) vertical -->
+        <rect x="337" y="248" width="16" height="46" fill="#FCFBF7"/>
+        <line x1="345" y1="294" x2="345" y2="322"/>
+        <!-- P1 (1K) pot body -->
+        <rect x="337" y="322" width="16" height="52" fill="#FCFBF7"/>
+        <line x1="345" y1="374" x2="345" y2="552"/>       <!-- P1 bottom to GND -->
+        <!-- P1 wiper from B -->
+        <line x1="245" y1="300" x2="245" y2="348"/><line x1="245" y1="348" x2="325" y2="348"/>
+        <line x1="325" y1="348" x2="353" y2="348"/>
+        <path d="M353,348 l-9,-4 l0,8 z" fill="#26271F" stroke="none"/> <!-- wiper arrow into pot -->
+
+        <!-- T1 emitter -> C3 -> GND -->
+        <line x1="411" y1="300" x2="440" y2="300"/><line x1="440" y1="300" x2="440" y2="330"/>
+        <line x1="428" y1="330" x2="452" y2="330"/>       <!-- C3 plate -->
+        <line x1="428" y1="340" x2="452" y2="340"/>       <!-- C3 plate -->
+        <line x1="440" y1="340" x2="440" y2="552"/>
+
+        <!-- ================= T1 collector -> T2 base ================= -->
+        <line x1="411" y1="158" x2="411" y2="150"/><line x1="411" y1="150" x2="560" y2="150"/>
+        <line x1="560" y1="150" x2="560" y2="210"/>
+        <!-- junction dots -->
+
+        <!-- R1 (39K) +9V -> T2 base node -->
+        <line x1="505" y1="62" x2="505" y2="104"/>
+        <rect x="497" y="104" width="16" height="46" fill="#FCFBF7"/>
+        <line x1="505" y1="150" x2="505" y2="150"/>
+
+        <!-- ================= T2 ================= -->
+        <circle cx="600" cy="210" r="26"/>
+        <line x1="586" y1="194" x2="586" y2="226"/>
+        <line x1="560" y1="210" x2="586" y2="210"/>
+        <line x1="586" y1="203" x2="611" y2="191"/>
+        <line x1="611" y1="191" x2="611" y2="158"/>
+        <line x1="586" y1="217" x2="611" y2="229"/>
+        <line x1="611" y1="229" x2="611" y2="300"/>
+        <path d="M602,223 l9,6 l-10,3 z" fill="#26271F" stroke="none"/>
+
+        <!-- R2 (6.8K) +9V -> T2 collector -->
+        <line x1="611" y1="62" x2="611" y2="104"/>
+        <rect x="603" y="104" width="16" height="46" fill="#FCFBF7"/>
+        <line x1="611" y1="150" x2="611" y2="158"/>
+
+        <!-- T2 collector -> C5 -> speaker -->
+        <line x1="611" y1="150" x2="655" y2="150"/>
+        <!-- C5 electrolytic 4.7uF, + on left -->
+        <line x1="655" y1="136" x2="655" y2="164"/>
+        <path d="M669,138 q6,12 0,24"/>
+        <line x1="662" y1="150" x2="655" y2="150"/>
+        <line x1="669" y1="150" x2="720" y2="150"/>
+        <line x1="720" y1="150" x2="760" y2="150"/><line x1="760" y1="150" x2="760" y2="184"/>
+        <!-- speaker -->
+        <rect x="752" y="184" width="16" height="40" fill="#FCFBF7"/>
+        <path d="M768,190 L792,176 L792,232 L768,218 Z" fill="#F0EEE6"/>
+        <line x1="760" y1="224" x2="760" y2="552"/>
+
+        <!-- T2 emitter -> R4 || C4 -> GND -->
+        <line x1="611" y1="300" x2="611" y2="316"/>
+        <line x1="575" y1="316" x2="640" y2="316"/>
+        <!-- C4 electrolytic 4.7uF + top -->
+        <line x1="575" y1="316" x2="575" y2="330"/>
+        <line x1="563" y1="330" x2="587" y2="330"/>
+        <path d="M563,342 q12,8 24,0"/>
+        <line x1="575" y1="342" x2="575" y2="552"/>
+        <!-- R4 2.2K -->
+        <line x1="640" y1="316" x2="640" y2="332"/>
+        <rect x="632" y="332" width="16" height="46" fill="#FCFBF7"/>
+        <line x1="640" y1="378" x2="640" y2="552"/>
+
+      </g>
+
+      <!-- ===== junction dots ===== -->
+      <g fill="#26271F">
+        <circle cx="182" cy="172" r="3.4"/><circle cx="182" cy="378" r="3.4"/>
+        <circle cx="245" cy="172" r="0"/>
+        <circle cx="345" cy="210" r="3.4"/>
+        <circle cx="505" cy="150" r="3.4"/>
+        <circle cx="611" cy="150" r="3.4"/>
+        <circle cx="611" cy="300" r="3.4"/>
+        <circle cx="245" cy="378" r="3.4"/><circle cx="440" cy="552" r="0"/>
+        <circle cx="760" cy="150" r="3.4"/>
+      </g>
+
+      <!-- ===== ground tick at rail center ===== -->
+      <g stroke="#26271F" stroke-width="1.7" stroke-linecap="round">
+        <line x1="470" y1="552" x2="470" y2="566"/>
+        <line x1="459" y1="566" x2="481" y2="566"/>
+        <line x1="463" y1="571" x2="477" y2="571"/>
+        <line x1="467" y1="576" x2="473" y2="576"/>
+      </g>
+
+      <!-- ================= LABELS ================= -->
+      <g font-size="13" fill="#1C1D1A">
+        <!-- power -->
+        <text x="806" y="51" font-weight="700" fill="#C0392B">+9 V</text>
+        <text x="818" y="557" font-weight="700">GND</text>
+        <!-- antenna -->
+        <text x="14" y="205" font-size="11" fill="#6C6F63">Ferrite stab</text>
+        <text x="14" y="219" font-size="11" fill="#6C6F63">10 cm, long</text>
+        <text x="14" y="233" font-size="11" fill="#6C6F63">coil 0.2 mm ø</text>
+        <text x="60" y="250" font-size="11.5" fill="#1C1D1A">60 turns</text>
+        <text x="60" y="356" font-size="11.5" fill="#1C1D1A">5 turns</text>
+        <text x="150" y="230" font-weight="700">C2</text>
+        <text x="150" y="245" font-size="11.5" fill="#6C6F63">500p</text>
+        <text x="250" y="168" font-weight="700" fill="#B5411F">A</text>
+        <text x="250" y="296" font-weight="700" fill="#B5411F">B</text>
+        <text x="250" y="396" font-weight="700" fill="#B5411F">C</text>
+        <!-- C1 -->
+        <text x="298" y="192" font-weight="700">C1</text>
+        <text x="330" y="205" font-size="11.5" fill="#6C6F63">0.1</text>
+        <!-- T1 -->
+        <text x="384" y="150" font-weight="700">T1</text>
+        <text x="300" y="118" font-size="11" fill="#6C6F63">2SC3112 /</text>
+        <text x="300" y="131" font-size="11" fill="#6C6F63">2SC2675</text>
+        <!-- R3 P1 -->
+        <text x="292" y="276" font-weight="700">R3</text><text x="292" y="290" font-size="11.5" fill="#6C6F63">1M</text>
+        <text x="292" y="352" font-weight="700">P1</text><text x="292" y="366" font-size="11.5" fill="#6C6F63">1K</text>
+        <!-- C3 -->
+        <text x="455" y="330" font-weight="700">C3</text><text x="455" y="344" font-size="11.5" fill="#6C6F63">470p</text>
+        <!-- R1 R2 -->
+        <text x="466" y="98" font-weight="700">R1</text><text x="466" y="112" font-size="11.5" fill="#6C6F63">39K</text>
+        <text x="623" y="98" font-weight="700">R2</text><text x="623" y="112" font-size="11.5" fill="#6C6F63">6.8K</text>
+        <!-- T2 -->
+        <text x="584" y="150" font-weight="700">T2</text>
+        <text x="628" y="196" font-size="11" fill="#6C6F63">2SC3112 /</text>
+        <text x="628" y="209" font-size="11" fill="#6C6F63">2SC2675</text>
+        <!-- C5 -->
+        <text x="648" y="128" font-weight="700">C5</text>
+        <text x="686" y="140" font-size="11.5" fill="#6C6F63">4.7µF 10V</text>
+        <!-- speaker -->
+        <text x="784" y="200" font-weight="700">SPKR</text>
+        <text x="784" y="215" font-size="11.5" fill="#6C6F63">&gt;10 Ω</text>
+        <!-- C4 R4 -->
+        <text x="524" y="336" font-weight="700">C4</text><text x="510" y="350" font-size="11.5" fill="#6C6F63">4.7µF 10V</text>
+        <text x="652" y="360" font-weight="700">R4</text><text x="652" y="374" font-size="11.5" fill="#6C6F63">2.2K</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="bom">
+    <div class="row"><span class="r">L1</span><span>페라이트 로드 · 60T + 5T</span></div>
+    <div class="row"><span class="r">C2</span><span>500 pF 가변 (동조)</span></div>
+    <div class="row"><span class="r">C1</span><span>0.1 µF (커플링)</span></div>
+    <div class="row"><span class="r">T1·T2</span><span>2SC3112 / 2SC2675</span></div>
+    <div class="row"><span class="r">R3</span><span>1 MΩ</span></div>
+    <div class="row"><span class="r">P1</span><span>1 kΩ (재생 조정)</span></div>
+    <div class="row"><span class="r">C3</span><span>470 pF</span></div>
+    <div class="row"><span class="r">R1</span><span>39 kΩ</span></div>
+    <div class="row"><span class="r">R2</span><span>6.8 kΩ</span></div>
+    <div class="row"><span class="r">C5</span><span>4.7 µF 10 V</span></div>
+    <div class="row"><span class="r">C4</span><span>4.7 µF 10 V</span></div>
+    <div class="row"><span class="r">R4</span><span>2.2 kΩ</span></div>
+    <div class="row"><span class="r">SPKR</span><span>&gt; 10 Ω</span></div>
+  </div>
+
+  <p class="note"><b>동작 개요:</b> L1·C2 동조회로가 방송 주파수를 선택 → 탭 A에서 C1을 거쳐 T1 베이스로 입력. 5턴 피드백 코일과 P1(1K)이 재생(regeneration)량을 조절해 감도·선택도를 높입니다. T1 컬렉터가 T2 베이스에 직결(R1이 바이어스 겸 부하), T2가 스피커를 구동(C5 커플링). <b>참고:</b> 재생 네트워크(R3·P1·B탭)는 원본 손그림 기준으로 재현했으며, 실제 배선 시 P1 방향은 조정 방향에 맞춰 확인하세요.</p>
+</div>

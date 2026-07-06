@@ -1,0 +1,513 @@
+ERC report (2026-07-06T17:41:52, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(20.92 mm, 203.20 mm): Horizontal Wire, length 447.08 mm
+[unconnected_wire_endpoint]: 연결되지 않은 와이어 종단점
+    ; warning
+    @(20.92 mm, 203.20 mm): Horizontal Wire, length 447.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 120.00 mm): Symbol J2 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 123.81 mm): Vertical Wire, length 3.81 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 150.00 mm): Symbol J1 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 150.00 mm): Horizontal Wire, length 23.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 152.54 mm): Vertical Wire, length 30.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(24.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(44.19 mm, 152.54 mm): Vertical Wire, length 22.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(44.19 mm, 175.00 mm): Symbol D5 Pin 1 [K, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(48.00 mm, 116.19 mm): Symbol F1 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(48.00 mm, 123.81 mm): Horizontal Wire, length 23.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(48.00 mm, 123.81 mm): Horizontal Wire, length 12.92 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(48.00 mm, 150.00 mm): Vertical Wire, length 33.81 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(51.81 mm, 175.00 mm): Vertical Wire, length 28.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(56.92 mm, 25.40 mm): Horizontal Wire, length 367.08 mm
+[unconnected_wire_endpoint]: 연결되지 않은 와이어 종단점
+    ; warning
+    @(56.92 mm, 25.40 mm): Horizontal Wire, length 367.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 123.81 mm): Vertical Wire, length 23.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 147.46 mm): Symbol K1 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 150.00 mm): Horizontal Wire, length 23.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 150.00 mm): Vertical Wire, length 32.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 150.00 mm): Horizontal Wire, length 31.27 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 150.00 mm): Vertical Wire, length 37.54 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 152.54 mm): Horizontal Wire, length 16.73 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 152.54 mm): Horizontal Wire, length 36.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 155.08 mm): Vertical Wire, length 48.12 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 182.46 mm): Symbol K2 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 185.00 mm): Vertical Wire, length 159.60 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 190.08 mm): Horizontal Wire, length 37.62 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(60.92 mm, 190.08 mm): Horizontal Wire, length 38.89 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 84.92 mm): Symbol RT1 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 95.08 mm): Vertical Wire, length 69.68 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 150.00 mm): Vertical Wire, length 65.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 171.19 mm): Symbol R3 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 171.19 mm): Horizontal Wire, length 100.92 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(84.00 mm, 185.00 mm): Vertical Wire, length 6.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(90.92 mm, 185.00 mm): Horizontal Wire, length 21.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(90.92 mm, 185.00 mm): Horizontal Wire, length 6.92 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(90.92 mm, 185.00 mm): Symbol Q1 Pin 1 [G, Input, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(92.19 mm, 150.00 mm): Symbol D6 Pin 1 [K, Passive, Line]
+[lib_symbol_mismatch]: 심볼 '2N7002'가 라이브러리 'Transistor_FET'의 복사본과 일치하지 않음
+    ; warning
+    @(96.00 mm, 185.00 mm): Symbol Q1 [2N7002]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(98.54 mm, 190.08 mm): Vertical Wire, length 13.12 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(98.54 mm, 190.08 mm): Vertical Wire, length 10.16 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(99.81 mm, 190.08 mm): Vertical Wire, length 40.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(112.00 mm, 181.19 mm): Symbol R4 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(112.00 mm, 185.00 mm): Vertical Wire, length 3.81 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(112.00 mm, 188.81 mm): Vertical Wire, length 14.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(120.00 mm, 56.19 mm): Symbol C1 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(120.00 mm, 56.19 mm): Vertical Wire, length 30.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(120.00 mm, 63.81 mm): Vertical Wire, length 139.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(130.19 mm, 60.00 mm): Symbol D2 Pin 1 [A1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(130.19 mm, 60.00 mm): Vertical Wire, length 34.60 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(137.81 mm, 60.00 mm): Vertical Wire, length 143.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(148.00 mm, 56.19 mm): Vertical Wire, length 30.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(148.00 mm, 56.19 mm): Symbol C6 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(148.00 mm, 63.81 mm): Vertical Wire, length 139.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 46.19 mm): Symbol R1 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 46.19 mm): Vertical Wire, length 20.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 53.81 mm): Vertical Wire, length 32.38 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 53.81 mm): Horizontal Wire, length 22.92 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 53.81 mm): Horizontal Wire, length 14.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 86.19 mm): Symbol R2 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(162.00 mm, 93.81 mm): Vertical Wire, length 109.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(176.00 mm, 53.81 mm): Vertical Wire, length 32.38 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(176.00 mm, 86.19 mm): Symbol C10 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(176.00 mm, 93.81 mm): Vertical Wire, length 109.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(184.92 mm, 53.81 mm): Vertical Wire, length 56.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(184.92 mm, 107.46 mm): Symbol J9 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(184.92 mm, 112.54 mm): Vertical Wire, length 90.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(184.92 mm, 171.19 mm): Vertical Wire, length 63.73 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(204.92 mm, 48.81 mm): Vertical Wire, length 101.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(204.92 mm, 150.00 mm): Symbol J3 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(204.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 41.19 mm): Symbol F2 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(210.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(222.92 mm, 48.81 mm): Vertical Wire, length 101.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(222.92 mm, 150.00 mm): Symbol J4 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(222.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(228.00 mm, 41.19 mm): Symbol F3 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(228.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(228.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(240.92 mm, 48.81 mm): Vertical Wire, length 101.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(240.92 mm, 150.00 mm): Symbol J5 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(240.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(246.00 mm, 41.19 mm): Symbol F4 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(246.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(246.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 48.81 mm): Vertical Wire, length 28.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 77.46 mm): Symbol U1 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 80.00 mm): Vertical Wire, length 123.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 82.54 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 82.54 mm): Horizontal Wire, length 33.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 85.08 mm): Vertical Wire, length 118.12 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 123.81 mm): Vertical Wire, length 41.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 165.00 mm): Symbol J6 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(266.92 mm, 167.54 mm): Vertical Wire, length 35.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 41.19 mm): Symbol F5 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 48.81 mm): Horizontal Wire, length 16.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 82.54 mm): Vertical Wire, length 33.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 116.19 mm): Symbol F8 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 123.81 mm): Horizontal Wire, length 24.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 123.81 mm): Horizontal Wire, length 42.00 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(272.00 mm, 123.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(288.00 mm, 48.81 mm): Vertical Wire, length 17.38 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(288.00 mm, 66.19 mm): Symbol C2 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(288.00 mm, 73.81 mm): Vertical Wire, length 129.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(296.19 mm, 123.81 mm): Vertical Wire, length 26.19 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(296.19 mm, 150.00 mm): Symbol D1 Pin 1 [A1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(300.00 mm, 82.54 mm): Vertical Wire, length 23.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(300.00 mm, 106.19 mm): Symbol C3 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(300.00 mm, 113.81 mm): Vertical Wire, length 89.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(303.81 mm, 150.00 mm): Vertical Wire, length 53.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(314.00 mm, 123.81 mm): Vertical Wire, length 22.38 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(314.00 mm, 146.19 mm): Symbol C7 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(314.00 mm, 153.81 mm): Vertical Wire, length 49.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 48.81 mm): Vertical Wire, length 28.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 77.46 mm): Symbol U2 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 80.00 mm): Vertical Wire, length 123.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 82.54 mm): Vertical Wire, length 67.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 82.54 mm): Horizontal Wire, length 49.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 82.54 mm): Horizontal Wire, length 21.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 82.54 mm): Horizontal Wire, length 31.27 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 85.08 mm): Vertical Wire, length 118.12 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 150.00 mm): Symbol J7 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(339.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(345.00 mm, 41.19 mm): Symbol F6 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(345.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(345.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(361.00 mm, 82.54 mm): Vertical Wire, length 33.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(361.00 mm, 116.19 mm): Symbol C5 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(361.00 mm, 123.81 mm): Vertical Wire, length 79.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(371.19 mm, 82.54 mm): Vertical Wire, length 37.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(371.19 mm, 120.00 mm): Symbol D4 Pin 1 [A1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(378.81 mm, 120.00 mm): Vertical Wire, length 83.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(389.00 mm, 82.54 mm): Vertical Wire, length 33.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(389.00 mm, 116.19 mm): Symbol C8 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(389.00 mm, 123.81 mm): Vertical Wire, length 79.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 48.81 mm): Vertical Wire, length 28.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 77.46 mm): Symbol U3 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 80.00 mm): Vertical Wire, length 123.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 82.54 mm): Horizontal Wire, length 21.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 82.54 mm): Vertical Wire, length 92.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 82.54 mm): Horizontal Wire, length 31.27 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 82.54 mm): Horizontal Wire, length 49.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 82.54 mm): Vertical Wire, length 67.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 85.08 mm): Vertical Wire, length 118.12 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 150.00 mm): Symbol J8 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 152.54 mm): Vertical Wire, length 50.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 175.00 mm): Symbol J10 Pin 1 [Pin_1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(414.92 mm, 177.54 mm): Vertical Wire, length 25.66 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(420.00 mm, 41.19 mm): Vertical Wire, length 15.79 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(420.00 mm, 41.19 mm): Symbol F7 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(420.00 mm, 48.81 mm): Horizontal Wire, length 5.08 mm
+[unconnected_wire_endpoint]: 연결되지 않은 와이어 종단점
+    ; warning
+    @(56.92 mm, 25.40 mm): Horizontal Wire, length 367.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(436.00 mm, 82.54 mm): Vertical Wire, length 33.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(436.00 mm, 116.19 mm): Symbol C4 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(436.00 mm, 123.81 mm): Vertical Wire, length 79.39 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(446.19 mm, 82.54 mm): Vertical Wire, length 37.46 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(446.19 mm, 120.00 mm): Symbol D3 Pin 1 [A1, Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(453.81 mm, 120.00 mm): Vertical Wire, length 83.20 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(464.00 mm, 82.54 mm): Vertical Wire, length 33.65 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(464.00 mm, 116.19 mm): Symbol C9 Pin 1 [Passive, Line]
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(464.00 mm, 123.81 mm): Vertical Wire, length 79.39 mm
+[unconnected_wire_endpoint]: 연결되지 않은 와이어 종단점
+    ; warning
+    @(20.92 mm, 203.20 mm): Horizontal Wire, length 447.08 mm
+
+ ** ERC messages: 167  Errors 0  Warnings 167
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

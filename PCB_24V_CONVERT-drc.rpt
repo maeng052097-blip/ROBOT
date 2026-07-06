@@ -1,0 +1,30 @@
+** Drc report for PCB_24V_CONVERT.kicad_pcb **
+** Created on 2026-07-06T18:11:15 **
+** Report includes: Errors, Warnings **
+
+** Found 0 DRC violations **
+
+** Found 0 unconnected pads **
+
+** Found 4 Footprint errors **
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(6.0000 mm, 7.0000 mm): Footprint H3
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(206.0000 mm, 7.0000 mm): Footprint H2
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(6.0000 mm, 187.0000 mm): Footprint H1
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(206.0000 mm, 187.0000 mm): Footprint H4
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

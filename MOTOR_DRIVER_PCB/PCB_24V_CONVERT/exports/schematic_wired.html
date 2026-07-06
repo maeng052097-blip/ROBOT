@@ -1,0 +1,190 @@
+<style>
+  :root{
+    --paper:#FCFBF7;--board:#fff;--ink:#1B1C1A;--line:#232420;--muted:#6C6F63;--ref:#B5411F;
+    --v24:#C0392B;--v12:#D97A2B;--v19:#C99A24;--v5:#2E7D5B;--sig:#3B6FA0;--hair:#E4E1D6;
+    --sans:-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;--mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  .wrap{max-width:1280px;margin:0 auto;padding:22px 16px 46px;background:var(--paper);font-family:var(--sans);color:var(--ink)}
+  .hd{border-bottom:2px solid var(--ink);padding-bottom:11px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+  .hd .k{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ref);font-weight:700}
+  .hd h1{margin:4px 0 0;font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .hd .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .hd .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right;line-height:1.6}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 2px 2px;font-family:var(--mono);font-size:11.5px}
+  .legend .lg{color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-size:10px}
+  .sw{display:inline-flex;align-items:center;gap:5px}.sw i{width:20px;height:7px;border-radius:2px;display:inline-block}
+  .board{background:var(--board);border:1px solid var(--hair);border-radius:6px;margin-top:12px;padding:6px;overflow-x:auto}
+  .board svg{display:block;width:100%;min-width:1040px;height:auto}
+  .note{margin-top:14px;font-size:12.5px;color:var(--muted);line-height:1.6;border-left:3px solid var(--hair);padding-left:12px}
+  .note b{color:var(--ink)}
+</style>
+<div class="wrap">
+  <header class="hd">
+    <div>
+      <div class="k">재활용 분류 로봇 · 전원분배 기판</div>
+      <h1>24V 전원분배 회로도 (완전 배선)</h1>
+      <div class="sub">PCB_24V_CONVERT · 풀버전 — 배터리 → 보호 → 24V 버스 → 6 브랜치</div>
+    </div>
+    <div class="meta">+24 V 입력<br>45 부품 · 2층 2oz<br>2026-07-06</div>
+  </header>
+  <div class="legend"><span class="lg">전압</span>
+    <span class="sw"><i style="background:var(--v24)"></i>24V</span>
+    <span class="sw"><i style="background:var(--v12)"></i>12V</span>
+    <span class="sw"><i style="background:var(--v19)"></i>19V</span>
+    <span class="sw"><i style="background:var(--v5)"></i>5V</span>
+    <span class="sw"><i style="background:var(--sig)"></i>신호</span>
+  </div>
+  <div class="board">
+    <svg viewBox="0 0 1400 940" xmlns="http://www.w3.org/2000/svg" role="img" font-family="ui-monospace,Consolas,monospace">
+      <title>24V 전원분배 회로도 (완전 배선)</title>
+      <desc>배터리 24V 입력에서 보호회로를 거쳐 24V 버스로, 6개 브랜치(구동·스테퍼·서보·젯슨·아두이노)로 분배되는 회로.</desc>
+      <g fill="none" stroke="#232420" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <!-- ===== 24V BUS ===== -->
+        <line x1="120" y1="120" x2="1360" y2="120" stroke="#C0392B" stroke-width="3.4"/>
+        <!-- ===== GND RAIL ===== -->
+        <line x1="60" y1="880" x2="1360" y2="880" stroke="#232420" stroke-width="3"/>
+
+        <!-- ============ INPUT PROTECTION (left) ============ -->
+        <!-- J1 battery -->
+        <rect x="40" y="470" width="70" height="54" rx="4" fill="#fff"/>
+        <line x1="75" y1="470" x2="75" y2="440"/>            <!-- + up -->
+        <line x1="95" y1="524" x2="95" y2="560"/>            <!-- - down to GND branch -->
+        <line x1="95" y1="560" x2="95" y2="880"/>
+        <!-- F1 25A: J1+ -> FUSED -->
+        <line x1="75" y1="440" x2="75" y2="415"/>
+        <rect x="61" y="385" width="28" height="30" rx="4" fill="#fff"/>
+        <line x1="75" y1="385" x2="75" y2="360"/>
+        <!-- FUSED node -> K1 contact + J2 switch -->
+        <line x1="75" y1="360" x2="200" y2="360"/>
+        <!-- K1 contactor box -->
+        <rect x="200" y="330" width="86" height="60" rx="5" fill="#fff"/>
+        <line x1="200" y1="360" x2="200" y2="360"/>
+        <!-- K1 contact FUSED(in left) -> SW_MAIN(out right) -->
+        <line x1="286" y1="352" x2="320" y2="352"/>
+        <!-- RT1 NTC : SW_MAIN -> 24V bus -->
+        <line x1="320" y1="352" x2="320" y2="220"/>
+        <rect x="306" y="188" width="28" height="32" rx="4" fill="#fff"/>
+        <line x1="316" y1="196" x2="324" y2="212"/>          <!-- ntc diagonal -->
+        <line x1="320" y1="188" x2="320" y2="120"/>
+        <circle cx="320" cy="120" r="3.4" fill="#232420"/>
+        <!-- K2 bypass relay: contact SW_MAIN..24V across NTC -->
+        <rect x="360" y="250" width="80" height="46" rx="5" fill="#fff"/>
+        <line x1="320" y1="273" x2="360" y2="273"/>          <!-- SW_MAIN into K2 -->
+        <line x1="440" y1="273" x2="470" y2="273"/><line x1="470" y1="273" x2="470" y2="120"/>
+        <circle cx="470" cy="120" r="3.4" fill="#232420"/>
+        <!-- J2 main switch -> K1 coil -->
+        <rect x="40" y="300" width="58" height="40" rx="4" fill="#fff"/>
+        <line x1="98" y1="312" x2="150" y2="312"/><line x1="150" y1="312" x2="150" y2="336"/>
+        <line x1="150" y1="336" x2="243" y2="336"/>          <!-- to K1 coil -->
+        <line x1="75" y1="360" x2="75" y2="340"/><line x1="75" y1="340" x2="40" y2="340"/> <!-- FUSED to J2 -->
+        <!-- Q1 MOSFET driving K2 coil (compact) -->
+        <rect x="360" y="330" width="80" height="70" rx="5" fill="#fff"/>
+        <line x1="400" y1="296" x2="400" y2="330"/>          <!-- K2 coil to Q1 drain (K2_LS) -->
+
+        <!-- ============ 24V BUS ACCESSORIES ============ -->
+        <!-- C1 bulk -->
+        <line x1="540" y1="120" x2="540" y2="150"/><line x1="528" y1="150" x2="552" y2="150"/><path d="M528,162 q12,8 24,0"/><line x1="540" y1="170" x2="540" y2="880"/>
+        <circle cx="540" cy="120" r="3.4" fill="#232420"/>
+        <!-- D2 TVS -->
+        <line x1="590" y1="120" x2="590" y2="150"/><path d="M578,150 l24,0 l-12,14 z" fill="#fff"/><path d="M578,170 l24,0 l-12,-14 z" fill="#fff"/><line x1="590" y1="176" x2="590" y2="880"/>
+        <circle cx="590" cy="120" r="3.4" fill="#232420"/>
+        <!-- R1/R2 divider -> VBAT_SENSE -> J9 -->
+        <line x1="650" y1="120" x2="650" y2="150"/><rect x="638" y="150" width="24" height="34" rx="3" fill="#fff"/>
+        <line x1="650" y1="184" x2="650" y2="210"/><circle cx="650" cy="210" r="3.4" fill="#3B6FA0"/>
+        <rect x="638" y="230" width="24" height="34" rx="3" fill="#fff"/><line x1="650" y1="210" x2="650" y2="230"/><line x1="650" y1="264" x2="650" y2="880"/>
+        <line x1="650" y1="210" x2="700" y2="210"/>          <!-- VBAT_SENSE -> J9 -->
+        <rect x="700" y="196" width="54" height="30" rx="4" fill="#fff" stroke="#3B6FA0"/>
+        <circle cx="650" cy="120" r="3.4" fill="#232420"/>
+
+        <!-- ============ BRANCHES ============ -->
+        <!-- helper: each branch drops from bus. -->
+        <!-- BR1 F2->J3 (MDD1) -->
+        <line x1="820" y1="120" x2="820" y2="150"/><rect x="806" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="820" y1="180" x2="820" y2="800"/>
+        <circle cx="820" cy="120" r="3.4" fill="#232420"/>
+        <rect x="792" y="800" width="56" height="44" rx="4" fill="#fff"/><line x1="836" y1="844" x2="836" y2="880"/>
+        <!-- BR2 F3->J4 (MDD2) -->
+        <line x1="880" y1="120" x2="880" y2="150"/><rect x="866" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="880" y1="180" x2="880" y2="800"/>
+        <circle cx="880" cy="120" r="3.4" fill="#232420"/>
+        <rect x="852" y="800" width="56" height="44" rx="4" fill="#fff"/><line x1="896" y1="844" x2="896" y2="880"/>
+        <!-- BR3 F4->J5 (stepper) -->
+        <line x1="940" y1="120" x2="940" y2="150"/><rect x="926" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="940" y1="180" x2="940" y2="800"/>
+        <circle cx="940" cy="120" r="3.4" fill="#232420"/>
+        <rect x="912" y="800" width="56" height="44" rx="4" fill="#fff"/><line x1="956" y1="844" x2="956" y2="880"/>
+
+        <!-- BR4 12V: F5->U1->F8->V12_OUT->J6 -->
+        <line x1="1040" y1="120" x2="1040" y2="150"/><rect x="1026" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="1040" y1="180" x2="1040" y2="210"/>
+        <circle cx="1040" cy="120" r="3.4" fill="#232420"/>
+        <rect x="1000" y="210" width="80" height="46" rx="5" fill="#FFF6EE" stroke="#D97A2B"/>   <!-- U1 buck -->
+        <line x1="1040" y1="256" x2="1040" y2="300"/>       <!-- V12 -->
+        <rect x="1026" y="300" width="28" height="28" rx="4" fill="#fff"/>                        <!-- F8 -->
+        <line x1="1040" y1="328" x2="1040" y2="360" stroke="#D97A2B"/>
+        <line x1="980" y1="360" x2="1100" y2="360" stroke="#D97A2B" stroke-width="2.6"/>          <!-- V12_OUT mini-bus -->
+        <!-- D1 TVS, C7 on V12_OUT -->
+        <line x1="990" y1="360" x2="990" y2="440" stroke="#D97A2B"/><line x1="978" y1="440" x2="1002" y2="440"/><line x1="978" y1="452" x2="1002" y2="452"/><line x1="990" y1="452" x2="990" y2="880"/>
+        <line x1="1040" y1="360" x2="1040" y2="800" stroke="#D97A2B"/>
+        <rect x="1012" y="800" width="56" height="44" rx="4" fill="#fff"/><line x1="1056" y1="844" x2="1056" y2="880"/>
+        <circle cx="1040" cy="360" r="3.4" fill="#D97A2B"/>
+
+        <!-- BR5 19V: F6->U2(dnp)->J7 -->
+        <line x1="1180" y1="120" x2="1180" y2="150"/><rect x="1166" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="1180" y1="180" x2="1180" y2="210"/>
+        <circle cx="1180" cy="120" r="3.4" fill="#232420"/>
+        <rect x="1140" y="210" width="80" height="46" rx="5" fill="#FFFBF0" stroke="#C99A24" stroke-dasharray="5 3"/>
+        <line x1="1180" y1="256" x2="1180" y2="360" stroke="#C99A24" stroke-dasharray="5 4"/>
+        <line x1="1120" y1="360" x2="1240" y2="360" stroke="#C99A24" stroke-width="2.6"/>
+        <line x1="1130" y1="360" x2="1130" y2="440" stroke="#C99A24"/><line x1="1118" y1="440" x2="1142" y2="440"/><line x1="1118" y1="452" x2="1142" y2="452"/><line x1="1130" y1="452" x2="1130" y2="880"/>
+        <line x1="1180" y1="360" x2="1180" y2="800" stroke="#C99A24"/>
+        <rect x="1152" y="800" width="56" height="44" rx="4" fill="#fff"/><line x1="1196" y1="844" x2="1196" y2="880"/>
+        <circle cx="1180" cy="360" r="3.4" fill="#C99A24"/>
+
+        <!-- BR6 5V: F7->U3->J8/J10 -->
+        <line x1="1320" y1="120" x2="1320" y2="150"/><rect x="1306" y="150" width="28" height="30" rx="4" fill="#fff"/><line x1="1320" y1="180" x2="1320" y2="210"/>
+        <circle cx="1320" cy="120" r="3.4" fill="#232420"/>
+        <rect x="1280" y="210" width="80" height="46" rx="5" fill="#F1F8F3" stroke="#2E7D5B"/>
+        <line x1="1320" y1="256" x2="1320" y2="360" stroke="#2E7D5B"/>
+        <line x1="1260" y1="360" x2="1360" y2="360" stroke="#2E7D5B" stroke-width="2.6"/>
+        <line x1="1270" y1="360" x2="1270" y2="440" stroke="#2E7D5B"/><line x1="1258" y1="440" x2="1282" y2="440"/><line x1="1258" y1="452" x2="1282" y2="452"/><line x1="1270" y1="452" x2="1270" y2="880"/>
+        <line x1="1320" y1="360" x2="1320" y2="720" stroke="#2E7D5B"/>
+        <rect x="1292" y="720" width="56" height="42" rx="4" fill="#fff"/><line x1="1336" y1="762" x2="1336" y2="880"/>
+        <rect x="1292" y="800" width="56" height="42" rx="4" fill="#fff"/><line x1="1320" y1="762" x2="1320" y2="800"/><line x1="1336" y1="842" x2="1336" y2="880"/>
+        <circle cx="1320" cy="360" r="3.4" fill="#2E7D5B"/>
+      </g>
+
+      <!-- ===== labels ===== -->
+      <g font-size="12" fill="#1B1C1A">
+        <text x="120" y="112" font-weight="800" fill="#C0392B">24V 버스</text>
+        <text x="1300" y="905" font-weight="800">GND</text>
+        <!-- input -->
+        <text x="46" y="500" font-weight="700">J1</text><text x="46" y="516" font-size="10" fill="#6C6F63">배터리</text>
+        <text x="92" y="405" font-weight="700">F1</text><text x="92" y="418" font-size="10" fill="#6C6F63">25A</text>
+        <text x="210" y="366" font-weight="700">K1 컨택터</text>
+        <text x="300" y="182" font-weight="700">RT1</text><text x="300" y="240" font-size="10" fill="#6C6F63">NTC 2Ω</text>
+        <text x="368" y="277" font-weight="700">K2 바이패스</text>
+        <text x="46" y="296" font-weight="700">J2 스위치</text>
+        <text x="366" y="368" font-weight="700">Q1</text><text x="366" y="392" font-size="10" fill="#6C6F63">2N7002</text>
+        <!-- bus acc -->
+        <text x="516" y="200" font-weight="700">C1</text><text x="512" y="214" font-size="10" fill="#6C6F63">1000µF</text>
+        <text x="600" y="150" font-weight="700">D2</text><text x="600" y="200" font-size="10" fill="#6C6F63">TVS30V</text>
+        <text x="668" y="170" font-weight="700">R1</text><text x="668" y="252" font-weight="700">R2</text>
+        <text x="700" y="192" font-size="10.5" fill="#3B6FA0">J9 · VBAT_SENSE</text>
+        <!-- branches -->
+        <text x="796" y="145" font-weight="700">F2 15A</text><text x="792" y="836" font-weight="700" fill="#C0392B">J3 · MDD1</text>
+        <text x="856" y="145" font-weight="700">F3 15A</text><text x="852" y="836" font-weight="700" fill="#C0392B">J4 · MDD2</text>
+        <text x="916" y="145" font-weight="700">F4 10A</text><text x="912" y="836" font-weight="700" fill="#C0392B">J5 · 스테퍼</text>
+        <text x="1000" y="145" font-weight="700">F5 7.5A</text>
+        <text x="1004" y="238" font-weight="700" fill="#D97A2B">U1 24→12V</text>
+        <text x="1058" y="320" font-weight="700">F8 10A</text>
+        <text x="978" y="432" font-size="10" fill="#6C6F63">D1</text>
+        <text x="1012" y="836" font-weight="700" fill="#D97A2B">J6 · 서보 12V</text>
+        <text x="1144" y="145" font-weight="700">F6 5A</text>
+        <text x="1146" y="238" font-weight="700" fill="#C99A24">U2 24→19V (예약)</text>
+        <text x="1152" y="836" font-weight="700" fill="#C99A24">J7 · 젯슨 19V</text>
+        <text x="1284" y="145" font-weight="700">F7 2A</text>
+        <text x="1286" y="238" font-weight="700" fill="#2E7D5B">U3 24→5V</text>
+        <text x="1292" y="756" font-weight="700" fill="#2E7D5B">J8 · 아두이노</text>
+        <text x="1292" y="836" font-weight="700" fill="#2E7D5B">J10 · 아두이노2</text>
+      </g>
+    </svg>
+  </div>
+  <p class="note"><b>구조:</b> 배터리(J1) → F1 25A → K1 컨택터 → RT1 NTC 돌입제한(K2 릴레이가 안정 후 바이패스) → <b>24V 버스</b>. 버스에서 C1 벌크·D2 TVS·R1/R2 분압(VBAT_SENSE→J9), 그리고 6 브랜치(각 퓨즈)로 분배 — 구동 2·스테퍼·서보(12V)·젯슨(19V, 예약)·아두이노(5V). 각 강압은 벅 모듈(U1/U2/U3), 출력마다 벌크캡+TVS. 색 = 전압 레벨. <b>정확한 부품값/핀은</b> KiCad 원본 <span class="mono">01_schematic.pdf</span> 참조.</p>
+</div>
