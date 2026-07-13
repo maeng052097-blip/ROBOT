@@ -1,0 +1,84 @@
+<style>
+  :root{--paper:#FAF9F5;--ink:#1B1C1A;--muted:#6C6F63;--hair:#E3E0D7;
+    --v24:#C0392B;--v24bg:#FBEDEB;--gnd:#33383A;--gndbg:#ECEEEE;
+    --v12:#D97A2B;--v19:#C99A24;--v5:#2E7D5B;--sig:#3B6FA0;
+    --sans:-apple-system,"Segoe UI",system-ui,Roboto,sans-serif;--mono:ui-monospace,Consolas,monospace;}
+  *{box-sizing:border-box}
+  .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 48px;background:var(--paper);color:var(--ink);font-family:var(--sans)}
+  h1{font-size:21px;margin:0 0 2px}.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .card{background:#fff;border:1px solid var(--hair);border-radius:8px;padding:16px 18px;margin-top:18px}
+  .ct{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin-bottom:2px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .cs{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  /* 24V bus */
+  .bus{height:16px;border-radius:5px;background:var(--v24);display:flex;align-items:center;padding:0 12px;color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em}
+  .src{font-size:12px;color:var(--muted);margin:8px 0 2px}
+  .src b{color:var(--v24)}
+  .fan{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:12px}
+  @media(max-width:720px){.fan{grid-template-columns:repeat(2,1fr)}}
+  .leg{position:relative;padding-top:12px}
+  .leg:before{content:"";position:absolute;top:0;left:50%;width:2px;height:12px;background:var(--v24)}
+  .chip{border:1px solid var(--hair);border-top:3px solid var(--v24);border-radius:5px;padding:8px 9px;background:#fff;height:100%}
+  .chip .r{font-family:var(--mono);font-weight:700;font-size:13px}
+  .chip .d{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.35}
+  .chip.load{border-top-color:var(--v24)}
+  .grp{font-size:10.5px;font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);grid-column:1/-1;margin:6px 0 -4px}
+  /* GND */
+  .ggrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:720px){.ggrid{grid-template-columns:repeat(2,1fr)}}
+  .gbox{border:1px solid var(--hair);border-radius:6px;padding:9px 10px;background:#fff;position:relative}
+  .gbox .h{font-size:12px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .gbox .h i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .gbox .m{font-family:var(--mono);font-size:11.5px;color:#333;line-height:1.5;word-spacing:2px}
+  .gbar{margin-top:14px;height:18px;border-radius:5px;background:var(--gnd);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.06em}
+  .arrows{display:flex;justify-content:space-around;color:var(--gnd);font-size:14px;margin:2px 0 -2px}
+  .note{margin-top:14px;font-size:12.5px;color:var(--muted);line-height:1.6;border-left:3px solid var(--hair);padding-left:12px}
+  .note b{color:var(--ink)}
+</style>
+<div class="wrap">
+  <h1>24V · GND 분배 맵 — 한눈에</h1>
+  <div class="sub">PCB_24V_CONVERT · 전원심볼은 이름으로 이미 하나로 연결됨 · 이 그림은 "어디로 가는지" 보기용 (KiCad 파일과 별개)</div>
+
+  <!-- ===== 24V ===== -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--v24)"></span>+24V — 12곳으로 나감</div>
+    <div class="cs">전원심볼 <span style="font-family:var(--mono)">+24V</span> 12개 = 전부 이 한 넷. 아래가 그 목적지 전부입니다.</div>
+    <div class="bus">▶ +24V 버스 (한 넷)</div>
+    <div class="src">공급원: 배터리 → F1(25A) → K1(컨택터) → <b>RT1(NTC)·K2(바이패스 릴레이)</b> 가 버스에 24V를 넣음</div>
+    <div class="fan">
+      <div class="grp">보호 · 감시 부속 (버스에 매달림)</div>
+      <div class="leg"><div class="chip"><div class="r">C1</div><div class="d">벌크캡 1000µF</div></div></div>
+      <div class="leg"><div class="chip"><div class="r">D2</div><div class="d">TVS 30V 보호</div></div></div>
+      <div class="leg"><div class="chip"><div class="r">C6</div><div class="d">디커플링 0.1µF</div></div></div>
+      <div class="leg"><div class="chip"><div class="r">R1</div><div class="d">분압 → 전압감시</div></div></div>
+      <div class="leg"><div class="chip" style="border-top-color:#ccc;opacity:.55"><div class="r">RT1·K2</div><div class="d">(공급원 쪽)</div></div></div>
+      <div class="grp">6 브랜치 (각 퓨즈로 분배)</div>
+      <div class="leg"><div class="chip load"><div class="r">F2 15A</div><div class="d">→ 구동모터 1</div></div></div>
+      <div class="leg"><div class="chip load"><div class="r">F3 15A</div><div class="d">→ 구동모터 2</div></div></div>
+      <div class="leg"><div class="chip load"><div class="r">F4 10A</div><div class="d">→ 스테퍼</div></div></div>
+      <div class="leg"><div class="chip load" style="border-top-color:var(--v12)"><div class="r">F5 7.5A</div><div class="d">→ 12V 벅 → 서보</div></div></div>
+      <div class="leg"><div class="chip load" style="border-top-color:var(--v19)"><div class="r">F6 5A</div><div class="d">→ 19V 벅 → 젯슨</div></div></div>
+      <div class="leg" style="grid-column:1"><div class="chip load" style="border-top-color:var(--v5)"><div class="r">F7 2A</div><div class="d">→ 5V 벅 → 아두이노</div></div></div>
+    </div>
+  </div>
+
+  <!-- ===== GND ===== -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--gnd)"></span>GND — 31개 부품이 하나로 모임</div>
+    <div class="cs">전원심볼 <span style="font-family:var(--mono)">GND</span> 34개 = 전부 이 한 넷. 아래 부품들의 (−)쪽이 전부 공통 접지로.</div>
+    <div class="ggrid">
+      <div class="gbox"><div class="h"><i style="background:var(--gnd)"></i>입력 · 제어</div><div class="m">J1 K1 D5 Q1 R4</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--v24)"></i>24V 버스</div><div class="m">C1 C6 D2 R2 C10</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--v24)"></i>구동 · 스테퍼</div><div class="m">J3 J4 J5</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--sig)"></i>제어 · 센스</div><div class="m">J9</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--v12)"></i>12V (서보)</div><div class="m">U1 C2 C3 D1 C7 J6</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--v19)"></i>19V (젯슨)</div><div class="m">U2 C5 D4 C8 J7</div></div>
+      <div class="gbox"><div class="h"><i style="background:var(--v5)"></i>5V (아두이노)</div><div class="m">U3 C4 D3 C9 J8 J10</div></div>
+      <div class="gbox" style="border-style:dashed;background:var(--gndbg)"><div class="h">= 합계</div><div class="m">31 부품 · 34 핀</div></div>
+    </div>
+    <div class="arrows"><span>▼</span><span>▼</span><span>▼</span><span>▼</span><span>▼</span><span>▼</span><span>▼</span></div>
+    <div class="gbar">⏚ GND 공통 — PCB 뒷면 구리 평면(B.Cu) 하나로 전부 연결</div>
+  </div>
+
+  <p class="note"><b>왜 선이 안 보여도 연결됐나:</b> KiCad에서 이름이 같은 전원심볼(<span style="font-family:var(--mono)">+24V</span>, <span style="font-family:var(--mono)">GND</span>)은 자동으로 같은 넷입니다. 그래서 <b>선을 안 그어도 이미 하나</b>고, parity 검사도 통과했습니다. 실제 기판에선 24V는 앞면 트레이스/폴리곤, GND는 뒷면 구리 평면 하나로 물리 연결됩니다.</p>
+</div>

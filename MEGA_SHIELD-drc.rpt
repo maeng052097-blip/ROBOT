@@ -1,0 +1,80 @@
+** Drc report for MEGA_SHIELD.kicad_pcb **
+** Created on 2026-07-10T01:29:32 **
+** Report includes: Errors, Warnings **
+
+** Found 9 DRC violations **
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: 기판 구성 제약 실크; warning
+    @(196.5200 mm, 46.6600 mm): Segment on Edge.Cuts
+    @(197.8500 mm, 47.8700 mm): Segment of J7 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: 기판 구성 제약 실크; warning
+    @(196.5200 mm, 46.6600 mm): Segment on Edge.Cuts
+    @(197.8500 mm, 93.7100 mm): Segment of J7 on F.Silkscreen
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_2x18_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(193.9800 mm, 92.3800 mm): Footprint J7
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(127.9400 mm, 97.4600 mm): Footprint J1
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(150.8000 mm, 97.4600 mm): Footprint J3
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(173.6600 mm, 97.4600 mm): Footprint J5
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x10_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(118.7960 mm, 49.2000 mm): Footprint J2
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(145.7200 mm, 49.2000 mm): Footprint J4
+[lib_footprint_mismatch]: 풋프린트 'PinSocket_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinSocket_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(168.5800 mm, 49.2000 mm): Footprint J6
+
+** Found 8 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(126.4160 mm, 49.2000 mm): PTH pad 4 [GND] of J2
+    @(140.6400 mm, 97.4600 mm): PTH pad 6 [GND] of J1
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(140.6400 mm, 97.4600 mm): PTH pad 6 [GND] of J1
+    @(143.1800 mm, 97.4600 mm): PTH pad 7 [GND] of J1
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(143.1800 mm, 97.4600 mm): PTH pad 7 [GND] of J1
+    @(193.9800 mm, 92.3800 mm): PTH pad 1 [GND] of J7
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(196.5200 mm, 92.3800 mm): PTH pad 2 [GND] of J7
+    @(193.9800 mm, 92.3800 mm): PTH pad 1 [GND] of J7
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(193.9800 mm, 49.2000 mm): PTH pad 35 [+5V] of J7
+    @(138.1000 mm, 97.4600 mm): PTH pad 5 [+5V] of J1
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(196.5200 mm, 49.2000 mm): PTH pad 36 [+5V] of J7
+    @(193.9800 mm, 49.2000 mm): PTH pad 35 [+5V] of J7
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(121.3360 mm, 49.2000 mm): PTH pad 2 [/SDA/20] of J2
+    @(183.8200 mm, 49.2000 mm): PTH pad 7 [/SDA/20] of J6
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(118.7960 mm, 49.2000 mm): PTH pad 1 [/SCL/21] of J2
+    @(186.3600 mm, 49.2000 mm): PTH pad 8 [/SCL/21] of J6
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - PTH inside courtyard
+    - NPTH inside courtyard
+
+** End of Report **
