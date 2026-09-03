@@ -1,0 +1,7 @@
+{
+  "board": {"design_settings": {}},
+  "meta": {"filename": "PCB_POWER_B.kicad_pro", "version": 3},
+  "schematic": {"legacy_lib_dir": "", "legacy_lib_list": []},
+  "sheets": [["e64f558a-07c8-4f99-a2a6-4e74de16a67c", "Root"]],
+  "text_variables": {}
+}
