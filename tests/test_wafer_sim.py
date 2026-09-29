@@ -144,6 +144,29 @@ def main():
         assert e.code == "nothing", e.code
     print("  OK E-STOP at step 10 -> C90 confirm required; confirm without clearing -> collision at 7")
 
+    # 들고 가던 중 정지 -> 블레이드 웨이퍼 수동 제거 -> 다음 슬롯부터 이어서 진행
+    x = ready_sim([True, True, True] + [False] * 7)
+    x.command("cassette_ready")
+    x.command("start")
+    assert run_until(x, lambda y: y.slot == 2 and y.snapshot()["step"]["key"] == "6")
+    x.command("stop")
+    x.command("home")
+    assert run_until(x, lambda y: y.state != "HOMING", dt=0.02) and x.state == "READY"
+    x.command("confirm", choice="c90_clear")
+    try:
+        x.command("start")
+        raise AssertionError("blade wafer must block start")
+    except CommandError as e:
+        assert e.code == "blade_wafer", e.code
+    x.command("remove_wafer", loc="blade")
+    assert not x.occ().blade and not x.sensors()["S4"]
+    x.command("start")
+    assert x.slot == 3, x.slot
+    assert run_until(x, lambda y: y.state == "CASSETTE_DONE")
+    locs = {w["slot"]: w["loc"] for w in x.wafers}
+    assert locs[1] == "handed_off" and locs[2] == "removed" and locs[3] == "handed_off", locs
+    print("  OK stop while carrying -> manual blade removal -> resumes at next slot (removed slot skipped)")
+
     x = ready_sim([True] + [False] * 9)
     x.command("cassette_ready")
     x.command("fault", name="belt_skip")

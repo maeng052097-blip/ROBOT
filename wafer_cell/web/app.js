@@ -36,7 +36,7 @@ const ALLOWED = {
   home: ['IDLE', 'READY', 'CASSETTE_DONE'], cassette_ready: ['IDLE', 'READY', 'CASSETTE_DONE'],
   start: ['READY', 'CASSETTE_DONE'], pause: ['HOMING', 'RUNNING', 'WAIT_S5'], resume: ['PAUSED'],
   stop: ['HOMING', 'RUNNING', 'WAIT_S5', 'PAUSED', 'WAIT_OPERATOR'], reset: ['ALARM', 'ESTOP'],
-  c90: ['IDLE', 'READY', 'CASSETTE_DONE'], estop: null,
+  c90: ['IDLE', 'READY', 'CASSETTE_DONE'], blade: ['IDLE', 'READY', 'CASSETTE_DONE', 'ALARM'], estop: null,
 };
 const CMD_KR = { home: '원점 복귀', start: '공정 시작', resume: '재개', reset: '알람 해제' };
 
@@ -156,7 +156,6 @@ function buildElev() {
   R.st.inspect = el('g', {}, g);
   [R.c90Ew] = cradle(R.st.inspect, false);
   rect(238, -239, 30, 27, 'backlight', R.st.inspect);
-  el('path', { d: 'M235.5 -425 L180.5 -254 M235.5 -425 L290.5 -254', class: 'dash' }, R.st.inspect);
   R.st.output = el('g', {}, g);
   [R.c180Ew, R.s5E] = cradle(R.st.output, true);
   // 캐리지(ZC=105 기준으로 그린 뒤 이동)
@@ -293,6 +292,7 @@ async function cmd(c, args, opts) {
 }
 function handleCmdError(c, j) {
   if (j.error === 'need_c90_confirm') { confirmC90(); return; }
+  if (j.error === 'blade_wafer') { confirmBlade(c === 'start'); return; }
   toast(j.msg || j.error);
 }
 
@@ -445,11 +445,12 @@ function updatePanels(s) {
   for (const b of document.querySelectorAll('#speed button')) b.classList.toggle('on', Number(b.dataset.speed) === s.speed);
   for (const f in R.fault) { const on = s.faults.includes(f); R.fault[f].classList.toggle('on', on); R.fault[f].querySelector('input').checked = on; }
   $('btn-c90').hidden = s.c90_verified;
+  $('btn-blade').hidden = !(s.occ.blade || s.sensors.S4) || !ALLOWED.blade.includes(s.state);
   // 캡처 목록
   const caps = $('caps');
   caps.hidden = !s.captures.length;
   if (!s.captures.length) caps.innerHTML = '';
-  else caps.innerHTML = s.captures.slice().reverse().map((c) => `<span class="cap">슬롯 ${c.slot} · t${fmt(c.t, 0)}s ${c.file ? `<a href="/captures/${encodeURIComponent(c.file)}" target="_blank">jpg</a>` : (c.pending ? '저장 중' : '개념도')}</span>`).join('');
+  else caps.innerHTML = s.captures.slice().reverse().map((c) => `<span class="cap">슬롯 ${c.slot}${c.file ? ` <a href="/captures/${encodeURIComponent(c.file)}" target="_blank">jpg</a>` : ''}</span>`).join('');
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
@@ -563,6 +564,23 @@ function confirmC90() {
       $('m-rm').addEventListener('click', () => { cmd('remove_wafer', { loc: 'C90' }); });
     });
 }
+function confirmBlade(thenStart) {
+  // 블레이드 위 웨이퍼: 운전자가 손으로 치운 것을 확인 -> 그 슬롯은 '제거'로 기록, 다음 슬롯부터 진행
+  const w = snap && snap.wafers.find((x) => x.loc === 'blade');
+  if (!w) {  // 웨이퍼 없이 S4 만 켜짐 = 센서 오감지
+    modal(`<h3>S4 켜짐 - 블레이드에 웨이퍼 없음</h3><p>센서 오감지다. 시뮬에서는 고장 주입 'S4 오감지 (안착 후에도 있음)'을 끈다.</p><div class="row"><button class="b" data-close>닫기</button><button class="b go" id="m-f">오감지 고장 끄기</button></div>`,
+      (close) => { $('m-f').addEventListener('click', () => { close(); cmd('fault', { name: 's4_false_present', on: false }); }); });
+    return;
+  }
+  modal(`<h3>블레이드 위 웨이퍼 (슬롯 ${w.slot})</h3><p>손으로 웨이퍼를 치운 뒤 누른다. 슬롯 ${w.slot} 은 '제거'로 기록되고 다음 슬롯부터 진행한다.</p><div class="row"><button class="b" data-close>취소</button><button class="b go" id="m-rm">제거 완료${thenStart ? ' → 시작' : ''}</button></div>`,
+    (close) => {
+      $('m-rm').addEventListener('click', async () => {
+        close();
+        const r = await cmd('remove_wafer', { loc: 'blade' });
+        if (r && r.ok && thenStart && snap && ['READY', 'CASSETTE_DONE'].includes(snap.state)) cmd('start', {}, { expect: snap.state });
+      });
+    });
+}
 function askManualN(r) {
   modal(`<h3>TOF 판정 불가 (${r.kind})</h3><p>TOF ${fmt(r.d)}mm - 빈 카세트와 슬롯 1 을 구분할 수 없거나 값이 무효다. 투입 개수 N 을 직접 입력한다(슬롯 1 부터 연속 가정).</p><div class="row"><input type="number" id="m-n" min="0" max="10" value="1"><span class="sp"></span><button class="b" data-close>취소</button><button class="b go" id="m-ok">N 확정</button></div>`,
     (close) => { $('m-ok').addEventListener('click', () => { const n = Number($('m-n').value); close(); cmd('cassette_ready', { manual_n: n }); }); });
@@ -589,6 +607,7 @@ function bindUi() {
     b.addEventListener('click', () => {
       const c = b.dataset.cmd;
       if (c === 'c90') return confirmC90();
+      if (c === 'blade') return confirmBlade(false);
       if (b.dataset.confirm) return confirmCmd(c);
       cmd(c, {}, { expect: snap && snap.state });
     });

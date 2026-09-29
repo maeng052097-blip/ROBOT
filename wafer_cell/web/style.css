@@ -281,3 +281,4 @@ body.demo .timeline .tc{height:34px;min-width:36px;font-size:14px}
 @media (max-width: 1600px){
   .tb-cell{padding:6px 10px}
 }
+.b.warnb{color:var(--amber);border-color:var(--amber)}
