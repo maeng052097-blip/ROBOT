@@ -20,7 +20,7 @@ const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v)) ? '
 function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 
 const STATE_KR = {
-  IDLE: '대기 · 원점 미확정', HOMING: '원점 복귀 중', READY: '준비 완료', RUNNING: '공정 진행',
+  IDLE: '원점 필요', HOMING: '원점 복귀 중', READY: '준비 완료', RUNNING: '공정 진행',
   WAIT_S5: '인계 대기 (S5)', WAIT_OPERATOR: '운전자 확인 대기', PAUSED: '일시정지', ALARM: '알람',
   ESTOP: '비상정지', CASSETTE_DONE: '카세트 완료',
 };
@@ -56,8 +56,10 @@ function buildPlan() {
   const g = el('g', {}, svg);
   rect(-345, -63.03, 690, 20, 'rail', g); rect(-345, 43.03, 690, 20, 'rail', g);
   el('path', { d: 'M235.5 0 A235.5 235.5 0 0 0 -235.5 0', class: 'path' }, g);
-  circ(0, 0, GEO.blade_tip_x, 'sweep', g);
-  circ(0, 0, 234.5, 'sweep-a', g);
+  // 선회원: 로봇은 0~180도만 돈다 -> -10~190도 호만 그린다(아래 반원은 쓰지 않는 영역)
+  const arc = (r, cls) => { const a0 = -10 * Math.PI / 180, a1 = 190 * Math.PI / 180;
+    el('path', { d: `M${r * Math.cos(a0)} ${-r * Math.sin(a0)} A${r} ${r} 0 1 0 ${r * Math.cos(a1)} ${-r * Math.sin(a1)}`, class: cls }, g); };
+  arc(GEO.blade_tip_x, 'sweep'); arc(234.5, 'sweep-a');
   for (const [x, y] of [[272, -50], [272, 30], [272, -85], [272, 65], [-40, -296], [20, -296], [-50, -330], [30, -330], [-296, -40], [-296, 20]]) rect(x, y, 20, 20, 'post', g);
   // 스테이션 강조 링
   R.hi = {
@@ -68,7 +70,7 @@ function buildPlan() {
   rect(215, -62, 79, 5, 'part', g); rect(215, 57, 79, 5, 'part', g);
   rect(215, -57, 71, 10, 'part', g); rect(215, 47, 71, 10, 'part', g); rect(288, -57, 6, 114, 'part', g);
   R.casW = circ(235.5, 0, 50, 'wafer', g);
-  R.casN = tx('', { x: 235.5, y: 4, 'text-anchor': 'middle', class: 'stn-s' }, g);
+  R.casN = tx('', { x: 235.5, y: 4, 'text-anchor': 'middle', class: 'stn-t' }, g);
   // 검사 90°
   rect(-52, -318, 104, 56, 'hub', g); rect(-52, -265, 12, 45, 'part', g); rect(40, -265, 12, 45, 'part', g);
   rect(-50, -268, 100, 30, 'backlight', g);
@@ -104,14 +106,11 @@ function buildPlan() {
   sen('S1', -72, 0, g); sen('S5', -265, 0, g); sen('S2', 0, 40, rot); sen('S3', 104, -30, rot); sen('S4', 140, 0, blade);
   const cam = el('g', {}, g); rect(-14, -259, 28, 17, 'rob2', cam, { rx: 3 }); tx('CAM', { x: 0, y: -247, class: 'sen-t' }, cam);
   // 라벨(화면 좌표)
-  const lab = (x, y, t1, t2) => { tx(t1, { x, y, class: 'stn-t', 'text-anchor': 'middle' }, g); tx(t2, { x, y: y + 14, class: 'stn-s', 'text-anchor': 'middle' }, g); };
-  lab(262, -104, '0° 카세트 C-01', '10슬롯 · 피치 12');
-  lab(150, -318, '90° 검사 크래들 C-02', '백라이트 C-03 · 카메라 C-04');
-  lab(-262, -82, '180° 반출 C-06', '다음 이송로봇 인계');
-  tx('R203 빈 블레이드 선회', { x: 150, y: 110, class: 'dimt' }, g);
-  tx('R234.5 웨이퍼 든 선회 -> ZC105 로 내려서', { x: -330, y: 128, class: 'dimt' }, g);
+  const lab = (x, y, t) => tx(t, { x, y, class: 'stn-t', 'text-anchor': 'middle' }, g);
+  lab(262, -100, '0° 카세트');
+  lab(150, -318, '90° 검사');
+  lab(-262, -72, '180° 반출');
   R.planTheta = tx('θ1 0.0°', { x: -330, y: -330, class: 'stn-t' }, g);
-  R.planTheta2 = tx('', { x: -330, y: -315, class: 'stn-s' }, g);
 }
 
 /* ───────────────────────── 입면도 ───────────────────────── */
@@ -121,23 +120,20 @@ function buildElev() {
   const g = el('g', { id: 'elevScene' }, svg);
   // 선회 대역, 눈금
   rect(-95, -174, 430, 16, 'band', g);
-  tx('선회 대역 z158~174', { x: -90, y: -178, class: 'dimt' }, g);
-  el('line', { x1: 328, y1: -60, x2: 328, y2: -420, class: 'dim' }, g);
-  for (let z = 100; z <= 400; z += 50) { el('line', { x1: 324, y1: -z, x2: 332, y2: -z, class: 'dim' }, g); tx(`z${z}`, { x: 322, y: -z + 3, class: 'dimt', 'text-anchor': 'end' }, g); }
+  // z 눈금: 왼쪽 가장자리(오른쪽은 슬롯 번호 자리)
+  el('line', { x1: -92, y1: -85, x2: -92, y2: -415, class: 'dim' }, g);
+  for (let z = 100; z <= 400; z += 50) { el('line', { x1: -94, y1: -z, x2: -90, y2: -z, class: 'dim' }, g); tx(`z${z}`, { x: -88, y: -z + 3, class: 'dimt' }, g); }
   // 고정 기둥(회전부 포함, 단면에선 정지로 보임)
-  rect(-85, -8, 118.5, 8, 'col', g);
-  rect(-35, -58, 13.9, 50, 'col', g); rect(21.1, -58, 13.9, 50, 'col', g);
   rect(-60, -95, 120, 10, 'rob2', g);
   rect(-36.82, -372, 10, 285, 'rob2', g); rect(26.82, -372, 10, 285, 'rob2', g);
   rect(-44, -350, 8, 230, 'col', g);
   rect(-70, -374, 140, 10, 'rob2', g);
   rect(-61.15, -422, 42.3, 48, 'rob', g);
-  tx('Z 모터', { x: -66, y: -400, class: 'dimt', 'text-anchor': 'end' }, g);
   // 스테이션 단면(오른쪽)
   R.st = {};
   R.st.cassette = el('g', {}, g);
   const cg = R.st.cassette;
-  rect(272, -302, 20, 302, 'post', cg);
+  rect(272, -302, 20, 242, 'post', cg);
   rect(215, -310, 79, 130, 'dash', cg);
   rect(250, -180, 50, 8, 'part', cg);
   rect(215, -190, 71, 10, 'part', cg);
@@ -149,7 +145,6 @@ function buildElev() {
     R.slotW.push(rect(185.5, -(sk + GEO.wafer_t), 100, GEO.wafer_t, 'wafer', cg));
     tx(String(k), { x: 300, y: -sk - 1, class: 'slotnum' }, cg);
   }
-  tx('카세트 C-01 · 슬롯 z190~298', { x: 245, y: -318, class: 'stn-s', 'text-anchor': 'middle' }, cg);
   const cradle = (parent, withS5) => {
     rect(262, -250, 56, 6, 'hub', parent); rect(220, -250, 45, 6, 'part', parent);
     rect(218, -252, 8, 2, 'pad', parent); rect(276.5, -252, 8, 2, 'pad', parent);
@@ -161,14 +156,9 @@ function buildElev() {
   R.st.inspect = el('g', {}, g);
   [R.c90Ew] = cradle(R.st.inspect, false);
   rect(238, -239, 30, 27, 'backlight', R.st.inspect);
-  tx('백라이트 [z 불명]', { x: 253, y: -205, class: 'dimt', 'text-anchor': 'middle' }, R.st.inspect);
   el('path', { d: 'M235.5 -425 L180.5 -254 M235.5 -425 L290.5 -254', class: 'dash' }, R.st.inspect);
-  tx('CAM z496 ↑ · FOV 110', { x: 236, y: -405, class: 'dimt', 'text-anchor': 'middle' }, R.st.inspect);
-  tx('검사 크래들 C-02 · 안착 z252', { x: 250, y: -270, class: 'stn-s', 'text-anchor': 'middle' }, R.st.inspect);
   R.st.output = el('g', {}, g);
   [R.c180Ew, R.s5E] = cradle(R.st.output, true);
-  tx('반출 크래들 C-06 · 인계', { x: 250, y: -270, class: 'stn-s', 'text-anchor': 'middle' }, R.st.output);
-  R.ghostLbl = tx('', { x: 250, y: -330, class: 'stn-t', 'text-anchor': 'middle' }, g);
   // 캐리지(ZC=105 기준으로 그린 뒤 이동)
   const car = el('g', {}, g); R.car = car;
   rect(-50, -135, 100, 30, 'rob', car);
@@ -183,7 +173,6 @@ function buildElev() {
   R.carryE = rect(134.5, -(170.5 + GEO.wafer_t), 100, GEO.wafer_t, 'wafer carry', bl);
   R.s4E = circ(140, -165, 3, 'sen', bl);
   R.collideE = circ(203, -167, 10, 'collide', bl);
-  R.zcLbl = tx('ZC', { x: -52, y: -118, class: 'dimt', 'text-anchor': 'end' }, car);
 }
 
 /* ───────────────────────── 검사 카메라 개념도 ───────────────────────── */
@@ -204,8 +193,6 @@ function buildCam() {
   R.camW = el('circle', { cx: 0, cy: -235.5, r: 50, fill: '#101218', 'fill-opacity': .94, stroke: '#9c97d6', 'stroke-width': .8 }, svg);
   el('path', { d: 'M-8 -235.5 H8 M0 -243.5 V-227.5', stroke: '#6fcf97', 'stroke-width': .6 }, svg);
   rect(-55, -290.5, 110, 110, '', svg, { fill: 'none', stroke: '#6f7c88', 'stroke-dasharray': '3 3', 'stroke-width': .6 });
-  tx('FOV 110 (문서 가정)', { x: -118, y: -176, fill: '#8aa0b2', 'font-size': 6 }, svg);
-  tx('백라이트 88×18', { x: 46, y: -250, fill: '#e9b35f', 'font-size': 6 }, svg);
   R.camFlash = rect(-120, -292, 240, 120, '', svg, { fill: '#fff', opacity: 0 });
 }
 
@@ -231,27 +218,22 @@ function buildTimeline() {
 function buildPanels() {
   const ax = $('axes'); ax.innerHTML = '';
   R.ax = {};
-  const row = (k, name, sub, lo, hi, unit, marks) => {
+  const row = (k, name, lo, hi, unit, marks) => {
     const d = document.createElement('div'); d.className = 'ax';
-    d.innerHTML = `<div class="an">${name}<small>${sub}</small></div><div class="track"><span class="fill"></span><span class="tgt" hidden></span></div><div class="av">-</div><div class="note" hidden></div>`;
+    d.innerHTML = `<div class="an">${name}</div><div class="track"><span class="fill"></span><span class="tgt" hidden></span></div><div class="av">-</div><div class="note" hidden></div>`;
     const tr = d.querySelector('.track');
     for (const m of marks) { const s = document.createElement('span'); s.className = 'mk'; s.style.left = `${(m - lo) / (hi - lo) * 100}%`; s.title = String(m); tr.appendChild(s); }
     ax.appendChild(d); R.ax[k] = { d, lo, hi, unit, fill: d.querySelector('.fill'), tgt: d.querySelector('.tgt'), av: d.querySelector('.av'), note: d.querySelector('.note') };
   };
-  row('theta', 'θ1', '선회 · 지령', -5, 185, '°', [0, 90, 180]);
-  row('zc', 'ZC', 'Z 캐리지 · 지령', GEO.zc_min, GEO.zc_max, 'mm', [GEO.zc_swing, 181, 192]);
-  row('rx', 'RX', 'R 실린더 · 지령', 0, GEO.rx_stroke_measured, 'mm', [GEO.rx_ext]);
+  row('theta', 'θ1', -5, 185, '°', [0, 90, 180]);
+  row('zc', 'ZC', GEO.zc_min, GEO.zc_max, 'mm', [GEO.zc_swing, 181, 192]);
+  row('rx', 'RX', 0, GEO.rx_stroke_measured, 'mm', [GEO.rx_ext]);
   const chips = $('chips'); chips.innerHTML = '';
   R.chip = {};
   for (const [k, lbl] of [['S1', 'θ1 원점'], ['S2', 'Z 원점'], ['S3', 'R 후진'], ['S4', '블레이드 웨이퍼'], ['S5', '반출 점유'], ['ESTOP', '비상정지']]) {
     const c = document.createElement('div'); c.className = 'chip' + (k === 'ESTOP' ? ' estop' : '');
-    c.innerHTML = `<b>${k === 'ESTOP' ? 'E-STOP' : k}</b><span>${lbl}</span>`;
+    c.innerHTML = `<b>${k === 'ESTOP' ? 'E-STOP' : k}</b>`; c.title = lbl;
     chips.appendChild(c); R.chip[k] = c;
-  }
-  const cl = $('clear'); cl.innerHTML = '';
-  for (const c of META.clearances) {
-    const d = document.createElement('div'); d.className = 'cl' + (c.mm < 1.0 ? ' tight' : '');
-    d.innerHTML = `<span>${c.label}</span><b>${fmt(c.mm, 1)}mm</b>`; d.title = '문서 수치 + 가정 웨이퍼 두께 기준'; cl.appendChild(d);
   }
   const sb = $('slotbar'); sb.innerHTML = '';
   R.sl = [];
@@ -351,12 +333,8 @@ function drawPose(p) {
     R.st[k].style.display = show ? '' : 'none';
     R.st[k].classList.toggle('ghoststn', !st && dest === k);
   }
-  if (st) { R.ghostLbl.textContent = ''; $('elev-sub').textContent = `블레이드 방향 단면 · ${stationKr(st)}`; }
-  else {
-    const from = snap && snap.step ? '' : '';
-    R.ghostLbl.textContent = dest ? `선회 중 → ${stationKr(dest)}` : '선회 중';
-    $('elev-sub').textContent = `선회 중 θ1 ${p.theta.toFixed(0)}° ${from}`;
-  }
+  const sub = st ? `· ${stationKr(st)}` : `· 선회 중${dest ? ` → ${stationKr(dest)}` : ''}`;
+  if (R.elevSub !== sub) { R.elevSub = sub; $('elev-sub').textContent = sub; $('elev-sub').classList.toggle('swing', !st); }
   const tipX = GEO.blade_tip_x + p.rx, tipY = -(p.zc + 64);
   $('inset').setAttribute('viewBox', `${tipX - 36} ${tipY - 18} 47 31.3`);
   // 카메라 개념도: 90° 부근이면 포크 그림자
@@ -367,7 +345,7 @@ function drawPose(p) {
     if (snap && snap.occ.blade && near90) { R.camW.setAttribute('cy', -(184.5 + p.rx)); R.camW.style.display = ''; }
   }
 }
-function stationKr(k) { return { cassette: '0° 카세트', inspect: '90° 검사 크래들', output: '180° 반출 크래들' }[k] || k; }
+function stationKr(k) { return { cassette: '0° 카세트', inspect: '90° 검사', output: '180° 반출' }[k] || k; }
 function destStation() {
   if (!snap || !snap.step) return null;
   const g = snap.step.group; const key = snap.step.key;
@@ -423,7 +401,7 @@ function updatePanels(s) {
   const il = $('ilock'); il.textContent = s.interlock.reason; il.classList.toggle('no', !s.interlock.rotate_ok);
   // 축
   const homed = s.homed;
-  $('homed-badge').textContent = homed ? '원점 확정' : '원점 미확정 - 값 기준 없음';
+  $('homed-badge').textContent = homed ? '원점 확정' : '원점 미확정';
   $('homed-badge').className = 'badge ' + (homed ? 'ok' : 'warn');
   for (const k of ['theta', 'zc', 'rx']) {
     const a = R.ax[k]; const v = s.pose[k];
@@ -433,18 +411,18 @@ function updatePanels(s) {
     a.av.innerHTML = `${fmt(v, 1)}<small>${a.unit}${tg !== null ? ` → ${fmt(tg, 1)}` : ''}</small>`;
     a.d.classList.toggle('unhomed', !homed);
     let note = '';
-    if (homed && k === 'rx' && v > 0.5) note = '전진 명령 (도달 미확인 - 전진 센서 없음, 51 리밋 권장)';
+    if (homed && k === 'rx' && v > 0.5) note = '전진 도달 미확인 (센서 없음)';
     a.note.hidden = !note; a.note.textContent = note;
   }
   // 카운트
   const c = s.cassette;
   $('cnt-n').textContent = c.ready ? c.n_est : '-';
-  $('cnt-nsrc').textContent = !c.ready ? (c.kind ? `판정 불가(${c.kind}) - 수동 입력` : '카세트 준비 전') : c.manual ? '수동 입력' : c.kind === 'EMPTY' ? '빈 카세트' : 'TOF · 연속 투입 가정';
+  $('cnt-nsrc').textContent = !c.ready ? (c.kind ? `판정 불가 - 수동 입력` : '') : c.manual ? '수동 입력' : c.kind === 'EMPTY' ? '빈 카세트' : 'TOF 추정';
   $('cnt-conf').textContent = c.confirmed;
   $('cnt-rem').textContent = c.ready ? c.remaining : '-';
   $('cnt-tof').textContent = s.tof.d !== null ? `${fmt(s.tof.d)}mm` : '-';
   const tk = s.tof.kind;
-  $('cnt-tofk').textContent = tk ? ({ SLOT: `최상단 슬롯 ${tk.n}`, EMPTY: '빈 카세트', AMBIG01: '0 또는 1 (S4 확정 대기)', INVALID: '무효' }[tk.kind] || tk.kind) : '준비 시 측정';
+  $('cnt-tofk').textContent = tk ? ({ SLOT: `최상단 슬롯 ${tk.n}`, EMPTY: '빈 카세트', AMBIG01: '0 또는 1', INVALID: '무효' }[tk.kind] || tk.kind) : '';
   $('cnt-mismatch').hidden = !c.mismatch;
   s.slots.forEach((x, i) => { const d = R.sl[i]; d.className = `sl ${x.status}`; d.querySelector('small').textContent = SLOT_KR[x.status] || x.status; });
   // 카메라
@@ -469,7 +447,8 @@ function updatePanels(s) {
   $('btn-c90').hidden = s.c90_verified;
   // 캡처 목록
   const caps = $('caps');
-  if (!s.captures.length) caps.innerHTML = '<span class="empty">최근 캡처 없음 · 단계 11 에서 촬영</span>';
+  caps.hidden = !s.captures.length;
+  if (!s.captures.length) caps.innerHTML = '';
   else caps.innerHTML = s.captures.slice().reverse().map((c) => `<span class="cap">슬롯 ${c.slot} · t${fmt(c.t, 0)}s ${c.file ? `<a href="/captures/${encodeURIComponent(c.file)}" target="_blank">jpg</a>` : (c.pending ? '저장 중' : '개념도')}</span>`).join('');
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -502,15 +481,15 @@ function updateTimeline(s) {
     if (ci >= 0) done = homing ? (k.startsWith('H') && i < ci) : (!k.startsWith('H') && k !== 'HO' && i < ci) || (!homing && s.homed && k.startsWith('H'));
     t.c.classList.toggle('cur', isCur || (k === 'HO' && s.occ.C180));
     t.c.classList.toggle('done', done && !isCur);
-    t.pg.style.width = isCur ? `${Math.round((s.step.action + 0.5) / s.step.actions * 100)}%` : (k === 'HO' && s.handoff_left !== null ? `${Math.max(0, 100 - s.handoff_left / GEO.speeds.handoff * 100)}%` : '0');
+    t.pg.style.width = isCur ? `${Math.round((s.step.action + 0.5) / s.step.actions * 100)}%` : (k === 'HO' && s.handoff_left !== null ? `${Math.min(100, Math.max(0, 100 - s.handoff_left / GEO.speeds.handoff * 100))}%` : '0');
   }
 }
 function updateCam(s) {
   const cm = s.cam || { mode: 'none' };
   const badge = $('cam-badge');
-  const img = $('cam-img'), sim = $('cam-sim'), note = $('cam-note');
+  const img = $('cam-img'), sim = $('cam-sim');
   if (cm.mode === 'live') {
-    img.hidden = false; sim.style.display = 'none'; note.textContent = '실카메라 · 공정은 시뮬레이션';
+    img.hidden = false; sim.style.display = 'none';
     badge.textContent = { OK: 'LIVE', STALE: 'STALE - 영상 정지', NO_SIGNAL: 'NO SIGNAL', FAIL: '카메라 실패' }[cm.status] || cm.status;
     badge.className = 'badge ' + (cm.status === 'OK' ? 'ok' : 'crit');
     if (cm.status === 'OK' && cm.seq !== camSeq && !camBusy) {
@@ -522,7 +501,6 @@ function updateCam(s) {
   } else {
     img.hidden = true; sim.style.display = '';
     badge.textContent = cm.status === 'FAIL' ? '카메라 실패 (시뮬)' : 'SIM 개념도'; badge.className = 'badge ' + (cm.status === 'FAIL' ? 'crit' : 'warn');
-    note.textContent = '개념도 - 시뮬레이션 (실카메라 아님)';
     if (!s.occ.blade) { R.camW.setAttribute('cy', -235.5); R.camW.style.display = s.occ.C90 ? '' : 'none'; }
     if (s.occ.blade && Math.abs(s.pose.theta - 90) >= 2) R.camW.style.display = 'none';
     const capturing = s.step && s.step.key === '11' && s.step.action === 1 && s.state === 'RUNNING';

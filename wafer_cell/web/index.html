@@ -11,7 +11,6 @@
 
   <header class="tb">
     <div class="tb-id">
-      <div class="kicker">CELL_V9 · WAFER TRANSFER CELL · θ1 · Z · R</div>
       <h1>웨이퍼 이송셀 공정 모니터</h1>
     </div>
     <div class="simban" title="데이터 소스: 시뮬레이터 (가정 속도). 실제 장비 상태가 아닙니다.">
@@ -32,10 +31,10 @@
 
   <section class="flow" aria-label="공정 흐름">
     <ol class="stages" id="stages">
-      <li data-stage="cassette"><span class="n">01</span><span class="t">카세트 취출</span><span class="s">0° · 슬롯 아래→위</span></li>
-      <li data-stage="inspect"><span class="n">02</span><span class="t">검사 촬영</span><span class="s">90° · 백라이트 투과</span></li>
-      <li data-stage="output"><span class="n">03</span><span class="t">반출</span><span class="s">180° · 인계 크래들</span></li>
-      <li data-stage="handoff"><span class="n">04</span><span class="t">인계</span><span class="s">다음 이송로봇</span></li>
+      <li data-stage="cassette"><span class="n">01</span><span class="t">카세트 취출</span></li>
+      <li data-stage="inspect"><span class="n">02</span><span class="t">검사 촬영</span></li>
+      <li data-stage="output"><span class="n">03</span><span class="t">반출</span></li>
+      <li data-stage="handoff"><span class="n">04</span><span class="t">인계</span></li>
     </ol>
     <div class="narr">
       <div class="now"><span class="tag">지금</span><span id="nar-now">원점 복귀를 기다리는 중</span></div>
@@ -45,50 +44,48 @@
 
   <main class="grid">
     <section class="panel p-plan">
-      <div class="ph"><h2>평면도</h2><span class="sub">위에서 본 셀 · 셀좌표 mm</span><span class="sp"></span><span class="legend"><i class="lg-w"></i>웨이퍼 <i class="lg-r"></i>로봇 <i class="lg-s"></i>센서 ON</span></div>
-      <svg id="plan" viewBox="-345 -350 690 490" preserveAspectRatio="xMidYMid meet" aria-label="셀 평면도"></svg>
+      <div class="ph"><h2>평면도</h2></div>
+      <svg id="plan" viewBox="-345 -350 690 460" preserveAspectRatio="xMidYMid meet" aria-label="셀 평면도"></svg>
     </section>
 
     <section class="panel p-elev">
-      <div class="ph"><h2>입면도</h2><span class="sub" id="elev-sub">블레이드 방향 단면 (r–z)</span></div>
+      <div class="ph"><h2>입면도 <span id="elev-sub"></span></h2></div>
       <div class="elev-wrap">
-        <svg id="elev" viewBox="-95 -425 430 370" preserveAspectRatio="xMidYMid meet" aria-label="블레이드 방향 단면"></svg>
-        <div class="inset"><span class="ilbl">블레이드 끝 ×4</span><svg id="inset" viewBox="150 -290 90 60" preserveAspectRatio="xMidYMid meet"><use href="#elevScene"/></svg></div>
+        <svg id="elev" viewBox="-95 -425 430 365" preserveAspectRatio="xMidYMid meet" aria-label="블레이드 방향 단면"></svg>
+        <div class="inset"><span class="ilbl">×4</span><svg id="inset" viewBox="150 -290 90 60" preserveAspectRatio="xMidYMid meet"><use href="#elevScene"/></svg></div>
       </div>
     </section>
 
     <aside class="side">
       <section class="panel p-cam">
-        <div class="ph"><h2>검사 카메라</h2><span class="sub">90° 크래들 위 · WD 244</span><span class="sp"></span><span class="badge" id="cam-badge">-</span></div>
+        <div class="ph"><h2>검사 카메라</h2><span class="sp"></span><span class="badge" id="cam-badge">-</span></div>
         <div class="cam-box">
           <img id="cam-img" alt="검사 카메라 영상" hidden>
           <svg id="cam-sim" viewBox="-120 -292 240 120" preserveAspectRatio="xMidYMid meet" aria-label="검사 카메라 개념도"></svg>
-          <div class="cam-note" id="cam-note">개념도 — 시뮬레이션 (실카메라 아님)</div>
         </div>
         <div class="caps" id="caps"></div>
       </section>
 
       <section class="panel p-count">
-        <div class="ph"><h2>카세트 웨이퍼</h2><span class="sub">TOF 최상단 + S4 확정</span><span class="sp"></span><span class="badge warn" id="cnt-mismatch" hidden>추정 불일치</span></div>
+        <div class="ph"><h2>카세트 웨이퍼</h2><span class="sp"></span><span class="badge warn" id="cnt-mismatch" hidden>추정 불일치</span></div>
         <div class="count-row">
           <div class="cnum"><span class="lbl">투입 추정 N</span><b id="cnt-n">-</b><small id="cnt-nsrc">카세트 준비 전</small></div>
-          <div class="cnum"><span class="lbl">S4 확정</span><b id="cnt-conf">0</b><small>픽업 시 확인</small></div>
-          <div class="cnum"><span class="lbl">남은 수</span><b id="cnt-rem">-</b><small>추정</small></div>
+          <div class="cnum"><span class="lbl">S4 확정</span><b id="cnt-conf">0</b><small></small></div>
+          <div class="cnum"><span class="lbl">남은 수</span><b id="cnt-rem">-</b><small></small></div>
           <div class="cnum tof"><span class="lbl">TOF 거리</span><b id="cnt-tof">-</b><small id="cnt-tofk">-</small></div>
         </div>
         <div class="slotbar" id="slotbar"></div>
       </section>
 
       <section class="panel p-axes">
-        <div class="ph"><h2>축 위치</h2><span class="sub">지령값 · 실측 아님</span><span class="sp"></span><span class="badge" id="homed-badge">원점 미확정</span></div>
+        <div class="ph"><h2>축 위치 · 지령값</h2><span class="sp"></span><span class="badge" id="homed-badge">원점 미확정</span></div>
         <div class="axes" id="axes"></div>
       </section>
 
       <section class="panel p-sens">
-        <div class="ph"><h2>센서 · 인터록</h2><span class="sub">기대값 대비 실제</span></div>
+        <div class="ph"><h2>센서 · 인터록</h2></div>
         <div class="chips" id="chips"></div>
         <div class="ilock" id="ilock">-</div>
-        <div class="clear" id="clear"></div>
       </section>
     </aside>
   </main>
