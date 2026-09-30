@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CELL_V9 공정 모니터</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="dark">
+<div id="app">
+
+  <header class="tb">
+    <h1>웨이퍼 이송셀</h1>
+    <span class="srcbadge" id="src-badge" title="시뮬레이션 - 실제 장비 아님 · 사이클은 가정 속도 기준">시뮬레이션</span>
+    <b id="st-state">-</b>
+    <span class="sp"></span>
+    <div class="ctl" id="controls">
+      <button data-cmd="home" class="b" data-confirm="1">원점 복귀</button>
+      <button data-cmd="cassette_ready" class="b">카세트 준비</button>
+      <button data-cmd="start" class="b" data-confirm="1">시작</button>
+      <button data-cmd="resume" class="b" data-confirm="1">재개</button>
+      <button data-cmd="pause" class="b">일시정지</button>
+      <button data-cmd="prompt" class="b">슬롯 확인</button>
+      <button data-cmd="reset" class="b" data-confirm="1">알람 해제</button>
+      <button data-cmd="c90" class="b" id="btn-c90" hidden>검사대 비움 확인</button>
+      <button data-cmd="blade" class="b" id="btn-blade" hidden>블레이드 웨이퍼 제거</button>
+      <button data-cmd="stop" class="b stop" title="소프트 정지 - E-STOP 아님">소프트 정지</button>
+    </div>
+    <span class="viewonly" id="viewonly" hidden>보기 전용</span>
+    <button class="tool" id="btn-tools">도구 ▾</button>
+    <button class="tool" id="btn-detail" title="축 · 센서 · 단계 (D)">상세</button>
+  </header>
+
+  <section class="flow" aria-label="공정 흐름">
+    <ol class="stages" id="stages">
+      <li data-stage="cassette"><span class="t">카세트 취출</span></li>
+      <li data-stage="inspect"><span class="t">검사 촬영</span></li>
+      <li data-stage="output"><span class="t">반출</span></li>
+      <li data-stage="handoff"><span class="t">인계</span></li>
+    </ol>
+    <div class="narr det"><span id="nar-now"></span></div>
+    <div class="timeline" id="timeline" aria-label="공정 단계"></div>
+    <div class="alarmbar" id="alarmbar" hidden></div>
+  </section>
+
+  <main class="grid">
+    <section class="panel p-plan">
+      <svg id="plan" viewBox="-345 -350 690 460" preserveAspectRatio="xMidYMid meet" aria-label="셀 평면도"></svg>
+    </section>
+
+    <section class="panel p-elev">
+      <svg id="elev" viewBox="-78 -428 404 372" preserveAspectRatio="xMidYMid meet" aria-label="블레이드 방향 단면"></svg>
+    </section>
+
+    <section class="panel p-bot">
+      <div class="cam-box">
+        <img id="cam-img" alt="검사 카메라 영상" hidden>
+        <svg id="cam-sim" viewBox="-120 -292 240 120" preserveAspectRatio="xMidYMid meet" aria-label="검사 카메라 개념도"></svg>
+        <span class="badge" id="cam-badge">-</span>
+      </div>
+      <div class="hero">
+        <span class="lbl">완료</span>
+        <b id="st-done">0</b>
+        <span class="tags"><span class="badge" id="cnt-manual" hidden>수동</span><span class="badge warn" id="cnt-mismatch" hidden>추정 불일치</span></span>
+      </div>
+      <div class="slotbar" id="slotbar"></div>
+    </section>
+
+    <aside class="side det">
+      <section class="panel p-info">
+        <div class="cline">투입(추정) <b id="cnt-n">-</b> · 확인 <b id="cnt-conf">0</b> · 남음 <b id="cnt-rem">-</b> · TOF <b id="cnt-tof">-</b></div>
+        <div class="cline">사이클 (가정 속도) <b id="st-cycle">-</b></div>
+      </section>
+      <section class="panel p-axes">
+        <div class="ph"><h2>축 (지령값)</h2><span class="sp"></span><span class="badge warn" id="homed-badge" hidden>원점 미확정</span></div>
+        <div class="axes" id="axes"></div>
+      </section>
+      <section class="panel p-sens">
+        <div class="ph"><h2>센서</h2><span class="sp"></span><span class="pill" id="ilock">-</span></div>
+        <div class="chips" id="chips"></div>
+      </section>
+    </aside>
+  </main>
+
+  <div class="pop" id="pop-tools" hidden>
+    <div class="simonly">
+      <h3>시뮬 전용</h3>
+      <div class="row">
+        <div class="seg" id="speed">
+          <button data-speed="1">×1</button><button data-speed="5">×5</button><button data-speed="10">×10</button>
+        </div>
+        <button class="b" id="btn-load">투입 맵</button>
+        <button class="b" id="btn-fault">고장 주입</button>
+        <button class="b estop" id="btn-estop" data-cmd="estop" title="시뮬 E-STOP (실제 장비의 하드웨어 E-STOP 이 아님)">E-STOP 시뮬</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="b" id="btn-theme">밝은/어두운 화면</button>
+      <button class="b" id="btn-log">이벤트 로그</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="drawer" hidden>
+    <div class="dh"><h2>이벤트 로그</h2><span class="sp"></span><button class="b" id="btn-log-close">닫기</button></div>
+    <div class="caps" id="caps" hidden></div>
+    <ol class="log" id="log"></ol>
+  </div>
+
+  <div class="pop" id="pop-load" hidden>
+    <h3>투입 맵 (위 = 슬롯 10)</h3>
+    <div class="loadgrid" id="loadgrid"></div>
+    <div class="row"><button class="b" data-fill="10">10장</button><button class="b" data-fill="5">5장</button><button class="b" data-fill="gap">빈칸 섞기</button><span class="sp"></span><button class="b go" id="load-apply">적용</button></div>
+  </div>
+  <div class="pop" id="pop-fault" hidden>
+    <h3>고장 주입</h3>
+    <div class="faults" id="faults"></div>
+  </div>
+
+  <div class="modal-bg" id="modal" hidden><div class="modal" id="modal-body"></div></div>
+  <div class="stale" id="stale" hidden><div><b>데이터 정지</b><span id="stale-why">서버 연결 확인 중…</span></div></div>
+  <div class="toast" id="toast" hidden></div>
+</div>
+<script>window.BOOT = /*__BOOT__*/null;</script>
+<script src="app.js"></script>
+</body>
+</html>
