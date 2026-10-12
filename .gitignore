@@ -43,3 +43,4 @@ captures/
 
 # 학습 YOLO 작업본(자체 git 저장소 + 대용량 모델 -> 메인 저장소 제외, 모델은 직접 배치)
 YOLO/
+data/motor_logs/
