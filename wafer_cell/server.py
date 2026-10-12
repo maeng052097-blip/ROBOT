@@ -1,4 +1,4 @@
-"""server.py - 웨이퍼 이송셀 CELL_V9 공정 모니터 웹 서버(표준 라이브러리만).
+"""server.py - 웨이퍼 검사셀 R9 공정 모니터 웹 서버(표준 라이브러리만).
 
 구성:
   - 시뮬 스레드(50Hz): CellSim.tick, 예외 -> ALARM(SIM_EXCEPTION), 캡처/CSV 처리, 스냅샷 갱신
@@ -98,7 +98,8 @@ class App:
                 sim._raise("CAMERA", st["status"])
                 continue
             name = self.feed.capture(req["slot"], req["wafer"])
-            sim.captures.append({"slot": req["slot"], "wafer": req["wafer"], "t": req["t"],
+            sim.captures.append({"slot": req["slot"], "wafer": req["wafer"], "no": req.get("no"),
+                                 "judgment": req.get("judgment"), "t": req["t"],
                                  "file": None, "pending": name is not None})
         for saved in self.feed.poll_saved():
             for c in reversed(sim.captures):
@@ -113,7 +114,7 @@ class App:
         if not self.record:
             return
         for w in self.sim.wafers:
-            if w["loc"] == "handed_off" and w["id"] not in self.csv_done:
+            if w["t_sort"] is not None and w["id"] not in self.csv_done:
                 self.csv_done.add(w["id"])
                 try:
                     C.CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -122,10 +123,10 @@ class App:
                     with open(path, "a", newline="", encoding="utf-8") as f:
                         wr = csv.writer(f)
                         if new:
-                            wr.writerow(["boot_id", "source", "wafer_id", "slot", "t_pick", "t_inspect",
-                                         "t_out", "t_handoff", "cycle_s", "capture"])
-                        wr.writerow([self.boot_id, self.sim.source, w["id"], w["slot"], w["t_pick"],
-                                     w["t_inspect"], w["t_out"], w["t_handoff"], w["cycle_s"], w["capture"]])
+                            wr.writerow(["boot_id", "source", "wafer_no", "input_slot", "judgment", "dest_slot",
+                                         "t_pick", "t_inspect", "t_sort", "cycle_s", "capture"])
+                        wr.writerow([self.boot_id, self.sim.source, w["no"], w["src_slot"], w["judgment"], w["slot"],
+                                     w["t_pick"], w["t_inspect"], w["t_sort"], w["cycle_s"], w["capture"]])
                 except OSError:
                     self.log_q.put("WARN csv write failed")
 
@@ -145,7 +146,7 @@ class App:
 
     def meta(self, view_only):
         return {"geometry": C.ui_geometry(), "steps": Q.step_catalog(),
-                "groups": Q.GROUP_LABELS, "clearances": G.clearances(),
+                "groups": Q.GROUP_LABELS, "clearances": G.clearances(), "cell": "R9",
                 "faults": list(FAULTS), "sim_only": list(SIM_ONLY), "view_only": view_only,
                 "boot_id": self.boot_id, "source": self.sim.source,
                 "cam_mode": self.feed.mode}
@@ -369,7 +370,7 @@ def main():
         sys.stderr.reconfigure(errors="replace")
     except Exception:
         pass
-    ap = argparse.ArgumentParser(description="CELL_V9 wafer cell process monitor (SIM)")
+    ap = argparse.ArgumentParser(description="R9 wafer inspection cell process monitor (SIM)")
     ap.add_argument("--cam", default="none", help="inspection webcam index, or 'none' (default)")
     ap.add_argument("--port", type=int, default=C.HTTP_PORT)
     ap.add_argument("--lan", action="store_true", help="bind 0.0.0.0 (remote = view only)")

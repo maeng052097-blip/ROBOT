@@ -1,4 +1,4 @@
-/* CELL_V9 공정 모니터 — 발표용 기본 화면 + '상세' 토글.
+/* R9 웨이퍼 검사셀 공정 모니터 — 발표용 기본 화면 + '상세' 토글.
    색 규칙: 호박색 = 지금(진행) · 빨강 = 알람/비상정지만 · 라일락 = 웨이퍼 · 강철청 = 로봇/일반 UI.
    기본 화면에는 회색(--ink3) 글씨를 쓰지 않는다. 오프라인 전용 시스템 폰트. */
 :root{
@@ -70,16 +70,16 @@ h1{margin:0;font-family:var(--f-kr);font-weight:700;font-size:var(--fs-1);white-
 
 /* ── 공정 흐름 + 진행 막대 ── */
 .flow{position:relative;z-index:5;display:grid;grid-template-columns:minmax(0,1fr);border:1px solid var(--rule);background:var(--sheet)}
-body.detail .flow{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
-.stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr)}
+.stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr)}
 .stages li{position:relative;padding:10px 16px 8px;text-align:center;transition:background .35s}
 .stages li:not(:last-child)::after{content:"›";position:absolute;right:-6px;top:50%;transform:translateY(-55%);font-size:22px;color:var(--rule)}
 .stages .t{font-family:var(--f-kr);font-weight:700;font-size:var(--fs-1);color:var(--ink2)}
 .stages li.on .t{color:var(--amber)}
 .stages li.on::before{content:"";position:absolute;left:25%;right:25%;bottom:2px;height:3px;background:var(--amber)}
 .stages li.par .t::after{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--wafer);margin-left:9px;vertical-align:middle}
-.narr{display:flex;align-items:center;padding:0 16px;border-left:1px solid var(--rule2);font-family:var(--f-kr);font-size:var(--fs-2);font-weight:600;min-width:0}
-#nar-now{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head{display:flex;align-items:baseline;justify-content:center;gap:14px;padding:2px 16px 8px;font-family:var(--f-kr);min-width:0}
+#headline{font-size:var(--fs-1);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head .sub{font-size:var(--fs-2);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .timeline{grid-column:1/-1;display:flex;gap:6px;padding:0 16px 10px}
 .tg{display:flex;flex:var(--n) 1 0;min-width:0}
 .tg .cs{display:flex;gap:2px;flex:1;min-width:0}
@@ -115,21 +115,11 @@ body.detail .grid{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr) 400px;gri
 .cam-box{position:relative;height:100%;aspect-ratio:16/7;background:#050708;overflow:hidden;border-right:1px solid var(--rule2);flex:none}
 .cam-box img,.cam-box svg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 #cam-badge{position:absolute;left:8px;top:8px;z-index:2}
-.hero{flex:none;width:190px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;border-right:1px solid var(--rule2)}
+.hero{flex:none;width:150px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;border-right:1px solid var(--rule2)}
 .hero .lbl{font-family:var(--f-kr);font-size:var(--fs-2);font-weight:700;color:var(--ink2)}
 #st-done{font-size:var(--fs-hero);font-weight:700;font-variant-numeric:tabular-nums;line-height:1.05}
 #st-done .of{font-size:.55em;color:var(--ink2);font-weight:600}
 .hero .tags{display:flex;gap:4px;min-height:18px}
-.slotbar{flex:1;min-width:0;display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;padding:0 18px;align-content:center}
-.sl{height:64px;border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:18px;font-weight:600;color:var(--ink2);transition:background .3s,border-color .3s}
-.sl.unknown{border-style:dashed}
-.sl.est_present{background:var(--waferbg);border-style:dashed;border-color:var(--wafer2);color:var(--wafer)}
-.sl.present{background:var(--waferbg);border-color:var(--wafer);color:var(--wafer)}
-.sl.moving,.sl.inspect,.sl.output{background:var(--amberbg);border-color:var(--amber);color:var(--amber)}
-.sl.done{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
-.sl.empty{background:var(--critbg);border-color:var(--crit);color:var(--crit)}
-.sl.above_top{opacity:.45}
-.sl.removed{opacity:.35;text-decoration:line-through}
 
 /* ── 상세 열 ── */
 .side{display:flex;flex-direction:column;gap:8px;min-height:0;overflow-y:auto;overflow-x:hidden}
@@ -210,7 +200,8 @@ svg text{font-family:var(--f-ui);fill:var(--ink2)}
 .sen.alm{stroke:var(--crit);stroke-width:3.2}
 .sen-t{font-family:var(--f-mono);font-size:8.5px;text-anchor:middle;fill:var(--ink)}
 .sen.on + .sen-t{fill:#0b1a11}
-.stn-t{font-family:var(--f-kr);font-size:14px;font-weight:700;fill:var(--ink)}
+.stn-t{font-family:var(--f-kr);font-size:16px;font-weight:700;fill:var(--ink)}
+body.detail .stn-t{font-size:20px}   /* 상세 = 도면이 작아짐 -> 글자 키움 */
 .stn-hi{fill:none;stroke:var(--amber);stroke-width:2;opacity:0;transition:opacity .3s}
 .stn-hi.on{opacity:.9}
 .path{fill:none;stroke:var(--partln);stroke-width:1.2;stroke-dasharray:2 5;opacity:.7}
@@ -224,6 +215,42 @@ svg text{font-family:var(--f-ui);fill:var(--ink2)}
 .collide{fill:none;stroke:var(--crit);stroke-width:3;opacity:0}
 .collide.on{opacity:1;animation:pulse .7s infinite}
 
+
+/* 하단: 카세트 3개 + 대차 */
+.cassettes{flex:1;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.3fr);gap:16px;padding:10px 18px;align-items:stretch}
+.cas{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cas .ch{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--f-kr)}
+.cas .nm{font-size:var(--fs-2);font-weight:700;color:var(--ink)}
+.cas.ng .nm{color:var(--crit)} .cas.ok .nm{color:var(--ok)}
+.cas .cnt{font-size:var(--fs-2);font-variant-numeric:tabular-nums}
+.cas .cells{display:flex;flex-direction:column;gap:3px;flex:1;justify-content:center}
+.cas .cell{height:27px;border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-size:12px;color:var(--ink2);transition:background .3s,border-color .3s}
+.cell.wafer{background:var(--waferbg);border-color:var(--wafer);color:var(--wafer)}
+.cell.done{opacity:.35}
+.cell.empty_conf{border-color:var(--crit);color:var(--crit);border-style:dashed}
+.cell.ok{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+.cell.ng{background:var(--critbg);border-color:var(--crit);color:var(--crit)}
+.cell.none{border-style:dashed;opacity:.4}
+.cas.absent .cells{opacity:.35}
+.cas .seats{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;align-content:center}
+.cseat{height:60px;border:1px dashed var(--rule);display:flex;align-items:center;justify-content:center;font-family:var(--f-kr);font-size:12px;color:var(--ink2)}
+.cseat.full{border-style:solid;border-color:var(--ok);background:var(--okbg);color:var(--ok)}
+.cseat.here{outline:2px solid var(--amber);outline-offset:1px}
+.judge{position:absolute;right:8px;top:8px;z-index:2;font-family:var(--f-mono);font-weight:700;font-size:18px;padding:2px 10px;border:2px solid currentColor;background:var(--sheet)}
+.judge.ok{color:var(--ok)} .judge.ng{color:var(--crit)}
+/* R9 도면 */
+.cass-frame{fill:none;stroke:var(--partln);stroke-width:1}
+.cass-frame.ng{stroke:var(--crit);stroke-opacity:.7} .cass-frame.ok{stroke:var(--ok);stroke-opacity:.7}
+.wafer.ngw{stroke:var(--crit);fill:var(--critbg)} .wafer.okw{stroke:var(--ok);fill:var(--okbg)}
+.clamp{fill:none;stroke:var(--amber2);stroke-width:1.4;stroke-dasharray:6 3}
+.clampE{fill:var(--part2);stroke:var(--partln);stroke-width:.8}
+.cartbody{fill:var(--sheet2);stroke:var(--partln);stroke-width:1;opacity:.85}
+.wheel{fill:var(--part2);stroke:var(--partln);stroke-width:.8}
+.seat{fill:none;stroke:var(--partln);stroke-width:1;stroke-dasharray:4 3}
+.ghostcart{opacity:.45}
+.cassbox{fill:var(--part2);stroke:var(--ok);stroke-width:1.2}
+
+/* 미디어쿼리는 맨 끝(같은 특이성의 기본 규칙보다 뒤에 있어야 적용됨) */
 /* 낮은 높이(1536x864 등) */
 @media (max-height: 940px){
   :root{--fs-hero:34px;--fs-1:17px;--fs-2:13px;--fs-3:11px}
@@ -233,9 +260,10 @@ svg text{font-family:var(--f-ui);fill:var(--ink2)}
   .stages li{padding:7px 12px 6px}
   .timeline{padding:0 12px 8px}
   .grid{grid-template-rows:minmax(0,1fr) 160px}
-  .hero{width:150px}
-  .sl{height:48px;font-size:15px}
-  .slotbar{gap:6px;padding:0 12px}
+  .hero{width:120px}
+  .cas .cell{height:20px;font-size:11px} .cseat{height:44px}
+  .cassettes{gap:10px;padding:6px 12px}
+  #headline{font-size:16px}
   body.detail .tc{height:22px;font-size:11px}
   .pop,.drawer{top:54px}
 }

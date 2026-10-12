@@ -49,7 +49,7 @@ def main():
         assert st == 200 and s["state"] == "IDLE" and s["source"] == "SIM" and s["boot_id"] == app.boot_id
         st, ct, b = req(port, "GET", "/api/meta")
         m = json.loads(b)
-        assert m["view_only"] is False and len(m["steps"]) == 27 and m["clearances"][0]["mm"] == 0.5
+        assert m["view_only"] is False and len(m["steps"]) == 27 and m["clearances"][0]["mm"] == 3.0 and m["cell"] == "R9"
         st, ct, b = req(port, "GET", "/app.js")
         assert st == 200 and ct.startswith("text/javascript"), ct
         st, ct, b = req(port, "GET", "/")

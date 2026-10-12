@@ -1,10 +1,14 @@
-"""CELL_V9 공정 시뮬레이터(순수 로직, 스레드 없음).
+"""R9 웨이퍼 검사셀 시뮬레이터(순수 로직, 스레드 없음).
 
 CellSim.tick(dt) 로 시간을 진행하고 command(name, **args) 로 조작한다.
   - 축은 등속 이동(가정 속도). 가속 무시 -> 사이클은 하한값.
-  - 센서는 대본이 아니라 기하(geometry.py)에서 파생: S1 θ≈0, S2 ZC≤95.5, S3 RX≤0.5, S4 기하, S5 반출 점유.
-  - 웨이퍼 이동(픽업/안착)은 블레이드 면이 높이를 교차하는 순간 적용, 충돌은 이동 시작 전에 구간 전체로 판정.
-  - dt 잔여분은 동작 경계를 넘어 이월 -> 배속/틱 간격이 달라도 사이클 시간이 같다.
+  - 센서는 기하(geometry.py)에서 파생: S1 θ≈0, S2 Z≤95.5, S3 R≤0.5, S4 포크 웨이퍼.
+  - 웨이퍼/카세트 이동은 포크 면이 높이를 교차하는 순간 적용, 충돌은 이동 시작 전에 구간 전체로 판정.
+  - 공정 흐름 = 비디오 'R9 웨이퍼 검사 셀':
+      투입(아래 슬롯부터) -> 검사 촬영 · 판정 -> OK/NG(위 슬롯부터) -> OK 5장 가득 -> 대차 호출 -> T1~T13 적재
+      투입 카세트가 비면 작업자 교체, OK 도크가 비면 빈 OK 카세트, NG 가 가득 차면 빈 NG 카세트(사용자 결정).
+  - 작업자 일은 '작업자 자동'(기본 ON)이면 OPERATOR_S 뒤 자동, 끄면 operator 명령(버튼)으로만 진행.
+  - 대차(메카넘)는 시간 구간으로 움직이는 모형: 호출 -> 도착 -> PL 도킹, 물러남 -120, 옆걸음 ±200, 제자리 180° 회전, 출발.
 문자열(한글)은 화면용. 이 모듈은 print 하지 않는다.
 """
 import random
@@ -12,20 +16,19 @@ import random
 from wafer_cell import cell_config as C
 from wafer_cell import geometry as G
 from wafer_cell import sequence as Q
-from wafer_cell import tof as T
 
-RUN_STATES = ("HOMING", "RUNNING", "WAIT_S5")
-SIM_ONLY = ("speed", "load_map", "fault", "remove_wafer", "debug_hold")
-FAULTS = ("s4_false_none", "s4_false_present", "s3_fail", "belt_skip", "next_robot_delay",
-          "camera_fail", "sim_exception", "tof_ledge_in_beam")
+RUN_STATES = ("HOMING", "RUNNING")
+WAIT_STATES = ("WAIT_INPUT", "WAIT_OK", "WAIT_NG", "WAIT_CART")
+SIM_ONLY = ("speed", "load_input", "fault", "remove_wafer", "debug_hold", "auto_operator", "next_ng", "ng_rate")
+FAULTS = ("s4_false_none", "s4_false_present", "s3_fail", "belt_skip", "camera_fail", "sim_exception", "cart_delay")
 ONE_SHOT = ("s4_false_none", "s4_false_present", "belt_skip", "sim_exception")
 
 ALARM_TEXT = {
     "HOMING_TIMEOUT": "원점 복귀 시간 초과",
     "S3_NOT_CONFIRMED": "S3 후진 미확인 (선회/하강 금지)",
-    "S4_REMAINS": "안착 후 S4 잔존 (웨이퍼가 블레이드에 남음?)",
-    "S4_MISSING": "재픽업 후 S4 없음",
-    "S1_MISMATCH": "0° 복귀 시 S1 불일치 (벨트 이빨 튐 의심)",
+    "S4_REMAINS": "내려놓은 뒤 S4 잔존 (웨이퍼가 포크에 남음?)",
+    "S4_MISSING": "다시 들기 후 S4 없음",
+    "S1_MISMATCH": "θ 원점 S1 불일치 (벨트 이빨 튐 의심)",
     "S2_NOT_FOUND": "Z 원점(S2) 미확인",
     "INTERLOCK": "인터록 위반",
     "COLLISION": "충돌 (시뮬 기하 판정)",
@@ -34,6 +37,12 @@ ALARM_TEXT = {
     "SIM_EXCEPTION": "시뮬 내부 오류",
 }
 FATAL = ("HOMING_TIMEOUT", "COLLISION", "SIM_EXCEPTION", "S2_NOT_FOUND")
+OP_TEXT = {
+    "input": "작업자: 빈 투입 카세트를 빼고 새 투입 카세트 (5 장) 를 놓음",
+    "ok": "작업자: 빈 OK 카세트를 OK 도크 (0°) 에 놓음",
+    "ng": "작업자: 가득 찬 NG 카세트를 빼고 빈 NG 카세트를 놓음",
+}
+OP_BUTTON = {"input": "투입 카세트 교체", "ok": "빈 OK 카세트 놓음", "ng": "빈 NG 카세트 놓음"}
 
 
 class CommandError(Exception):
@@ -49,55 +58,92 @@ class CellSim:
         self.t = 0.0
         self.tick_n = 0
         self.speed = 1.0
-        self.theta, self.zc, self.rx = 0.0, C.ZC_HOME, C.RX_RET     # 전원 투입 시 실제 자세(시뮬 진실)
+        self.theta, self.zc, self.rx = C.THETA_STANDBY, C.ZC_SWING, C.RX_RET   # 전원 투입 시 실제 자세(시뮬 진실)
         self.homed = {"theta": False, "z": False, "r": False}
         self.state = "IDLE"
         self.prev_state = None
-        self.wafers = []                 # {id, slot, loc, t_pick, t_inspect, t_out, t_handoff, capture, cycle_s}
-        self._wid = 0
-        self.slot_conf = {}              # n -> 'present' | 'empty'  (S4 로 확정)
-        self.cassette = {"ready": False, "n_est": None, "kind": None, "d": None, "manual": False}
+        self.wafers = []                 # {id, no, src_slot, loc, cass, slot, judgment, t_pick, t_inspect, t_sort, capture, cycle_s}
+        self.cassettes = {}              # id -> {id, kind, where}   where: 'input'|'ok'|'ng' 도크, 'fork', 'cart:FL', 'gone'
+        self._wid = self._cid = 0
+        self.dock = {"input": None, "ng": None, "ok": None}   # 도크 -> 카세트 id
+        self.input_tried = set()         # 이 투입 카세트에서 시도한 슬롯
+        self.input_empty = set()         # 운전자가 빈 슬롯으로 확정
+        self.next_input_map = [True] * C.SLOT_COUNT
         self.program, self.pc, self.ai = [], 0, 0
-        self.cur = None                  # 진행 중 동작
-        self.slot = None                 # 진행 중 슬롯
-        self.queue = []
+        self.phase = None                # 'home'|'wafer'|'sort'|'empty'|'cart'|'standby'
+        self.cur = None
+        self.wafer = None                # 진행 중 웨이퍼 id
+        self.slot = None                 # 진행 중 투입 슬롯
+        self.inspected = 0
+        self.ng_rate = C.NG_RATE
+        self.ng_next = False
+        self.auto_operator = True
+        self.op_pending = {}             # task -> due time(자동) 또는 None(수동 대기)
+        self.cart = self._new_cart(state="away")
+        self.cart_departed = 0
         self.alarm = None
         self.prompt = None
         self.faults = set()
         self.events = []
         self.seq = 0
         self.hold = None
-        self.handoff_left = None
         self.homing_t0 = None
-        self.c90_verified = True
+        self.insp_verified = True
         self.estop_in = False
         self.pending_captures = []       # 서버가 가져가 실제 카메라 저장
         self.captures = []
         self.cycles = []
         self.cycle_t0 = None
-        self.tof_d = None
-        self.load_map([True] * C.SLOT_COUNT, log=False)
+        self.last_judgment = None
+        self._sort_dest = None
+        self._cart_seat = None
+        self._place_cassette("input", fill=True, log=False)
+        self._place_cassette("ng", log=False)
+        self._place_cassette("ok", log=False)
         self._log("info", "BOOT", "시뮬레이터 시작 - 원점 복귀가 필요합니다")
 
-    # ------------------------------------------------------------ 기본 상태
+    # ------------------------------------------------------------ 카세트 · 웨이퍼
+    def _place_cassette(self, kind, fill=False, log=True):
+        self._cid += 1
+        cid = self._cid
+        self.cassettes[cid] = {"id": cid, "kind": kind, "where": kind}
+        self.dock[kind] = cid
+        if kind == "input":
+            self.input_tried, self.input_empty = set(), set()
+            if fill:
+                for i, present in enumerate(self.next_input_map[:C.SLOT_COUNT]):
+                    if present:
+                        self._wid += 1
+                        self.wafers.append({"id": self._wid, "no": None, "src_slot": i + 1, "loc": "cass",
+                                            "cass": cid, "slot": i + 1, "judgment": None, "t_pick": None,
+                                            "t_inspect": None, "t_sort": None, "capture": None, "cycle_s": None})
+        if log:
+            self._log("info", "OPERATOR", OP_TEXT[kind])
+        return cid
+
+    def _wafers_in(self, cid):
+        return [w for w in self.wafers if w["loc"] == "cass" and w["cass"] == cid]
+
+    def dock_slots(self, kind):
+        cid = self.dock[kind]
+        return {} if cid is None else {w["slot"]: w for w in self._wafers_in(cid)}
+
+    def dock_count(self, kind):
+        return len(self.dock_slots(kind))
+
+    def _wafer_by(self, loc):
+        return next((w for w in self.wafers if w["loc"] == loc), None)
+
     def occ(self):
         o = G.Occupancy()
-        for w in self.wafers:
-            if w["loc"] == "cassette":
-                o.slots[w["slot"]] = True
-            elif w["loc"] == "blade":
-                o.blade = True
-            elif w["loc"] == "C90":
-                o.C90 = True
-            elif w["loc"] == "C180":
-                o.C180 = True
+        for kind in C.CASSETTES:
+            if self.dock[kind] is not None:
+                o.cass[kind] = {k: True for k in self.dock_slots(kind)}
+        o.blade = self._wafer_by("blade") is not None
+        o.inspect = self._wafer_by("inspect") is not None
+        o.fork_cassette = any(c["where"] == "fork" for c in self.cassettes.values())
+        o.cart_seat_free = self._cart_ready_seat() is not None
         return o
-
-    def _wafer_at(self, loc, slot=None):
-        for w in self.wafers:
-            if w["loc"] == loc and (slot is None or w["slot"] == slot):
-                return w
-        return None
 
     def sensors(self):
         o = self.occ()
@@ -106,7 +152,6 @@ class CellSim:
             "S2": self.zc <= C.ZC_HOME + 0.5,
             "S3": self.rx <= G.RX_TOL and "s3_fail" not in self.faults,
             "S4": G.s4_on(self.theta, self.zc, self.rx, o),
-            "S5": o.C180,
             "ESTOP": self.estop_in,
         }
 
@@ -131,16 +176,131 @@ class CellSim:
     def events_since(self, seq):
         return [e for e in self.events if e["seq"] > seq]
 
-    def top_slot(self):
-        o = self.occ()
-        ks = [k for k, v in o.slots.items() if v]
-        return max(ks) if ks else 0
+    # ------------------------------------------------------------ 대차
+    def _new_cart(self, state):
+        # rot 0 = 앞 받침이 셀 쪽, 180 = 뒤 받침이 셀 쪽. lat 0 = 왼 받침이 로봇 앞, -200 = 오른 받침이 로봇 앞.
+        return {"state": state, "seats": {s: None for s in C.CART_SEATS}, "rot": 0.0, "lat": 0.0,
+                "dist": 900.0 if state == "away" else 0.0, "moves": [], "caption": None, "nth": 0}
 
-    def read_tof(self):
-        floor = C.slot_z(1) - 0.0 if "tof_ledge_in_beam" in self.faults else None
-        d = T.expected_distance(self.top_slot(), floor_z=floor) + self.rng.gauss(0.0, C.TOF_NOISE_SD)
-        self.tof_d = round(d, 1)
-        return self.tof_d
+    def _cart_aligned_seat(self):
+        cart = self.cart
+        if cart["state"] != "docked" or abs(cart["dist"]) > 0.5:
+            return None
+        side = "F" if abs(cart["rot"]) < 0.5 else "R"
+        lr = "L" if abs(cart["lat"]) < 0.5 else "R"
+        return side + lr
+
+    def _cart_ready_seat(self):
+        s = self._cart_aligned_seat()
+        return s if s and self.cart["seats"][s] is None else None
+
+    def _cart_next_seat(self):
+        return next((s for s in C.CART_SEATS if self.cart["seats"][s] is None), None)
+
+    def _cart_plan(self):
+        """다음 빈 받침이 로봇 앞에 오도록 이동 구간 목록을 만든다(비디오 자막 순서)."""
+        cart = self.cart
+        seat = self._cart_next_seat()
+        kr = C.CART_SEAT_KR[seat]
+        rot = 0.0 if seat[0] == "F" else 180.0
+        lat = 0.0 if seat[1] == "L" else -C.CART_LATERAL
+        mv = []
+        slow = 3.0 if "cart_delay" in self.faults else 1.0
+        if cart["state"] == "away":
+            cart.update(self._new_cart("moving"))
+            cart["dist"], cart["rot"], cart["lat"] = 900.0, rot, lat
+            mv.append(("대차 호출 -> 셀 앞으로 (태그 ID 1 · 자세 PL)", C.CART_CALL_S * slow, {"dist": C.CART_RETREAT}))
+            mv.append((f"대차 도착 -> PL 도킹 ({kr} 받침이 로봇 앞)", C.CART_DOCK_S, {"dist": 0.0}))
+        else:
+            cart["state"] = "moving"
+            if abs(cart["rot"] - rot) > 0.5:
+                mv.append(("앞 2 자리 가득 -> 대차 물러남", C.CART_RETREAT_S, {"dist": C.CART_RETREAT}))
+                if abs(cart["lat"]) > 0.5:
+                    mv.append((f"대차 옆걸음 +{C.CART_LATERAL:g} (제자리로)", C.CART_LATERAL_S, {"lat": 0.0}))
+                mv.append(("대차 제자리 180° 회전 (뒤 받침 2 자리가 셀 쪽으로 · 이제 뒤 카메라 CM-02)",
+                           C.CART_ROTATE_S, {"rot": rot}))
+                if abs(lat) > 0.5:
+                    mv.append((f"대차 옆걸음 {lat:+g} (메카넘)", C.CART_LATERAL_S, {"lat": lat}))
+                mv.append((f"대차 다시 도착 -> PL 도킹 ({kr} 받침이 로봇 앞)", C.CART_DOCK_S, {"dist": 0.0}))
+            else:
+                mv.append((f"대차 물러남 -{C.CART_RETREAT:g} (옆걸음은 물러난 자리에서만)", C.CART_RETREAT_S,
+                           {"dist": C.CART_RETREAT}))
+                mv.append((f"대차 옆걸음 {lat - cart['lat']:+g} (메카넘 · {kr} 받침이 로봇 앞으로)", C.CART_LATERAL_S,
+                           {"lat": lat}))
+                mv.append((f"대차 PL 도킹 ({kr} 받침이 로봇 앞)", C.CART_DOCK_S, {"dist": 0.0}))
+        cart["moves"] = [{"caption": c, "dur": d, "left": d, "to": to, "from": None} for c, d, to in mv]
+        self._log("info", "CART", cart["moves"][0]["caption"])
+
+    def _cart_leave(self):
+        cart = self.cart
+        cart["state"] = "leaving"
+        cart["moves"] = [{"caption": f"카세트 {len(C.CART_SEATS)} 개 실음 -> 대차 출발", "dur": C.CART_LEAVE_S,
+                          "left": C.CART_LEAVE_S, "to": {"dist": 900.0}, "from": None}]
+        self._log("info", "CART", cart["moves"][0]["caption"])
+
+    def _cart_env(self, dt):
+        cart = self.cart
+        while dt > 1e-9 and cart["moves"]:
+            m = cart["moves"][0]
+            if m["from"] is None:
+                m["from"] = {k: cart[k] for k in m["to"]}
+            use = min(dt, m["left"])
+            m["left"] -= use
+            dt -= use
+            f = 1.0 - (m["left"] / m["dur"] if m["dur"] > 0 else 0.0)
+            for k, v in m["to"].items():
+                cart[k] = m["from"][k] + (v - m["from"][k]) * f
+            if m["left"] <= 1e-9:
+                cart["moves"].pop(0)
+                if cart["moves"]:
+                    self._log("info", "CART", cart["moves"][0]["caption"])
+        if not cart["moves"]:
+            if cart["state"] == "moving":
+                cart["state"] = "docked"
+                self._log("info", "CART_DOCKED", f"대차 도킹 완료 - {C.CART_SEAT_KR[self._cart_aligned_seat()]} 받침 대기")
+            elif cart["state"] == "leaving":
+                for c in self.cassettes.values():
+                    if c["where"].startswith("cart:"):
+                        c["where"] = "gone"
+                for w in self.wafers:
+                    if w["loc"] == "cass" and self.cassettes[w["cass"]]["where"] == "gone":
+                        w["loc"] = "shipped"
+                self.cart_departed += 1
+                self.cart = self._new_cart("away")
+                self._log("info", "CART_LEFT", "대차 출발 완료 - 다음 OK 카세트가 차면 새 대차 호출")
+
+    # ------------------------------------------------------------ 작업자
+    def _request_op(self, task):
+        if task in self.op_pending:
+            return
+        self.op_pending[task] = (self.t + C.OPERATOR_S) if self.auto_operator else None
+        self._log("warn", "OP_WAIT", OP_TEXT[task] + " (대기)")
+
+    def _do_op(self, task):
+        if task == "input":
+            old = self.dock["input"]
+            if old is not None:
+                for w in self._wafers_in(old):
+                    w["loc"] = "removed"
+                self.cassettes[old]["where"] = "gone"
+            self._place_cassette("input", fill=True)
+        elif task == "ok":
+            if self.dock["ok"] is not None:
+                raise CommandError("bad_state", "OK 도크에 이미 카세트가 있음")
+            self._place_cassette("ok")
+        elif task == "ng":
+            old = self.dock["ng"]
+            if old is not None:
+                for w in self._wafers_in(old):
+                    w["loc"] = "ng_out"
+                self.cassettes[old]["where"] = "gone"
+            self._place_cassette("ng")
+        self.op_pending.pop(task, None)
+
+    def _op_env(self):
+        for task, due in list(self.op_pending.items()):
+            if due is not None and self.t >= due:
+                self._do_op(task)
 
     # ------------------------------------------------------------ 알람
     def _raise(self, code, detail=""):
@@ -156,10 +316,10 @@ class CellSim:
             self._abort(lose_home=True)
 
     def _abort(self, lose_home):
-        if self.pc < len(self.program) and self.program[self.pc].key in ("9", "10", "11", "12", "13"):
-            self.c90_verified = False       # 검사 크래들에 웨이퍼가 남았을 수 있음(센서 없음)
-        self.program, self.pc, self.ai, self.cur = [], 0, 0, None
-        self.queue, self.hold = [], None
+        if self._wafer_by("inspect") is not None or (self.phase == "wafer" and self.pc >= 4):
+            self.insp_verified = False       # 검사 크래들에 웨이퍼가 남았을 수 있음(센서 없음)
+        self.program, self.pc, self.ai, self.cur, self.phase = [], 0, 0, None, None
+        self.hold = None
         if lose_home:
             self.homed = {k: False for k in self.homed}
 
@@ -180,78 +340,27 @@ class CellSim:
             raise CommandError("bad_state", f"지금 상태({self.state})에서는 할 수 없음")
 
     def _cmd_home(self):
-        self._need("IDLE", "READY", "CASSETTE_DONE")
+        self._need("IDLE", "READY")
         if self.estop_in:
             raise CommandError("estop", "E-STOP 해제 필요")
-        self.program, self.pc, self.ai, self.cur = Q.homing_steps(), 0, 0, None
+        self._load(Q.homing_steps(), "home")
         self.state, self.homing_t0, self.slot = "HOMING", self.t, None
-        self._log("info", "HOME", "원점 복귀 시작 (R -> Z -> ZC105 -> θ1 -> 최하단)")
-
-    def _cmd_cassette_ready(self, manual_n=None):
-        self._need("IDLE", "READY", "CASSETTE_DONE")
-        self.slot_conf = {}
-        if manual_n is not None:
-            n = int(manual_n)
-            if not 0 <= n <= C.SLOT_COUNT:
-                raise CommandError("bad_arg", "N 범위 0~10")
-            self.cassette = {"ready": True, "n_est": n, "kind": "MANUAL", "d": self.tof_d, "manual": True}
-            self._log("info", "CASSETTE", f"카세트 준비 (수동 입력 N={n})")
-        else:
-            d = self.read_tof()
-            r = T.classify(d)
-            if r["kind"] in ("AMBIG01", "INVALID"):
-                self.cassette = {"ready": False, "n_est": None, "kind": r["kind"], "d": d, "manual": False}
-                self._log("warn", "TOF", f"TOF {d:.1f}mm 판정 불가({r['kind']}) - N 수동 입력 필요")
-                return {"need_manual": True, "kind": r["kind"], "d": d}
-            n = r["n"] or 0
-            self.cassette = {"ready": True, "n_est": n, "kind": r["kind"], "d": d, "manual": False}
-            self._log("info", "CASSETTE", f"카세트 준비: TOF {d:.1f}mm -> 최상단 슬롯 {n} (연속 투입 가정 N={n})")
-        if self.state == "CASSETTE_DONE":
-            self.state = "READY" if all(self.homed.values()) else "IDLE"
-        return {"n_est": self.cassette["n_est"]}
-
-    def _remaining_slots(self):
-        """N 이하 슬롯 중 빈 슬롯 확정/이미 처리한 것을 뺀 목록(아래 -> 위)."""
-        n = self.cassette["n_est"] or 0
-        return [k for k in range(1, n + 1)
-                if self.slot_conf.get(k) != "empty" and not self._slot_processed(k)]
-
-    def _slot_processed(self, k):
-        return any(w["slot"] == k and w["loc"] != "cassette" and w.get("cassette_gen") == self._gen
-                   for w in self.wafers)
+        self._log("info", "HOME", "원점 복귀 시작 (R -> Z -> Z105 -> θ1 -> 대기 120°)")
 
     def _cmd_start(self):
-        self._need("READY", "CASSETTE_DONE")
+        self._need("READY")
         if not all(self.homed.values()):
             raise CommandError("not_homed", "원점 복귀 먼저")
-        if not self.cassette["ready"]:
-            raise CommandError("no_cassette", "'카세트 준비'를 먼저 누르세요")
         if self.occ().blade or self.sensors()["S4"]:
-            raise CommandError("blade_wafer", "블레이드 위 웨이퍼 - 수동 제거 후 시작")
-        if not self.c90_verified:
-            raise CommandError("need_c90_confirm", "검사 크래들(90°)이 비었는지 확인 필요 (센서 없음)")
-        self.queue = self._remaining_slots()
-        if not self.queue:
-            raise CommandError("nothing", "처리할 슬롯 없음")
-        self._next_slot()
-        self._log("info", "START", f"공정 시작: 슬롯 {self.queue_desc()}")
-
-    def queue_desc(self):
-        return ",".join(str(k) for k in ([self.slot] if self.slot else []) + self.queue)
-
-    def _next_slot(self):
-        if self.queue:
-            self.slot = self.queue.pop(0)
-            self.program, self.pc, self.ai, self.cur = Q.wafer_steps(self.slot), 0, 0, None
-            self.state = "RUNNING"
-            self.cycle_t0 = self.t
-        else:
-            self.slot = None
-            self.program, self.pc, self.ai, self.cur = Q.final_steps(), 0, 0, None
-            self.state = "RUNNING"
+            raise CommandError("blade_wafer", "포크 위 웨이퍼 - 수동 제거 후 시작")
+        if not self.insp_verified:
+            raise CommandError("need_insp_confirm", "검사 크래들(120°)이 비었는지 확인 필요 (센서 없음)")
+        self.state = "RUNNING"
+        self._log("info", "START", "공정 시작")
+        self._schedule()
 
     def _cmd_pause(self):
-        self._need(*RUN_STATES)
+        self._need(*RUN_STATES, *WAIT_STATES)
         self.prev_state, self.state = self.state, "PAUSED"
         self._log("info", "PAUSE", "일시정지")
 
@@ -260,20 +369,20 @@ class CellSim:
         if self.estop_in:
             raise CommandError("estop", "E-STOP 해제 필요")
         self.state = self.prev_state or "RUNNING"
-        if self.cur and self.cur["kind"] in ("expect", "wait_s5", "check_pick"):
+        if self.cur and self.cur["kind"] in ("expect", "check_pick"):
             self.cur["t0"] = self.t
         self._log("info", "RESUME", "재개")
 
     def _cmd_stop(self):
-        self._need(*RUN_STATES, "PAUSED", "WAIT_OPERATOR")
+        self._need(*RUN_STATES, *WAIT_STATES, "PAUSED", "WAIT_OPERATOR")
         self._abort(lose_home=True)
-        self.state, self.prompt, self.slot = "IDLE", None, None
+        self.state, self.prompt, self.slot, self.wafer = "IDLE", None, None, None
         self._log("warn", "STOP", "소프트 정지 - 원점 복귀 필요 (E-STOP 아님)")
 
     def _cmd_estop(self):
         self.estop_in = True
         self._abort(lose_home=True)
-        self.prompt, self.slot = None, None
+        self.prompt, self.slot, self.wafer = None, None, None
         self.state = "ESTOP"
         self.alarm = {"code": "ESTOP", "msg": ALARM_TEXT["ESTOP"], "step": None, "slot": None,
                       "fatal": True, "t": round(self.t, 2)}
@@ -297,25 +406,58 @@ class CellSim:
         self._log("info", "RESET", "알람 해제")
 
     def _cmd_confirm(self, choice):
-        if choice == "c90_clear":
-            self._need("IDLE", "READY", "CASSETTE_DONE")
-            self.c90_verified = True
-            self._log("info", "C90", "운전자 확인: 검사 크래들 비어 있음")
+        if choice == "insp_clear":
+            self._need("IDLE", "READY")
+            self.insp_verified = True
+            self._log("info", "INSP", "운전자 확인: 검사 크래들 비어 있음")
             return
         self._need("WAIT_OPERATOR")
         p, self.prompt = self.prompt, None
         n = p["slot"]
         if choice == "empty":
-            self.slot_conf[n] = "empty"
-            self.program, self.pc, self.ai, self.cur = Q.empty_slot_steps(n), 0, 0, None
-            self._log("warn", "EMPTY", f"슬롯 {n} 빈 슬롯으로 처리 (운전자 확인)")
+            self.input_empty.add(n)
+            self._load(Q.empty_slot_steps(), "empty")
+            self._log("warn", "EMPTY", f"투입 슬롯 {n} 빈 슬롯으로 처리 (운전자 확인)")
         elif choice == "retry":
-            self.program, self.pc, self.ai, self.cur = Q.wafer_steps(n), 0, 0, None
-            self._log("info", "RETRY", f"슬롯 {n} 픽업 재시도")
+            self._load(Q.retry_steps(n), "wafer")
+            self._log("info", "RETRY", f"투입 슬롯 {n} 집기 재시도")
         else:
             self.prompt = p
-            raise CommandError("bad_arg", "choice = empty | retry | c90_clear")
+            raise CommandError("bad_arg", "choice = empty | retry | insp_clear")
         self.state = "RUNNING"
+
+    def _cmd_operator(self, task):
+        """작업자가 교체/놓기를 끝냈다(버튼). 실장비에서도 쓰는 확인 명령."""
+        if task not in OP_TEXT:
+            raise CommandError("bad_arg", "task = input | ok | ng")
+        if self.state in RUN_STATES and self.phase not in (None, "standby") and task == self._busy_dock():
+            raise CommandError("bad_state", "로봇이 그 카세트에서 작업 중")
+        self._do_op(task)
+
+    def _busy_dock(self):
+        if self.phase in ("wafer", "empty") and self.pc <= 2:
+            return "input"
+        if self.phase == "cart":
+            return "ok"
+        if self.phase == "sort":
+            return self._sort_dest
+        return None
+
+    def _cmd_auto_operator(self, on=True):
+        self.auto_operator = bool(on)
+        for task in self.op_pending:
+            self.op_pending[task] = (self.t + C.OPERATOR_S) if self.auto_operator else None
+        self._log("info", "OPERATOR", f"(시뮬) 작업자 자동 {'ON' if on else 'OFF'}")
+
+    def _cmd_next_ng(self, on=True):
+        self.ng_next = bool(on)
+        self._log("info", "NG_NEXT", f"(시뮬) 다음 웨이퍼 NG {'지정' if on else '해제'}")
+
+    def _cmd_ng_rate(self, value):
+        v = float(value)
+        if not 0.0 <= v <= 1.0:
+            raise CommandError("bad_arg", "NG 비율 0~1")
+        self.ng_rate = v
 
     def _cmd_speed(self, value):
         v = float(value)
@@ -323,24 +465,11 @@ class CellSim:
             raise CommandError("bad_arg", "배속 0.1~50")
         self.speed = v
 
-    def _cmd_load_map(self, slots):
-        self._need("IDLE", "READY", "CASSETTE_DONE")
-        self.load_map([bool(x) for x in slots])
-
-    def load_map(self, slots, log=True):
-        self._gen = getattr(self, "_gen", 0) + 1
-        self.wafers = [w for w in self.wafers if w["loc"] not in ("cassette", "handed_off")]
-        for i, present in enumerate(slots[:C.SLOT_COUNT]):
-            if present:
-                self._wid += 1
-                self.wafers.append({"id": self._wid, "slot": i + 1, "loc": "cassette", "cassette_gen": self._gen,
-                                    "t_pick": None, "t_inspect": None, "t_out": None, "t_handoff": None,
-                                    "capture": None, "cycle_s": None})
-        self.slot_conf = {}
-        self.cassette = {"ready": False, "n_est": None, "kind": None, "d": None, "manual": False}
-        if log:
-            n = sum(1 for s in slots if s)
-            self._log("info", "LOAD", f"(시뮬) 카세트 교체: {n}장 투입 - '카세트 준비'를 누르세요")
+    def _cmd_load_input(self, slots):
+        """(시뮬) 다음에 놓을 투입 카세트의 웨이퍼 배치. IDLE/READY 면 지금 카세트도 바꾼다."""
+        self.next_input_map = [bool(x) for x in slots][:C.SLOT_COUNT]
+        if self.state in ("IDLE", "READY"):
+            self._do_op("input")
 
     def _cmd_fault(self, name, on=True):
         if name not in FAULTS:
@@ -352,8 +481,8 @@ class CellSim:
         self._log("warn" if on else "info", "FAULT", f"(시뮬) 고장주입 {name} {'ON' if on else 'OFF'}")
 
     def _cmd_remove_wafer(self, loc):
-        self._need("IDLE", "READY", "CASSETTE_DONE", "ALARM")
-        w = self._wafer_at(loc)
+        self._need("IDLE", "READY", "ALARM")
+        w = self._wafer_by(loc)
         if w is None:
             raise CommandError("bad_arg", f"{loc} 에 웨이퍼 없음")
         w["loc"] = "removed"
@@ -361,6 +490,113 @@ class CellSim:
 
     def _cmd_debug_hold(self, step, frac=0.0, slot=None):
         self.hold = {"step": str(step), "frac": float(frac), "slot": slot}
+
+    # ------------------------------------------------------------ 스케줄
+    def _load(self, steps, phase):
+        self.program, self.pc, self.ai, self.cur, self.phase = list(steps), 0, 0, None, phase
+
+    def _at_standby(self):
+        return (abs(self.theta - C.THETA_STANDBY) < 0.5 and abs(self.zc - C.ZC_SWING) < 0.3
+                and self.rx <= G.RX_TOL)
+
+    def _wait(self, state, task=None):
+        """대기 상태로. 로봇이 대기 자세가 아니면 먼저 120° 로 돌아간다."""
+        if task:
+            self._request_op(task)
+        if not self._at_standby():
+            self._load([Q.Step("W", "home", f"대기 ({C.THETA_STANDBY:g}°) 로 복귀", "Z 105 · R 0",
+                               (Q.MoveR(C.RX_RET), Q.Expect("S3", True), Q.MoveZ(C.ZC_SWING),
+                                Q.Rotate(C.THETA_STANDBY)))], "standby")
+            self.state = "RUNNING"
+            return
+        if self.state != state:
+            self._log("info", state, {"WAIT_INPUT": "투입 카세트 교체 대기", "WAIT_OK": "빈 OK 카세트 대기",
+                                       "WAIT_NG": "빈 NG 카세트 대기", "WAIT_CART": "대차 대기"}[state])
+        self.state = state
+
+    def _next_input_slot(self):
+        if self.dock["input"] is None:
+            return None
+        for k in range(1, C.SLOT_COUNT + 1):          # 아래 슬롯부터 (R0 로 오르내릴 때 빈 슬롯만 지나감)
+            if k not in self.input_tried and k not in self.input_empty:
+                return k
+        return None
+
+    def _schedule(self):
+        """프로그램이 끝났거나 대기 중일 때 다음 일을 고른다(비디오 흐름 순서)."""
+        ok_n = self.dock_count("ok") if self.dock["ok"] is not None else None
+        # 1) OK 카세트 가득 -> 대차
+        if ok_n is not None and ok_n >= C.SLOT_COUNT:
+            seat = self._cart_ready_seat()
+            if seat is not None and self.cart["state"] == "docked":
+                self.cart["nth"] += 1
+                self._cart_seat = seat
+                self._load(Q.cart_steps(seat, self.cart["nth"]), "cart")
+                self.state = "RUNNING"
+                self._log("info", "CART_LOAD", f"OK 카세트 -> 대차 {C.CART_SEAT_KR[seat]} 받침 ({self.cart['nth']} 번째)")
+                return
+            if self.cart["state"] in ("away", "docked") and not self.cart["moves"]:
+                if self.cart["state"] == "away":
+                    self._log("info", "CART_CALL", "OK 카세트 5 장 가득 -> 대차 호출")
+                self._cart_plan()
+            self._wait("WAIT_CART")
+            return
+        # 2) OK 도크 비었음 -> 빈 OK 카세트
+        if ok_n is None:
+            self._wait("WAIT_OK", "ok")
+            return
+        # 3) NG 가득 -> 빈 NG 카세트(사용자 결정: 멈추고 교체 요청)
+        if self.dock["ng"] is None or self.dock_count("ng") >= C.SLOT_COUNT:
+            self._wait("WAIT_NG", "ng")
+            return
+        # 4) 다음 투입 슬롯
+        k = self._next_input_slot()
+        if k is None:
+            self._wait("WAIT_INPUT", "input")
+            return
+        self.slot = k
+        self.input_tried.add(k)
+        self._load(Q.wafer_steps(k), "wafer")
+        self.state = "RUNNING"
+        self.cycle_t0 = self.t
+
+    def _program_done(self):
+        phase = self.phase
+        if self.state == "HOMING":
+            self._load([], None)
+            self.homing_t0 = None
+            self.state = "READY"
+            self._log("info", "HOMED", f"원점 복귀 완료 - 대기 θ{C.THETA_STANDBY:g} · Z 105 · R 0")
+            return
+        if phase == "wafer":
+            w = self._wafer_by("blade")
+            dest = "ng" if w and w["judgment"] == "NG" else "ok"
+            slots = self.dock_slots(dest)
+            k = next((k for k in range(C.SLOT_COUNT, 0, -1) if k not in slots), None)   # 위 슬롯부터
+            if k is None:            # 검사 전에 확인하므로 정상 흐름에선 없음
+                self._raise("INTERLOCK", f"{dest.upper()} 카세트 가득 - 넣을 슬롯 없음")
+                return
+            self._sort_dest = dest
+            self._load(Q.sort_steps(dest, k), "sort")
+            return
+        if phase == "sort":
+            dt = self.t - (self.cycle_t0 or self.t)
+            self.cycles.append(round(dt, 2))
+            w = next((w for w in self.wafers if w["id"] == self.wafer), None)
+            if w:
+                w["cycle_s"] = round(dt, 2)
+            self._log("info", "CYCLE", f"웨이퍼 {w['no'] if w else '?'} 사이클 {dt:.1f}s (가정 속도 기준)")
+            self.wafer, self.slot = None, None
+        if phase == "cart":
+            if all(v is not None for v in self.cart["seats"].values()):
+                self._cart_leave()
+        self._load([], None)
+        self._schedule()
+
+    def _wait_env(self):
+        """대기 상태에서 조건이 풀렸는지 본다."""
+        if self.state in WAIT_STATES:
+            self._schedule()
 
     # ------------------------------------------------------------ 진행
     def tick(self, dt):
@@ -370,7 +606,7 @@ class CellSim:
             raise RuntimeError("injected sim exception")
         remaining = max(0.0, float(dt)) * self.speed
         guard = 0
-        while remaining > 1e-9 and guard < 2000:
+        while remaining > 1e-9 and guard < 4000:
             guard += 1
             if self.state not in RUN_STATES:
                 self._env(remaining)
@@ -384,18 +620,13 @@ class CellSim:
             self._env(remaining)
 
     def _env(self, dt):
-        """환경: 시간, 다음 이송로봇 인계, 원점 타임아웃."""
+        """환경: 시간, 대차 이동, 작업자, 원점 타임아웃, 대기 해제."""
         self.t += dt
-        if self.handoff_left is not None:
-            self.handoff_left -= dt
-            if self.handoff_left <= 0 and self.rx <= G.RX_TOL:
-                w = self._wafer_at("C180")
-                if w:
-                    w["loc"], w["t_handoff"] = "handed_off", round(self.t, 2)
-                    self._log("info", "HANDOFF", f"인계 완료: 슬롯 {w['slot']} 웨이퍼 -> 다음 이송로봇 (S5 비움)")
-                self.handoff_left = None
+        self._cart_env(dt)
+        self._op_env()
         if self.state == "HOMING" and self.homing_t0 is not None and self.t - self.homing_t0 > C.HOMING_TIMEOUT_S:
             self._raise("HOMING_TIMEOUT", f"{C.HOMING_TIMEOUT_S:.0f}s")
+        self._wait_env()
 
     def _run(self, budget):
         """현재 동작을 최대 budget 초 진행. 사용 시간 반환(순간 동작이면 0)."""
@@ -435,7 +666,14 @@ class CellSim:
                 return False
             ev = []
             for kind, where, slot in r["events"]:
-                z_cross = (C.slot_z(slot) if where == "slot" else C.CRADLE_SEAT_Z) - C.BLADE_PLANE_OFS
+                if kind == "cass_pick":
+                    z_cross = C.CART_LIFT_Z
+                elif kind == "cass_place":
+                    z_cross = C.CART_SEAT_LIFT_Z
+                elif where == "inspect":
+                    z_cross = C.CRADLE_SEAT_Z - C.BLADE_PLANE_OFS
+                else:
+                    z_cross = C.slot_z(slot) - C.BLADE_PLANE_OFS
                 ev.append((z_cross, kind, where, slot))
             self.cur = {"kind": "z", "from": self.zc, "to": act.value, "events": ev}
         elif k == "r":
@@ -445,43 +683,46 @@ class CellSim:
                 return False
             self.cur = {"kind": "r", "from": self.rx, "to": act.value}
         elif k == "rot":
-            ok, why = Q.can_rotate(self.zc, self.rx, self._read("S3"), carrying=o.blade)
+            ok, why = Q.can_rotate(self.zc, self.rx, self._read("S3"), z_ok=act.z_ok, carrying=o.blade)
             if not ok:
                 self._raise("INTERLOCK", why)
                 return False
+            if not C.THETA_MIN - 0.5 <= act.value <= C.THETA_MAX + 0.5:
+                self._raise("INTERLOCK", f"θ {act.value:g} 범위 밖")
+                return False
             pts = list(act.via) + [act.value]
             self.cur = {"kind": "rot", "from": self.theta, "pts": pts, "to": act.value}
-        elif k in ("expect", "check_pick", "wait_s5"):
-            if k == "wait_s5" and not self.sensors()["S5"]:
-                return True
-            if k != "wait_s5" and self._read(act.sensor) == act.expect:
+        elif k in ("expect", "check_pick"):
+            if self._read(act.sensor) == act.expect:
                 self._on_expect_ok(act, step)
                 return True
             if k == "check_pick":
                 n = self.slot
                 self.prompt = {"kind": "s4_missing", "slot": n, "options": ["empty", "retry"],
-                               "msg": f"슬롯 {n}: S4 없음 - 빈 슬롯인지 픽업 실패인지 구분 불가. 눈으로 확인 후 선택"}
+                               "msg": f"투입 슬롯 {n}: S4 없음 - 빈 슬롯인지 집기 실패인지 구분 불가. 눈으로 확인 후 선택"}
                 self.state = "WAIT_OPERATOR"
                 self._log("alarm", "S4_NONE", self.prompt["msg"], slot=n)
-                for f in ("s4_false_none",):
-                    self.faults.discard(f)
+                self.faults.discard("s4_false_none")
                 return False
-            self.cur = {"kind": k, "t0": self.t, "sensor": act.sensor, "expect": act.expect, "warned": False}
-            if k == "wait_s5":
-                self.state = "WAIT_S5"
-                self._log("info", "WAIT_S5", "반출 크래들 점유 - 다음 이송로봇 대기(S5)")
+            self.cur = {"kind": k, "t0": self.t, "sensor": act.sensor, "expect": act.expect}
         elif k == "capture":
             self.cur = {"kind": "capture", "left": C.CAPTURE_S}
-            w = self._wafer_at("C90")
-            self.pending_captures.append({"slot": self.slot, "wafer": w["id"] if w else None, "t": round(self.t, 2)})
+            w = self._wafer_by("inspect")
             if w:
+                self.inspected += 1
+                w["no"] = w["no"] or self.inspected
                 w["t_inspect"] = round(self.t, 2)
-            self._log("info", "CAPTURE", f"슬롯 {self.slot} 웨이퍼 촬영 (백라이트)", slot=self.slot)
+                ng = self.ng_next or self.rng.random() < self.ng_rate
+                self.ng_next = False
+                w["judgment"] = "NG" if ng else "OK"
+                self.last_judgment = {"no": w["no"], "result": w["judgment"], "t": round(self.t, 2)}
+                self.pending_captures.append({"slot": self.slot, "wafer": w["id"], "no": w["no"],
+                                              "judgment": w["judgment"], "t": round(self.t, 2)})
+                self._log("info" if not ng else "warn", "JUDGE",
+                          f"웨이퍼 {w['no']} StreamCam 촬영 · 판정 {w['judgment']}", slot=self.slot)
         return True
 
     def _on_expect_ok(self, act, step):
-        if act.kind == "check_pick" and self.slot:
-            self.slot_conf[self.slot] = "present"
         if act.sensor == "S2" and step.group == "home":
             self.homed["z"] = True
         if act.sensor == "S3" and step.group == "home":
@@ -501,7 +742,7 @@ class CellSim:
         c = self.cur
         k = c["kind"]
         limit = budget
-        if self.hold and self.hold["step"] == step.key and self._hold_slot_ok() and k in ("z", "r", "rot"):
+        if self.hold and self.hold["step"] == step.key and self._hold_slot_ok() and k in ("z", "r", "rot", "capture"):
             frac_budget = self._hold_budget(c)
             if frac_budget is not None:
                 if frac_budget <= 1e-9:
@@ -513,8 +754,7 @@ class CellSim:
             new, used, done = self._move_toward(self.zc, c["to"], C.Z_SPEED, limit)
             lo, hi = sorted((self.zc, new))
             for ev in list(c["events"]):
-                zx = ev[0]
-                if lo - 1e-9 <= zx <= hi + 1e-9:
+                if lo - 1e-9 <= ev[0] <= hi + 1e-9:
                     self._apply_transfer(ev)
                     c["events"].remove(ev)
             self.zc = new
@@ -522,8 +762,7 @@ class CellSim:
             new, used, done = self._move_toward(self.rx, c["to"], C.R_SPEED, limit)
             self.rx = new
         elif k == "rot":
-            target = c["pts"][0]
-            new, used, done_pt = self._move_toward(self.theta, target, C.THETA_SPEED, limit)
+            new, used, done_pt = self._move_toward(self.theta, c["pts"][0], C.THETA_SPEED, limit)
             self.theta = new
             done = False
             if done_pt:
@@ -533,28 +772,19 @@ class CellSim:
             used = min(limit, c["left"])
             c["left"] -= used
             done = c["left"] <= 1e-9
-        else:   # expect / wait_s5 : 시간 경과 대기
+        else:   # expect : 시간 경과 대기
             used = limit
-            if k == "wait_s5":
-                done = not self.sensors()["S5"]
-                if not done and not c["warned"] and self.t + used - c["t0"] >= C.S5_WARN_S:
-                    c["warned"] = True
-                    self._log("warn", "S5_WAIT", f"S5 인계 대기 {C.S5_WARN_S:.0f}s 초과 (경고)")
-                if done:
-                    used = 0.0
-                    self.state = "RUNNING"
+            act = step.actions[self.ai]
+            if self._read(act.sensor) == act.expect:
+                self._on_expect_ok(act, step)
+                used, done = 0.0, True
             else:
-                act = step.actions[self.ai]
-                if self._read(act.sensor) == act.expect:
-                    self._on_expect_ok(act, step)
-                    used, done = 0.0, True
-                else:
-                    to = C.EXPECT_TIMEOUT_S
-                    if self.t + used - c["t0"] >= to:
-                        used = max(0.0, c["t0"] + to - self.t)
-                        self._expect_fail(act, step)
-                        return used
-                    done = False
+                to = C.EXPECT_TIMEOUT_S
+                if self.t + used - c["t0"] >= to:
+                    used = max(0.0, c["t0"] + to - self.t)
+                    self._expect_fail(act, step)
+                    return used
+                done = False
         if done:
             self.cur = None
             self.ai += 1
@@ -565,7 +795,9 @@ class CellSim:
         f = self.hold["frac"]
         if f <= 0:
             return None
-        if c["kind"] == "z":
+        if c["kind"] == "capture":
+            total, speed, done_amt = C.CAPTURE_S, 1.0, C.CAPTURE_S - c["left"]
+        elif c["kind"] == "z":
             total, speed, done_amt = abs(c["to"] - c["from"]), C.Z_SPEED, abs(self.zc - c["from"])
         elif c["kind"] == "r":
             total, speed, done_amt = abs(c["to"] - c["from"]), C.R_SPEED, abs(self.rx - c["from"])
@@ -593,75 +825,101 @@ class CellSim:
 
     def _apply_transfer(self, ev):
         _, kind, where, slot = ev
+        if kind == "cass_pick":
+            cid = self.dock["ok"]
+            if cid is not None:
+                self.cassettes[cid]["where"] = "fork"
+                self.dock["ok"] = None
+                self._log("info", "CASS_PICK", "OK 카세트 (웨이퍼 5 장) 를 클램프 윗판째로 듦")
+            return
+        if kind == "cass_place":
+            cid = next((c["id"] for c in self.cassettes.values() if c["where"] == "fork"), None)
+            seat = self._cart_ready_seat()
+            if cid is not None and seat is not None:
+                self.cassettes[cid]["where"] = "cart:" + seat
+                self.cart["seats"][seat] = cid
+                self._log("info", "CASS_PLACE", f"OK 카세트 -> 대차 {C.CART_SEAT_KR[seat]} 받침")
+            return
         if kind == "pick":
-            w = self._wafer_at("cassette", slot) if where == "slot" else self._wafer_at(where)
+            if where == "input":
+                w = next((w for w in self._wafers_in(self.dock["input"]) if w["slot"] == slot), None)
+            else:
+                w = self._wafer_by("inspect")
             if w:
                 w["loc"] = "blade"
-                if where == "slot":
+                if where == "input":
                     w["t_pick"] = round(self.t, 2)
-                self._log("info", "PICK", f"픽업: {'슬롯 ' + str(slot) if where == 'slot' else where} -> 블레이드")
+                    self.wafer = w["id"]
+                self._log("info", "PICK", f"집기: {'투입 슬롯 ' + str(slot) if where == 'input' else '검사 크래들'} -> 포크")
         else:
-            w = self._wafer_at("blade")
+            w = self._wafer_by("blade")
             if w:
-                if where == "slot":
-                    w["loc"], w["slot"] = "cassette", slot
+                if where == "inspect":
+                    w["loc"] = "inspect"
                 else:
-                    w["loc"] = where
-                    if where == "C180":
-                        w["t_out"] = round(self.t, 2)
-                        self.handoff_left = C.HANDOFF_DELAY_FAULT_S if "next_robot_delay" in self.faults else C.HANDOFF_S
-                self._log("info", "PLACE", f"안착: 블레이드 -> {'슬롯 ' + str(slot) if where == 'slot' else where}")
-
-    def _program_done(self):
-        if self.state == "HOMING":
-            self.program, self.pc, self.ai = [], 0, 0
-            self.homing_t0 = None
-            self.state = "READY"
-            self._log("info", "HOMED", "원점 복귀 완료 (Z 최하단 · R 수축 · θ1 0°)")
-            return
-        if self.program and self.program[0].key == "F1":
-            self.program, self.pc, self.ai = [], 0, 0
-            self.state = "CASSETTE_DONE"
-            self._log("info", "DONE", "카세트 완료 - 교체 후 '카세트 준비'")
-            return
-        if self.slot is not None and self.slot_conf.get(self.slot) != "empty":
-            dt = self.t - (self.cycle_t0 or self.t)
-            self.cycles.append(round(dt, 2))
-            w = next((w for w in self.wafers if w["slot"] == self.slot and w["loc"] in ("C180", "handed_off")
-                      and w.get("cassette_gen") == self._gen and w.get("cycle_s") is None), None)
-            if w:
-                w["cycle_s"] = round(dt, 2)
-            self._log("info", "CYCLE", f"슬롯 {self.slot} 사이클 {dt:.1f}s (가정 속도 기준)")
-        self._next_slot()
+                    w["loc"], w["cass"], w["slot"] = "cass", self.dock[where], slot
+                    w["t_sort"] = round(self.t, 2)
+                self._log("info", "PLACE", f"놓기: 포크 -> {'검사 크래들' if where == 'inspect' else where.upper() + ' 슬롯 ' + str(slot)}")
 
     # ------------------------------------------------------------ 스냅샷
     def interlock(self):
-        ok, why = Q.can_rotate(self.zc, self.rx, self.sensors()["S3"], carrying=self.occ().blade)
+        step = self.program[self.pc] if self.pc < len(self.program) else None
+        z_ok = C.ZC_SWING
+        if step and self.ai < len(step.actions) and step.actions[self.ai].kind == "rot":
+            z_ok = step.actions[self.ai].z_ok
+        ok, why = Q.can_rotate(self.zc, self.rx, self.sensors()["S3"], z_ok=z_ok, carrying=self.occ().blade)
         return {"rotate_ok": ok, "reason": why}
 
-    def slot_view(self):
-        n_est = self.cassette["n_est"] if self.cassette["ready"] else None
+    def _dock_view(self, kind):
+        cid = self.dock[kind]
+        if cid is None:
+            return {"present": False, "count": 0, "slots": [{"n": k, "status": "none"} for k in range(1, C.SLOT_COUNT + 1)]}
+        here = self.dock_slots(kind)
         out = []
         for k in range(1, C.SLOT_COUNT + 1):
-            w_here = self._wafer_at("cassette", k)
-            w_any = next((w for w in self.wafers if w["slot"] == k and w.get("cassette_gen") == self._gen
-                          and w["loc"] != "cassette"), None)
-            conf = self.slot_conf.get(k)
-            if w_any is not None:
-                status = {"blade": "moving", "C90": "inspect", "C180": "output",
-                          "handed_off": "done", "removed": "removed"}.get(w_any["loc"], "moving")
-            elif conf == "empty":
-                status = "empty"
-            elif n_est is None:
-                status = "unknown"
-            elif k > n_est:
-                status = "above_top"
-            elif conf == "present":
-                status = "present"
+            w = here.get(k)
+            if kind == "input":
+                if w:
+                    status = "wafer"
+                elif k in self.input_empty:
+                    status = "empty_conf"
+                elif k in self.input_tried:
+                    status = "done"
+                else:
+                    status = "empty"
             else:
-                status = "est_present"
-            out.append({"n": k, "status": status, "sim_present": w_here is not None})
-        return out
+                status = ("ng" if kind == "ng" else "ok") if w else "empty"
+            out.append({"n": k, "status": status, "no": w["no"] if w else None})
+        return {"present": True, "count": len(here), "slots": out}
+
+    def headline(self):
+        """기본 화면 한 줄(비디오 큰 자막) + 둘째 줄(수치, 상세용)."""
+        st = self.state
+        step = self.program[self.pc] if self.pc < len(self.program) else None
+        if st in ("ALARM", "ESTOP") and self.alarm:
+            return self.alarm["msg"], ""
+        if st == "WAIT_OPERATOR" and self.prompt:
+            return f"투입 슬롯 {self.prompt['slot']} 확인 필요", self.prompt["msg"]
+        if st in ("WAIT_INPUT", "WAIT_OK", "WAIT_NG"):
+            task = {"WAIT_INPUT": "input", "WAIT_OK": "ok", "WAIT_NG": "ng"}[st]
+            return OP_TEXT[task], f"로봇은 대기 ({C.THETA_STANDBY:g}°)"
+        if st == "WAIT_CART" or (self.cart["moves"] and st in ("PAUSED",) and self.prev_state == "WAIT_CART"):
+            cap = self.cart["moves"][0]["caption"] if self.cart["moves"] else "대차 대기"
+            return cap, "대차가 움직이는 동안 로봇은 대기"
+        if step and self.phase in ("wafer", "sort", "empty"):
+            w = next((w for w in self.wafers if w["id"] == self.wafer), None)
+            no = w["no"] if w and w["no"] else self.inspected + 1
+            title = step.title
+            if step.key == "6" and w and w["judgment"]:
+                title += f" {w['judgment']}"
+            return f"웨이퍼 {no} — {title}", step.detail
+        if step:
+            return step.title, step.detail
+        if st == "READY":
+            return f"대기 (θ{C.THETA_STANDBY:g}° · Z 105 · R 0)", "'시작' 을 누르면 투입 카세트부터 검사한다"
+        if st == "IDLE":
+            return "원점 복귀 필요", "R 수축 -> Z 최하단 -> Z 105 -> θ1 원점 -> 대기 120°"
+        return "", ""
 
     def snapshot(self):
         step = self.program[self.pc] if self.pc < len(self.program) else None
@@ -678,43 +936,61 @@ class CellSim:
             a = step.actions[self.ai]
             if a.kind in ("expect", "check_pick"):
                 exp = {"sensor": a.sensor, "value": a.expect}
-            elif a.kind == "wait_s5":
-                exp = {"sensor": "S5", "value": False}
-        sv = self.slot_view()
-        n_est = self.cassette["n_est"]
-        conf_present = sum(1 for k, v in self.slot_conf.items() if v == "present")
-        done = sum(1 for w in self.wafers if w["loc"] == "handed_off" and w.get("cassette_gen") == self._gen)
-        remaining = sum(1 for s in sv if s["status"] in ("est_present", "present"))
-        mismatch = any(v == "empty" and n_est and k <= n_est for k, v in self.slot_conf.items())
         o = self.occ()
-        tof_kind = None
-        if self.tof_d is not None:
-            tof_kind = T.classify(self.tof_d)
+        stage = None
+        if step:
+            stage = Q.STAGE_OF_GROUP.get(step.group)
+            if step.group == "sort":
+                stage = self._sort_dest
+        if self.state == "WAIT_CART":
+            stage = "cart"
+        fork_cass = next((c for c in self.cassettes.values() if c["where"] == "fork"), None)
+        insp = self._wafer_by("inspect")
+        blade = self._wafer_by("blade")
+        head, sub = self.headline()
+        cart = self.cart
+        seats = {s: (len(self._wafers_in(cid)) if cid is not None else None) for s, cid in cart["seats"].items()}
         return {
             "tick": self.tick_n, "t": round(self.t, 3), "source": self.source, "state": self.state,
             "speed": self.speed,
             "pose": {"theta": round(self.theta, 3), "zc": round(self.zc, 3), "rx": round(self.rx, 3)},
             "target": target,
             "homed": all(self.homed.values()), "homed_axes": dict(self.homed),
-            "step": ({"key": step.key, "no": step.no, "group": step.group, "title": step.title,
-                      "why": step.why, "stage": Q.STAGE_OF_GROUP.get(step.group),
-                      "action": self.ai, "actions": len(step.actions)} if step else None),
-            "slot": self.slot, "queue": list(self.queue),
+            "step": ({"key": step.key, "group": step.group, "title": step.title, "detail": step.detail,
+                      "stage": stage, "action": self.ai, "actions": len(step.actions)} if step else None),
+            "program": [s.key for s in self.program], "phase": self.phase, "stage": stage,
+            "headline": head, "subline": sub,
+            "slot": self.slot,
             "sensors": self.sensors(), "expect": exp,
-            "tof": {"d": self.tof_d, "kind": tof_kind},
-            "cassette": dict(self.cassette, confirmed=conf_present, remaining=remaining, mismatch=mismatch),
-            "slots": sv,
-            "occ": {"blade": o.blade, "C90": o.C90, "C180": o.C180},
-            "wafers": [{"id": w["id"], "slot": w["slot"], "loc": w["loc"], "cycle_s": w["cycle_s"],
-                        "capture": w["capture"]} for w in self.wafers
-                       if w["loc"] in ("blade", "C90", "C180") or w.get("cassette_gen") == self._gen],
+            "docks": {k: self._dock_view(k) for k in C.CASSETTES},
+            "fork": {"wafer": blade is not None, "judgment": blade["judgment"] if blade else None,
+                     "cassette": len(self._wafers_in(fork_cass["id"])) if fork_cass else None},
+            "inspect": {"wafer": insp is not None, "judgment": insp["judgment"] if insp else None},
+            "cart": {"state": cart["state"], "seats": seats, "rot": round(cart["rot"], 2),
+                     "lat": round(cart["lat"], 2), "dist": round(cart["dist"], 2),
+                     "aligned": self._cart_aligned_seat(), "caption": cart["moves"][0]["caption"] if cart["moves"] else None,
+                     "loaded": sum(1 for v in cart["seats"].values() if v is not None), "departed": self.cart_departed,
+                     "camera": "CM-02" if abs(cart["rot"] - 180.0) < 90 else "CM-01"},
+            "operator": {"auto": self.auto_operator,
+                         "pending": [{"task": t, "label": OP_BUTTON[t], "msg": OP_TEXT[t],
+                                      "due_in": (round(max(0.0, d - self.t), 1) if d is not None else None)}
+                                     for t, d in self.op_pending.items()]},
+            "judgment": self.last_judgment, "ng_next": self.ng_next, "ng_rate": self.ng_rate,
+            "occ": {"blade": o.blade, "inspect": o.inspect, "fork_cassette": o.fork_cassette},
+            "wafers": [{"id": w["id"], "no": w["no"], "loc": w["loc"], "judgment": w["judgment"]}
+                       for w in self.wafers if w["loc"] in ("blade", "inspect")],
             "alarm": self.alarm, "prompt": self.prompt,
             "interlock": self.interlock(),
-            "counts": {"done": done,
+            "counts": {"inspected": self.inspected,
+                       "ok": sum(1 for w in self.wafers if w["judgment"] == "OK" and w["t_sort"] is not None),
+                       "ng": sum(1 for w in self.wafers if w["judgment"] == "NG" and w["t_sort"] is not None),
+                       "input": self.dock_count("input") if self.dock["input"] is not None else 0,
+                       "ok_dock": self.dock_count("ok") if self.dock["ok"] is not None else None,
+                       "ng_dock": self.dock_count("ng") if self.dock["ng"] is not None else None,
+                       "cart": sum(1 for v in cart["seats"].values() if v is not None),
                        "cycle_last": self.cycles[-1] if self.cycles else None,
                        "cycle_avg": round(sum(self.cycles) / len(self.cycles), 1) if self.cycles else None},
-            "faults": sorted(self.faults), "c90_verified": self.c90_verified,
-            "handoff_left": round(self.handoff_left, 1) if self.handoff_left is not None else None,
+            "faults": sorted(self.faults), "insp_verified": self.insp_verified,
             "captures": self.captures[-6:],
             "log_seq": self.seq,
         }

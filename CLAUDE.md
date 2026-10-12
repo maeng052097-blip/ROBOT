@@ -63,14 +63,14 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 20개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 19개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
    재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
     test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
     test_occupancy_grid, test_scan, test_zoom_geom
-   웨이퍼셀 6개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
+   웨이퍼셀 5개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_sim,
     test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
@@ -122,17 +122,20 @@ py -3.13 tests/find_camera.py
 
 ---
 
-## 9. 웨이퍼 이송셀 CELL_V9 공정 모니터 (`wafer_cell/`) — 별개 기계
+## 9. 웨이퍼 검사셀 R9 공정 모니터 (`wafer_cell/`) — 별개 기계
 
 - 재활용 로봇과 **다른 기계**다. §1·§6(메카넘/LiDAR/카메라 시차)과 `common/config.py` 는 적용하지 않는다.
-  설정은 `wafer_cell/cell_config.py`(CELL_V9 문서 §A~§I 출처 + `가정` 값 목록 ASSUMED). 설계 원본 = Google Drive
-  `ROBOT/웨이퍼 이송셀 CELL_V9/index.html`(2026-09-24 개정3). 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
+  설정은 `wafer_cell/cell_config.py`(비디오 `R9 웨이퍼 검사 셀` 자막 수치 + `가정` 값 목록 ASSUMED). 이전 CELL_V9 문서
+  (Google Drive `ROBOT/웨이퍼 이송셀 CELL_V9/`)는 로봇 몸체 치수 출처로만 남았다. 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
 - 1단계 = **시뮬레이션**(`--source live` 는 미구현). 실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--lan] [--speed 5]`
   -> 브라우저 `http://127.0.0.1:8765/` (localhost 대신 IP). 새 의존성 없음(표준 라이브러리 서버 + 기존 cv2).
-- 확정된 공정 규칙(사용자 결정, 코드/테스트가 강제): 원점 = R 수축(S3) -> Z 최하단(S2) -> ZC105 -> θ1(S1) -> 최하단,
-  선회는 ZC105·RX0·S3 에서만, 슬롯은 1->10(아래->위), RX 공정값 51(실측 스트로크 62 -> 51 스토퍼/리밋 필요),
-  단계 10 에 S3 확인, TOF N 이하 슬롯에서 S4 없음 -> 알람 + 운전자 확인.
-- 화면 수치는 **지령값**이다(스테퍼 엔코더 미판독, R 전진 센서 없음). 하드웨어 의존값(TOF 높이/모델, 웨이퍼 두께,
-  축 속도, 카메라 인덱스, 백라이트 z)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
+- 셀: ① 투입 180° · ② 검사 크래들 120° · ③ NG 60° · ④ OK 0° · 대차 받침 -90°(R85), 카세트 5슬롯 Sn = 190 + 18(n-1).
+- 확정된 공정 규칙(사용자 결정/비디오, 코드·테스트가 강제):
+  원점 = R 수축(S3) -> Z 최하단(S2) -> Z105 -> θ 원점(S1) -> 대기 θ120·Z105·R0,
+  선회는 Z105·R0·S3 에서만(예외: 대차 적재 T3 Z228.5, T8 Z241), 투입은 아래 슬롯부터, OK/NG 는 **위 슬롯부터** 채움,
+  판정 = NG 비율(시뮬) + '다음 웨이퍼 NG' 수동 지정, OK 가득 -> 대차 호출·적재(T1~T13, T6 없음) -> 4개 실으면 출발,
+  NG 가득 -> 멈추고 교체 요청, 투입 빔/빈 OK 도크 -> 작업자(자동 또는 버튼), 투입 S4 없음 -> 알람 + 운전자 확인.
+- 화면 수치는 **지령값**이다(스테퍼 엔코더 미판독, R 전진 센서 없음). 하드웨어 의존값(R85 = 실린더 2개 전제 vs 실측 62,
+  S4 감지 범위, θ 270° 케이블, 웨이퍼 두께, 축 속도, 대차 시간, 카메라 인덱스)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
 - 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다.
   2단계(실장비)에서 모터를 움직이는 명령은 §7 과 같이 사용자 확인 없이 트리거하지 않는다.
