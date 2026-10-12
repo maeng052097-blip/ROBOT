@@ -217,7 +217,7 @@ function buildCam() {
   const defs = el('defs', {}, svg);
   const lg = el('radialGradient', { id: 'bl', cx: '50%', cy: '50%', r: '65%' }, defs);
   el('stop', { offset: '0%', 'stop-color': '#fff8e6' }, lg); el('stop', { offset: '100%', 'stop-color': '#e9b35f' }, lg);
-  rect(-120, -292, 240, 120, '', svg, { fill: '#07090b' });
+  rect(-120, -292, 240, 120, 'cambg', svg);
   R.camLight = rect(-58, -290, 116, 109, '', svg, { fill: 'url(#bl)' });
   // 백라이트 촬영은 빛 위의 실루엣만 보인다 -> 들어오는 웨이퍼/포크는 빛 칸 가장자리에서 나타나게(테두리에 잘려 보이지 않게)
   const cp = el('clipPath', { id: 'camclip' }, defs);

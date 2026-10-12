@@ -16,6 +16,7 @@
   --crit:#ff7a66; --critbg:rgba(255,122,102,.14);
   --wafer:#b9b3ee; --wafer2:#5f5a9e; --waferbg:rgba(185,179,238,.18);
   --part:#27323c; --part2:#33404c; --partln:#56687a;
+  --cambg:#050708;
   color-scheme: dark;
 }
 [data-theme="light"]{
@@ -28,6 +29,7 @@
   --crit:#a63a2b; --critbg:rgba(166,58,43,.10);
   --wafer:#5f64a8; --wafer2:#d8daea; --waferbg:rgba(95,100,168,.14);
   --part:#dfe5ea; --part2:#cfd8df; --partln:#7f8e9c;
+  --cambg:#dfe5ea;
   color-scheme: light;
 }
 *{box-sizing:border-box}
@@ -112,7 +114,7 @@ body.detail .grid{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr) 400px;gri
 
 /* 하단 띠: 카메라 | 완료 | 슬롯 */
 .p-bot{flex-direction:row;align-items:stretch;gap:0}
-.cam-box{position:relative;height:100%;aspect-ratio:16/7;background:#050708;overflow:hidden;border-right:1px solid var(--rule2);flex:none}
+.cam-box{position:relative;height:100%;aspect-ratio:16/7;background:var(--cambg);overflow:hidden;border-right:1px solid var(--rule2);flex:none}
 .cam-box img,.cam-box svg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 #cam-badge{position:absolute;left:8px;top:8px;z-index:2}
 .hero{flex:none;width:150px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;border-right:1px solid var(--rule2)}
@@ -270,3 +272,5 @@ body.detail .stn-t{font-size:20px}   /* 상세 = 도면이 작아짐 -> 글자 �
 @media (max-width: 1600px){
   body.detail .grid{grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr) 360px}
 }
+
+.cambg{fill:var(--cambg)}
