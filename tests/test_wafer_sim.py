@@ -46,6 +46,7 @@ def where(s, no):
 
 def main():
     from wafer_cell.sim import CellSim, CommandError
+    from wafer_cell import cell_config as C
 
     print("test_wafer_sim:")
     s = ready_sim()
@@ -110,8 +111,30 @@ def main():
     assert sum(1 for w in x.wafers if w["loc"] == "ng_out") == 5
     print("  OK NG full -> WAIT_NG -> empty NG cassette -> continue")
 
+    # 하단 TOF: 아래부터 꺼내므로 매번 '다음 웨이퍼'를 본다 -> 중간 빈칸(슬롯 2)은 S4 프롬프트 없이 건너뜀
     x = CellSim()
     x.command("load_input", slots=[True, False, True, True, True])
+    t0 = x.snapshot()["docks"]["input"]
+    assert t0["tof"]["kind"] == "slot" and t0["tof"]["slot"] == 1 and t0["tof"]["count_est"] == 5
+    assert [s["status"] for s in t0["slots"]] == ["wafer", "est", "est", "est", "est"]   # 실제 4장, 기계는 5장 추정
+    x.command("home")
+    run_until(x, lambda y: y.state == "READY", dt=0.02)
+    x.command("start")
+    assert run_until(x, lambda y: y.slot == 3)
+    assert 2 not in x.input_tried and x.prompt is None
+    assert not any(e["code"] == "S4_NONE" for e in x.events)
+    x.command("fault", name="s4_false_none")
+    assert run_until(x, lambda y: y.state == "WAIT_OPERATOR")
+    x.command("confirm", choice="retry")
+    assert run_until(x, lambda y: y.inspected >= 3)
+    assert x.alarm is None
+    print("  OK bottom TOF skips the empty slot 2 without a prompt, S4 false-none -> 'retry' recovers")
+
+    # TOF 판정 불가 -> 예전처럼 S4 로 확인(빈 슬롯 -> 운전자 '빈 슬롯')
+    x = CellSim()
+    x.command("load_input", slots=[True, False, True, True, True])
+    x.command("fault", name="tof_invalid")
+    assert x.snapshot()["docks"]["input"]["tof"]["kind"] == "invalid"
     x.command("home")
     run_until(x, lambda y: y.state == "READY", dt=0.02)
     x.command("start")
@@ -120,12 +143,22 @@ def main():
     x.command("confirm", choice="empty")
     assert run_until(x, lambda y: y.slot == 3)
     assert 2 in x.input_empty
-    x.command("fault", name="s4_false_none")
-    assert run_until(x, lambda y: y.state == "WAIT_OPERATOR")
-    x.command("confirm", choice="retry")
-    assert run_until(x, lambda y: y.inspected >= 3)
-    assert x.alarm is None
-    print("  OK empty input slot -> operator 'empty', S4 false-none -> 'retry' recovers")
+    print("  OK TOF invalid -> falls back to S4 probing (empty slot 2 -> operator 'empty')")
+
+    # 포크가 투입 도크 앞에서 전진/운반 중이면 빔이 가려짐 -> 마지막 값 유지
+    x = ready_sim()
+    x.command("debug_hold", step="3", frac=0.5)
+    x.command("start")
+    assert run_until(x, lambda y: y.state == "PAUSED")
+    ti = x.tof["input"]
+    assert ti["blocked"] and ti["slot"] == 1, ti
+    # OK 는 위부터 채우므로 TOF 개수 추정 = 실제 개수
+    x = ready_sim()
+    x.command("start")
+    assert run_until(x, lambda y: y.dock_count("ok") == 3 and abs(y.theta - C.THETA_STANDBY) < 0.5)
+    to = x.snapshot()["docks"]["ok"]["tof"]
+    assert to["kind"] == "slot" and to["slot"] == 3 and to["count_est"] == 3 and not to["blocked"], to
+    print("  OK TOF holds while the fork blocks the beam, OK count estimate = real count (top-first fill)")
 
     x = ready_sim()
     x.command("fault", name="s3_fail")

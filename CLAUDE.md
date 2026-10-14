@@ -63,14 +63,14 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 19개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 20개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
    재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
     test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
     test_occupancy_grid, test_scan, test_zoom_geom
-   웨이퍼셀 5개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_sim,
+   웨이퍼셀 6개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
     test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
@@ -135,6 +135,10 @@ py -3.13 tests/find_camera.py
   선회는 Z105·R0·S3 에서만(예외: 대차 적재 T3 Z228.5, T8 Z241), 투입은 아래 슬롯부터, OK/NG 는 **위 슬롯부터** 채움,
   판정 = NG 비율(시뮬) + '다음 웨이퍼 NG' 수동 지정, OK 가득 -> 대차 호출·적재(T1~T13, T6 없음) -> 4개 실으면 출발,
   NG 가득 -> 멈추고 교체 요청, 투입 빔/빈 OK 도크 -> 작업자(자동 또는 버튼), 투입 S4 없음 -> 알람 + 운전자 확인.
+- 카세트 하단 TOF(VL53L0X, 도크마다 1개, `wafer_cell/tof.py`): 가장 아래 웨이퍼까지 거리 하나만 잰다 -> 개수는
+  '위로 빈칸 없이 붙어 있음' 가정의 **추정**(투입 화면은 가장 아래 = 확인, 위 = 점선 추정). 다음 투입 슬롯 = TOF 가 본
+  가장 아래 웨이퍼(중간 빈칸은 S4 없이 건너뜀), TOF 판정 불가면 S4 로 확인, 포크가 빔을 가리면 마지막 값 유지.
+- R 축 = 리니어 모터(양 끝단 리밋) + L298: 후진 리밋 = S3, 전진 리밋은 풀 스트로크(62)라 R51 은 기구 스토퍼 전제.
 - 화면 수치는 **지령값**이다(스테퍼 엔코더 미판독, R 전진 센서 없음). 하드웨어 의존값(R85 = 실린더 2개 전제 vs 실측 62,
   S4 감지 범위, θ 270° 케이블, 웨이퍼 두께, 축 속도, 대차 시간, 카메라 인덱스)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
 - 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다.

@@ -61,6 +61,17 @@ RX_EXT = 51.0              # 웨이퍼 집기/놓기 전진량 (비디오)
 RX_CART = 85.0             # 대차 받침 내밀기 R 0 -> 85 (비디오). 단일 실린더 실측 스트로크 62 로는 불가
 RX_MAX = 85.0
 RX_STROKE_MEASURED = 62.0  # 사용자 실측(2026-09-29, 실린더 1개). R85 는 실린더 2개 직렬 전제
+# R 구동 = 리니어 모터(양 끝단 리밋 스위치 내장, 사용자 확인) + L298. 후진 끝 리밋 = S3.
+# 전진 끝 리밋은 풀 스트로크(62) 위치라 R51/R85 확인은 못 함 -> 스트로크를 51 에 맞추는 기구 스토퍼 권장.
+
+# ===== 카세트 하단 TOF (VL53L0X, 도크마다 1 개, 웨이퍼 중심 반경 아래) =====
+# 가장 아래 웨이퍼 하면까지의 거리 하나만 잰다 -> 개수는 '위로 빈칸 없이 붙어 있음' 가정의 추정.
+TOF_Z = 140.0              # 가정: 센서 면 높이(카세트 바닥판 z172~180 아래 30 이상, VL53L0X 최소 거리 ~30)
+CASS_TOP_Z = 284.0         # 가정(도면): 빈 카세트일 때 빔이 닿는 윗레일 밑면
+TOF_TOL = 6.0              # 판정 허용 ±mm (슬롯 간격 18 의 절반 9 보다 작게)
+TOF_NOISE = 1.5            # 가정: 시뮬 잡음 ±mm
+TOF_MIN_MM = 30.0          # VL53L0X 신뢰 최소 거리(데이터시트 근사)
+TOF_OUT_OF_RANGE = 8190    # VL53L0X 범위 밖 코드 -> 카세트 없음
 
 # ===== 검사 크래들 (비디오: Z192 -> R51 -> Z183(패드 윗면 252 에 내려놓음) -> R0) =====
 CRADLE_SEAT_Z = 252.0      # 패드 윗면
@@ -113,7 +124,7 @@ CELL_SERIAL_PORT = None    # 2단계: 셀 제어보드 COM. 재활용 로봇 MOT
 ASSUMED = [
     "WAFER_T", "LEDGE_T", "THETA_SPEED", "Z_SPEED", "R_SPEED", "CAPTURE_S", "NG_RATE", "OPERATOR_S",
     "CART_CALL_S", "CART_DOCK_S", "CART_RETREAT_S", "CART_LATERAL_S", "CART_ROTATE_S", "CART_LEAVE_S",
-    "CART_LIFT_Z", "CART_SEAT_LIFT_Z", "S4_RANGE",
+    "CART_LIFT_Z", "CART_SEAT_LIFT_Z", "S4_RANGE", "TOF_Z", "CASS_TOP_Z", "TOF_NOISE",
 ]
 
 
@@ -128,6 +139,16 @@ def pick_z(n):
 
 def place_z(n):
     return slot_z(n) + PLACE_OFS
+
+
+def tof_expected(n):
+    """하단 TOF 기대 거리: 슬롯 n 이 가장 아래 웨이퍼일 때(웨이퍼 하면 = Sn)."""
+    return slot_z(n) - TOF_Z
+
+
+def tof_empty_d():
+    """빈 카세트일 때 기대 거리(윗레일 밑면)."""
+    return CASS_TOP_Z - TOF_Z
 
 
 def check_port_conflict(port=CELL_SERIAL_PORT):
@@ -150,6 +171,7 @@ def ui_geometry():
     return {
         "slot_count": SLOT_COUNT, "slot_z0": SLOT_Z0, "slot_pitch": SLOT_PITCH,
         "ledge_t": LEDGE_T, "wafer_d": WAFER_D, "wafer_t": WAFER_T,
+        "tof_z": TOF_Z, "cass_top_z": CASS_TOP_Z,
         "zc_min": ZC_MIN, "zc_max": ZC_MAX, "zc_swing": ZC_SWING, "zc_home": ZC_HOME,
         "blade_plane_ofs": BLADE_PLANE_OFS, "blade_body": list(BLADE_BODY),
         "blade_origin_x": BLADE_ORIGIN_X, "blade_tip_x": BLADE_TIP_X,

@@ -29,7 +29,9 @@ const FAULT_KR = {
   s4_false_none: 'S4 오감지 (있는데 없음)', s4_false_present: 'S4 오감지 (놓은 뒤에도 있음)',
   s3_fail: 'S3 고장 (후진 미확인)', belt_skip: '벨트 이빨 튐 (S1 불일치)',
   camera_fail: '카메라 실패', sim_exception: '시뮬 내부 예외', cart_delay: '대차 호출 지연',
+  tof_invalid: 'TOF 판정 불가 (S4 로 확인)',
 };
+const TOF_KR = { empty: '빈', none: '없음', invalid: '판정 불가' };
 const RUNNING_STATES = ['HOMING', 'RUNNING', 'WAIT_INPUT', 'WAIT_OK', 'WAIT_NG', 'WAIT_CART'];
 const ALLOWED = {
   home: ['IDLE', 'READY'], start: ['READY'], pause: RUNNING_STATES, resume: ['PAUSED'],
@@ -176,6 +178,11 @@ function buildElev() {
     R.slotW.push(rect(185.5, -(sk + GEO.wafer_t), 100, GEO.wafer_t, 'wafer', R.st.cass));
   }
   R.st.clamp = rect(205, -(172 + PLATE_UNDER + 6), 100, 6, 'clampE', R.st.cass);
+  // 하단 TOF(VL53L0X): 웨이퍼 중심(235.5) 아래. 빔은 '상세'에서만, 가장 아래 웨이퍼(또는 윗레일)까지
+  R.tofBeam = el('line', { x1: 235.5, x2: 235.5, y1: -GEO.tof_z, y2: -GEO.tof_z, class: 'tofbeam det' }, R.st.cass);
+  rect(228.5, -GEO.tof_z, 14, 6, 'tofs', R.st.cass);
+  // 브래킷은 카세트 바깥(반경 300 밖)에서 들어온다: 선회 중 운반 웨이퍼(z170.5~172.5, 반경 234.5 까지)가 바닥판 밑을 지나감
+  rect(242.5, -(GEO.tof_z - 3), 62, 3, 'part', R.st.cass); rect(300, -172, 4, 172 - GEO.tof_z + 3, 'part', R.st.cass);
   // 검사 크래들
   R.st.inspect = el('g', {}, g);
   rect(262, -250, 56, 6, 'hub', R.st.inspect); rect(220, -250, 45, 6, 'part', R.st.inspect);
@@ -395,10 +402,13 @@ function setElevStation(st, ghost) {
     const d = snap.docks[st];
     cassOn = d.present;
     d.slots.forEach((x, i) => {
-      show(R.slotW[i], x.status === 'wafer' || x.status === 'ok' || x.status === 'ng');
-      R.slotW[i].setAttribute('class', 'wafer ' + (st === 'ng' ? 'ngw' : st === 'ok' ? 'okw' : ''));
+      show(R.slotW[i], ['wafer', 'est', 'ok', 'ng'].includes(x.status));
+      R.slotW[i].setAttribute('class', 'wafer ' + (st === 'ng' ? 'ngw' : st === 'ok' ? 'okw' : '') + (x.status === 'est' ? ' est' : ''));
     });
     show(R.st.clamp, st === 'ok');
+    const t = d.tof;
+    const top = t && t.d !== null && t.kind !== 'none' && t.kind !== 'invalid' ? GEO.tof_z + t.d : GEO.tof_z;
+    R.tofBeam.setAttribute('y2', -top);
   }
   if (cartOn && snap) {
     const a = snap.cart.aligned;
@@ -469,6 +479,12 @@ function updatePanels(s) {
   $('st-cycle').textContent = c.cycle_avg ? `${fmt(c.cycle_avg)} s` : '-';
   $('st-cycle').title = c.cycle_last ? `마지막 ${fmt(c.cycle_last)} s` : '';
   $('cart-cam').textContent = cart.state === 'away' ? '-' : cart.camera;
+  $('tof-line').innerHTML = ['input', 'ng', 'ok'].map((k) => {
+    const t = s.docks[k].tof;
+    const what = t.kind === 'slot' ? `슬롯 ${t.slot}` : (TOF_KR[t.kind] || t.kind);
+    const dist = t.kind === 'none' || t.d === null ? '' : `${fmt(t.d, 0)} `;
+    return `${ST_KR[k]} <b>${dist}(${what})</b>${t.blocked ? ' 유지' : ''}`;
+  }).join(' · ');
   const col = s.alarm && s.alarm.code === 'COLLISION';
   R.collide.classList.toggle('on', !!col); R.collideE.classList.toggle('on', !!col);
   // 센서 LED + 칩

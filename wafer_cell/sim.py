@@ -16,11 +16,13 @@ import random
 from wafer_cell import cell_config as C
 from wafer_cell import geometry as G
 from wafer_cell import sequence as Q
+from wafer_cell import tof as T
 
 RUN_STATES = ("HOMING", "RUNNING")
 WAIT_STATES = ("WAIT_INPUT", "WAIT_OK", "WAIT_NG", "WAIT_CART")
 SIM_ONLY = ("speed", "load_input", "fault", "remove_wafer", "debug_hold", "auto_operator", "next_ng", "ng_rate")
-FAULTS = ("s4_false_none", "s4_false_present", "s3_fail", "belt_skip", "camera_fail", "sim_exception", "cart_delay")
+FAULTS = ("s4_false_none", "s4_false_present", "s3_fail", "belt_skip", "camera_fail", "sim_exception", "cart_delay",
+          "tof_invalid")
 ONE_SHOT = ("s4_false_none", "s4_false_present", "belt_skip", "sim_exception")
 
 ALARM_TEXT = {
@@ -97,9 +99,13 @@ class CellSim:
         self.last_judgment = None
         self._sort_dest = None
         self._cart_seat = None
+        self.tof_rng = random.Random(seed + 7)   # 판정 난수열(rng)과 분리 -> TOF 잡음이 공정 흐름을 바꾸지 않음
+        self.tof = {k: {"d": None, "kind": "none", "slot": None, "count_est": None, "blocked": False}
+                    for k in C.CASSETTES}
         self._place_cassette("input", fill=True, log=False)
         self._place_cassette("ng", log=False)
         self._place_cassette("ok", log=False)
+        self._tof_update()
         self._log("info", "BOOT", "시뮬레이터 시작 - 원점 복귀가 필요합니다")
 
     # ------------------------------------------------------------ 카세트 · 웨이퍼
@@ -133,6 +139,34 @@ class CellSim:
 
     def _wafer_by(self, loc):
         return next((w for w in self.wafers if w["loc"] == loc), None)
+
+    # ------------------------------------------------------------ 하단 TOF
+    def _tof_true_d(self, kind):
+        """시뮬 진실에서 계산한 거리(잡음 · 고장 반영 전)."""
+        if self.dock[kind] is None:
+            return float(C.TOF_OUT_OF_RANGE)
+        here = self.dock_slots(kind)
+        if not here:
+            return C.tof_empty_d()
+        return C.tof_expected(min(here))
+
+    def _tof_measure(self, kind):
+        d = self._tof_true_d(kind)
+        if d >= C.TOF_OUT_OF_RANGE:
+            return d
+        if "tof_invalid" in self.faults:
+            d += C.SLOT_PITCH / 2.0                      # 슬롯 사이 값 -> 판정 불가
+        return d + self.tof_rng.uniform(-C.TOF_NOISE, C.TOF_NOISE)
+
+    def _tof_update(self):
+        carrying = self._wafer_by("blade") is not None or any(c["where"] == "fork" for c in self.cassettes.values())
+        for kind in C.CASSETTES:
+            cur = self.tof[kind]
+            if T.blocked(self.theta, self.rx, kind, carrying):
+                cur["blocked"] = True                     # 포크가 빔을 가림 -> 마지막 값 유지
+                continue
+            d = self._tof_measure(kind)
+            self.tof[kind] = dict(T.classify(d), d=d, blocked=False)
 
     def occ(self):
         o = G.Occupancy()
@@ -296,6 +330,12 @@ class CellSim:
                 self.cassettes[old]["where"] = "gone"
             self._place_cassette("ng")
         self.op_pending.pop(task, None)
+        if task in ("ok", "ng"):
+            r = T.classify(self._tof_measure(task))
+            if r["kind"] != "empty":
+                self._log("warn", "TOF_MISMATCH", f"{task.upper()} 도크: 빈 카세트를 놓았는데 TOF 가 '{r['kind']}' "
+                                                   f"(슬롯 {r['slot']}) - 카세트 확인")
+        self._tof_update()
 
     def _op_env(self):
         for task, due in list(self.op_pending.items()):
@@ -479,7 +519,8 @@ class CellSim:
         else:
             self.faults.discard(name)
         self._log("warn" if on else "info", "FAULT", f"(시뮬) 고장주입 {name} {'ON' if on else 'OFF'}")
-
+        if name == "tof_invalid":
+            self._tof_update()
     def _cmd_remove_wafer(self, loc):
         self._need("IDLE", "READY", "ALARM")
         w = self._wafer_by(loc)
@@ -515,12 +556,19 @@ class CellSim:
         self.state = state
 
     def _next_input_slot(self):
+        """다음에 집을 투입 슬롯. 아래부터 꺼내므로 하단 TOF 가 본 '가장 아래 웨이퍼'가 곧 다음 슬롯이다.
+        TOF 가 빈 카세트면 None(교체 대기), 판정 불가/가림이면 예전처럼 가장 아래 미시도 슬롯을 S4 로 확인."""
         if self.dock["input"] is None:
             return None
-        for k in range(1, C.SLOT_COUNT + 1):          # 아래 슬롯부터 (R0 로 오르내릴 때 빈 슬롯만 지나감)
-            if k not in self.input_tried and k not in self.input_empty:
-                return k
-        return None
+        untried = [k for k in range(1, C.SLOT_COUNT + 1) if k not in self.input_tried and k not in self.input_empty]
+        t = self.tof["input"]
+        if not t["blocked"]:
+            if t["kind"] == "empty":
+                return None
+            if t["kind"] == "slot":
+                cand = [k for k in untried if k >= t["slot"]]    # 그 아래는 빔이 지나감 = 빈칸 확인
+                return cand[0] if cand else None
+        return untried[0] if untried else None
 
     def _schedule(self):
         """프로그램이 끝났거나 대기 중일 때 다음 일을 고른다(비디오 흐름 순서)."""
@@ -624,6 +672,7 @@ class CellSim:
         self.t += dt
         self._cart_env(dt)
         self._op_env()
+        self._tof_update()
         if self.state == "HOMING" and self.homing_t0 is not None and self.t - self.homing_t0 > C.HOMING_TIMEOUT_S:
             self._raise("HOMING_TIMEOUT", f"{C.HOMING_TIMEOUT_S:.0f}s")
         self._wait_env()
@@ -873,24 +922,36 @@ class CellSim:
     def _dock_view(self, kind):
         cid = self.dock[kind]
         if cid is None:
-            return {"present": False, "count": 0, "slots": [{"n": k, "status": "none"} for k in range(1, C.SLOT_COUNT + 1)]}
+            t = self.tof[kind]
+            return {"present": False, "count": 0, "slots": [{"n": k, "status": "none"} for k in range(1, C.SLOT_COUNT + 1)],
+                    "tof": {"d": None if t["d"] is None else round(t["d"], 1), "kind": t["kind"], "slot": t["slot"],
+                            "count_est": t["count_est"], "blocked": t["blocked"]}}
         here = self.dock_slots(kind)
+        t = self.tof[kind]
         out = []
         for k in range(1, C.SLOT_COUNT + 1):
             w = here.get(k)
             if kind == "input":
-                if w:
-                    status = "wafer"
-                elif k in self.input_empty:
+                # 투입은 기계가 아는 만큼만: 가장 아래 웨이퍼(TOF 가 봄) = wafer, 그 위 = est(추정), 그 아래 = empty(빔 통과)
+                if k in self.input_empty:
                     status = "empty_conf"
-                elif k in self.input_tried:
+                elif k in self.input_tried and not w:
                     status = "done"
-                else:
+                elif t["kind"] == "slot":
+                    status = "wafer" if k == t["slot"] else ("est" if k > t["slot"] else "empty")
+                elif t["kind"] == "empty":
                     status = "empty"
+                else:
+                    status = "est"                         # TOF 판정 불가 -> 위치 모름
             else:
                 status = ("ng" if kind == "ng" else "ok") if w else "empty"
             out.append({"n": k, "status": status, "no": w["no"] if w else None})
-        return {"present": True, "count": len(here), "slots": out}
+        count = len(here)
+        if kind == "input":
+            count = sum(1 for x in out if x["status"] in ("wafer", "est"))
+        return {"present": True, "count": count, "slots": out,
+                "tof": {"d": None if t["d"] is None else round(t["d"], 1), "kind": t["kind"], "slot": t["slot"],
+                        "count_est": t["count_est"], "blocked": t["blocked"]}}
 
     def headline(self):
         """기본 화면 한 줄(비디오 큰 자막) + 둘째 줄(수치, 상세용)."""
@@ -948,6 +1009,7 @@ class CellSim:
         insp = self._wafer_by("inspect")
         blade = self._wafer_by("blade")
         head, sub = self.headline()
+        docks = {k: self._dock_view(k) for k in C.CASSETTES}
         cart = self.cart
         seats = {s: (len(self._wafers_in(cid)) if cid is not None else None) for s, cid in cart["seats"].items()}
         return {
@@ -962,7 +1024,7 @@ class CellSim:
             "headline": head, "subline": sub,
             "slot": self.slot,
             "sensors": self.sensors(), "expect": exp,
-            "docks": {k: self._dock_view(k) for k in C.CASSETTES},
+            "docks": docks,
             "fork": {"wafer": blade is not None, "judgment": blade["judgment"] if blade else None,
                      "cassette": len(self._wafers_in(fork_cass["id"])) if fork_cass else None},
             "inspect": {"wafer": insp is not None, "judgment": insp["judgment"] if insp else None},
@@ -984,7 +1046,7 @@ class CellSim:
             "counts": {"inspected": self.inspected,
                        "ok": sum(1 for w in self.wafers if w["judgment"] == "OK" and w["t_sort"] is not None),
                        "ng": sum(1 for w in self.wafers if w["judgment"] == "NG" and w["t_sort"] is not None),
-                       "input": self.dock_count("input") if self.dock["input"] is not None else 0,
+                       "input": docks["input"]["count"],          # 투입은 TOF 기준(가장 아래 + 위 추정)
                        "ok_dock": self.dock_count("ok") if self.dock["ok"] is not None else None,
                        "ng_dock": self.dock_count("ng") if self.dock["ng"] is not None else None,
                        "cart": sum(1 for v in cart["seats"].values() if v is not None),
