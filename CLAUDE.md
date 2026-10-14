@@ -124,6 +124,7 @@ py -3.13 tests/find_camera.py
 
 ## 9. 웨이퍼 검사셀 R9 공정 모니터 (`wafer_cell/`) — 별개 기계
 
+- **인수인계 문서**: 새 세션은 [`wafer_cell/handoff/README.md`](wafer_cell/handoff/README.md)부터 읽는다(현재 상태, 확정 결정, 센서 추천, 미결정, 다음 할 일).
 - 재활용 로봇과 **다른 기계**다. §1·§6(메카넘/LiDAR/카메라 시차)과 `common/config.py` 는 적용하지 않는다.
   설정은 `wafer_cell/cell_config.py`(비디오 `R9 웨이퍼 검사 셀` 자막 수치 + `가정` 값 목록 ASSUMED). 이전 CELL_V9 문서
   (Google Drive `ROBOT/웨이퍼 이송셀 CELL_V9/`)는 로봇 몸체 치수 출처로만 남았다. 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
