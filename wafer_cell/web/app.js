@@ -137,7 +137,7 @@ function buildPlan() {
   // 센서
   R.sen = {};
   const sen = (id, x, y, parent) => { const gg = el('g', {}, parent); const c = circ(x, y, 9, 'sen', gg); const t = tx(id, { x, y: y + 3, class: 'sen-t' }, gg); R.sen[id] = { c, t, x, y }; };
-  sen('S1', 72, 0, g); sen('S2', 0, 40, rot); sen('S3', 104, -30, rot); sen('S4', 140, 0, blade);
+  sen('S1', 72, 0, g); sen('S2', 0, 40, rot); sen('S3', 104, -30, rot); sen('S4', GEO.s4_local[0], GEO.s4_local[1], blade);   // 포크 갈래 중간(웨이퍼 중심에서 28.6 mm)
   R.sen.S1.t.setAttribute('transform', `rotate(${-VIEW} 72 0)`);
   // 스테이션 이름(바깥쪽, 똑바로) - 회전하지 않는 겹에 화면 좌표로
   const lg = el('g', {}, svg);
@@ -213,7 +213,7 @@ function buildElev() {
   R.carryCassE = el('g', {}, bl);
   cassElev(R.carryCassE, 170.5 - PLATE_UNDER, -51);
   rect(205 - 51, -176.5, 100, 6, 'clampE', R.carryCassE);
-  R.s4E = circ(140, -165, 3, 'sen', bl);
+  R.s4E = circ(GEO.s4_local[0], -165, 3, 'sen', bl);
   R.collideE = circ(203, -167, 10, 'collide', bl);
 }
 

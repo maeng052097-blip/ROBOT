@@ -70,9 +70,13 @@ def main():
     print("  OK cart: cassette lifted at Z241, R85 only with a free seat, placed at Z205")
 
     assert G.s4_on(180.0, C.pick_z(1) + C.PICK_LIFT, 51.0, G.Occupancy(blade=True))
-    assert not G.s4_on(0.0, C.pick_z(5), 51.0, o_after)
-    assert not G.s4_on(120.0, C.CRADLE_ZC_SEAT, 51.0, oc)
-    print("  OK S4: on with wafer on fork, off after placing (slot 4.5mm, cradle 5mm)")
+    assert G.s4_on(0.0, C.pick_z(5), 51.0, o_after)          # 놓은 직후 4.5 mm: 아직 보임(정상)
+    assert not G.s4_on(0.0, C.pick_z(5), 0.0, o_after)       # R0 로 뺀 뒤: 없음 -> 여기서 확인
+    assert G.s4_on(120.0, C.CRADLE_ZC_SEAT, 51.0, oc)        # 크래들 5 mm: 보임
+    assert not G.s4_on(120.0, C.CRADLE_ZC_SEAT, 0.0, oc)
+    empty3 = G.Occupancy(cass={"input": {4: True, 5: True}})  # 슬롯 3 빈칸, 위 슬롯 4 는 15 mm 위
+    assert not G.s4_on(180.0, C.pick_z(3) + C.PICK_LIFT, 51.0, empty3)
+    print("  OK S4: on at 1.5 mm (wafer on fork) and 4.5-5 mm (just placed), off after R0, empty slot lift off")
 
     cl = {c["key"]: c["mm"] for c in G.clearances()}
     assert cl["insert_gap"] == 3.0 and cl["lift"] == 4.5 and cl["swing"] == 7.5, cl

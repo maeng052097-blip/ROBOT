@@ -50,9 +50,11 @@ BLADE_BODY = (60.0, 64.0)  # 포크 몸체 z = Z+60 ~ Z+64
 BLADE_ORIGIN_X = 107.0     # 수축 시 포크 시작 x (로봇 로컬)
 BLADE_TIP_X = 203.0        # 수축 시 포크 끝 반경(R203)
 WAFER_ON_BLADE_X = 77.5    # 포크 원점 기준 웨이퍼 중심 -> 수축 184.5, 전진 235.5
-S4_LOCAL_X = 33.0          # S4(포크 웨이퍼 유무) 포크 로컬 x
-S4_RANGE = (0.0, 4.0)      # 가정: S4 감지 = 웨이퍼 하면이 센서면(Z+64) 위 0~4mm. 포크 위 웨이퍼 1.5mm(ON),
-                           #   내려놓은 뒤 슬롯 4.5mm · 크래들 5mm(OFF) -> 여유 0.5~1mm 뿐 [현장 확인 필요]
+S4_LOCAL_X = 68.0          # S4(포크 웨이퍼 유무, TCRT5000 위를 봄) 포크 원점 기준 x -> 포크 로컬 175 (갈래 중간)
+S4_LOCAL_Y = 27.0          #   갈래 폭 중심 y. 포크 위 웨이퍼 중심에서 28.6 mm (가장자리에서 21 mm 안쪽)
+S4_RANGE = (0.0, 10.0)     # 가정: 웨이퍼 하면이 센서면(Z+64) 위 0~10 mm 면 ON (TCRT5000 은 10 mm 안팎까지 봄).
+                           #   포크 위 웨이퍼 1.5 mm = ON. 내려놓은 직후(슬롯 4.5 · 크래들 5 mm)도 ON 인 게 정상 ->
+                           #   '없음' 확인은 R0 로 뺀 뒤에 한다(sequence 단계 5 · 9). 빈 슬롯 들기 때 위 슬롯은 15 mm = OFF
 STATION_R = 235.5          # 스테이션 웨이퍼 중심 반경
 
 # ===== R 축 (비디오: '실린더 2개 같이 밈') =====
@@ -172,6 +174,7 @@ def ui_geometry():
         "slot_count": SLOT_COUNT, "slot_z0": SLOT_Z0, "slot_pitch": SLOT_PITCH,
         "ledge_t": LEDGE_T, "wafer_d": WAFER_D, "wafer_t": WAFER_T,
         "tof_z": TOF_Z, "cass_top_z": CASS_TOP_Z,
+        "s4_local": [BLADE_ORIGIN_X + S4_LOCAL_X, S4_LOCAL_Y],
         "zc_min": ZC_MIN, "zc_max": ZC_MAX, "zc_swing": ZC_SWING, "zc_home": ZC_HOME,
         "blade_plane_ofs": BLADE_PLANE_OFS, "blade_body": list(BLADE_BODY),
         "blade_origin_x": BLADE_ORIGIN_X, "blade_tip_x": BLADE_TIP_X,

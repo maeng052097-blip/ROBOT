@@ -9,6 +9,7 @@
   - 운반 웨이퍼는 R > 13.5 부터 카세트 받침 이빨 구역에 들어간다.
 높이 구간 비교는 경계 접촉을 겹침으로 보지 않는다(eps).
 """
+import math
 from dataclasses import dataclass, field
 
 from wafer_cell import cell_config as C
@@ -219,14 +220,14 @@ def r_move(theta, zc, rx0, rx1, occ, t=None):
 
 
 def s4_on(theta, zc, rx, occ):
-    """S4(포크 어깨 반사형, 위를 봄). 운반 웨이퍼 또는 0~5mm 위 스테이션 웨이퍼면 ON."""
+    """S4(포크 갈래 위 반사형, 위를 봄). 운반 웨이퍼 또는 S4_RANGE 안의 스테이션 웨이퍼면 ON."""
     if occ.blade:
         return True
     st = station_at(theta)
     if st not in C.CASSETTES and st != "inspect":
         return False
     r_s4 = C.BLADE_ORIGIN_X + C.S4_LOCAL_X + rx
-    if abs(r_s4 - C.STATION_R) > C.WAFER_D / 2:
+    if math.hypot(r_s4 - C.STATION_R, C.S4_LOCAL_Y) > C.WAFER_D / 2:
         return False
     surface = zc + C.BLADE_BODY[1]
     if st == "inspect":

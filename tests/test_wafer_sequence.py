@@ -96,6 +96,13 @@ def main():
     keys = [c["key"] for c in cat]
     assert len(keys) == len(set(keys)) == 5 + 10 + 12, keys
     print("  OK step catalog", len(keys))
+    # S4 '없음' 확인은 포크를 R0 로 뺀 뒤(놓은 직후 4.5~5 mm 는 TCRT5000 에 아직 보임)
+    for st in (Q.wafer_steps(1)[4], Q.sort_steps("ok", 5)[1], Q.sort_steps("ng", 3)[1]):
+        kinds = [(a.kind, getattr(a, "sensor", None), getattr(a, "expect", None), getattr(a, "value", None)) for a in st.actions]
+        i_off = next(i for i, k in enumerate(kinds) if k[1] == "S4" and k[2] is False)
+        i_ret = next(i for i, k in enumerate(kinds) if k[0] == "r" and k[3] == C.RX_RET)
+        assert i_ret < i_off, (st.key, kinds)
+    print("  OK S4 off-check comes after retract (steps 5 and 9)")
     print("OK (all passed)")
 
 
