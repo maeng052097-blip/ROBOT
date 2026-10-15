@@ -4,7 +4,7 @@
 새 작업을 시작하기 전에 이 파일을 먼저 읽고, 아래 환경/검증/안전 규칙을 지킨다.
 더 깊은 맥락은 [HANDOFF.md](HANDOFF.md)(인수인계 문서), [README.md](README.md)(구조/진행)를 참조.
 
-- Repo: https://github.com/maeng052097-blip/ROBOT (코드는 `ddd/` 안). 기본 브랜치 `main`.
+- Repo: https://github.com/maeng052097-blip/ROBOT (코드는 저장소 루트 — 예전 `ddd/` 경로는 커밋 34abf61 에서 루트로 이동). 기본 브랜치 `main`.
 - 아래 포트/경로 값은 **현재 개발 PC 기준**이다. 다른 PC면 장치관리자/`tests/check_devices.py`로 확인 후 `common/config.py` 수정.
 
 ---
@@ -30,7 +30,7 @@
 
 ---
 
-## 3. 실행 명령 (작업폴더 = `ddd/`)
+## 3. 실행 명령 (작업폴더 = 저장소 루트)
 
 ```powershell
 # 의존성 설치(최초 1회). torch 는 requirements.txt 주석의 CUDA 안내 참고.
@@ -63,13 +63,15 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 13개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 20개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
-   (test_approach, test_color, test_dualcam, test_flip, test_frame_grabber, test_fusion,
-    test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
-    test_occupancy_grid, test_scan, test_zoom_geom)
+   재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
+    test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
+    test_occupancy_grid, test_scan, test_zoom_geom
+   웨이퍼셀 6개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
+    test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
 
@@ -117,3 +119,30 @@ py -3.13 tests/find_camera.py
 - **커밋/푸시는 사용자가 명시적으로 요청할 때만** 한다(자동 커밋 금지). 커밋 메시지 끝에 `Co-Authored-By: ...` 라인.
 - 응답 시: **변경 전/후를 명확히 구분**, **가정·불명을 따로 표기**, **검증/실행 절차를 함께 제시**(사용자 선호). 근거 없는 칭찬·추측 금지, 약점부터.
 - 새 도구는 `visualization/`, 순수 로직은 `common/`(+ `tests/` 단위테스트). 하드웨어 드라이버는 `drivers/`.
+
+---
+
+## 9. 웨이퍼 검사셀 R9 공정 모니터 (`wafer_cell/`) — 별개 기계
+
+- **인수인계 문서**: 새 세션은 [`wafer_cell/handoff/README.md`](wafer_cell/handoff/README.md)부터 읽는다(현재 상태, 확정 결정, 센서 추천, 미결정, 다음 할 일).
+- 재활용 로봇과 **다른 기계**다. §1·§6(메카넘/LiDAR/카메라 시차)과 `common/config.py` 는 적용하지 않는다.
+  설정은 `wafer_cell/cell_config.py`(비디오 `R9 웨이퍼 검사 셀` 자막 수치 + `가정` 값 목록 ASSUMED). 이전 CELL_V9 문서
+  (Google Drive `ROBOT/웨이퍼 이송셀 CELL_V9/`)는 로봇 몸체 치수 출처로만 남았다. 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
+- 1단계 = **시뮬레이션**(`--source live` 는 미구현). 실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--lan] [--speed 5]`
+  -> 브라우저 `http://127.0.0.1:8765/` (localhost 대신 IP). 새 의존성 없음(표준 라이브러리 서버 + 기존 cv2).
+- 셀: ① 투입 180° · ② 검사 크래들 120° · ③ NG 60° · ④ OK 0° · 대차 받침 -90°(R85), 카세트 5슬롯 Sn = 190 + 18(n-1).
+- 확정된 공정 규칙(사용자 결정/비디오, 코드·테스트가 강제):
+  원점 = R 수축(S3) -> Z 최하단(S2) -> Z105 -> θ 원점(S1) -> 대기 θ120·Z105·R0,
+  선회는 Z105·R0·S3 에서만(예외: 대차 적재 T3 Z228.5, T8 Z241), 투입은 아래 슬롯부터, OK/NG 는 **위 슬롯부터** 채움,
+  판정 = NG 비율(시뮬) + '다음 웨이퍼 NG' 수동 지정, OK 가득 -> 대차 호출·적재(T1~T13, T6 없음) -> 4개 실으면 출발,
+  NG 가득 -> 멈추고 교체 요청, 투입 빔/빈 OK 도크 -> 작업자(자동 또는 버튼), 투입 S4 없음 -> 알람 + 운전자 확인.
+- 카세트 하단 TOF(VL53L0X, 도크마다 1개, `wafer_cell/tof.py`): 가장 아래 웨이퍼까지 거리 하나만 잰다 -> 개수는
+  '위로 빈칸 없이 붙어 있음' 가정의 **추정**(투입 화면은 가장 아래 = 확인, 위 = 점선 추정). 다음 투입 슬롯 = TOF 가 본
+  가장 아래 웨이퍼(중간 빈칸은 S4 없이 건너뜀), TOF 판정 불가면 S4 로 확인, 포크가 빔을 가리면 마지막 값 유지.
+- R 축 = 리니어 모터(양 끝단 리밋) + L298: 후진 리밋 = S3, 전진 리밋은 풀 스트로크(62)라 R51 은 기구 스토퍼 전제.
+- S4(TCRT5000, 포크 갈래) '없음' 확인은 **포크를 R0 로 뺀 뒤**(놓은 직후 4.5~5 mm 는 아직 보임). E-STOP 은 전원 차단 없음
+  (사용자 결정, Mega D2 입력 + 와치독 + L298 IN 풀다운). 배선은 `wafer_cell/README.md` 'S3·S4 장착'.
+- 화면 수치는 **지령값**이다(스테퍼 엔코더 미판독, R 전진 센서 없음). 하드웨어 의존값(R85 = 실린더 2개 전제 vs 실측 62,
+  S4 감지 범위, θ 270° 케이블, 웨이퍼 두께, 축 속도, 대차 시간, 카메라 인덱스)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
+- 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다.
+  2단계(실장비)에서 모터를 움직이는 명령은 §7 과 같이 사용자 확인 없이 트리거하지 않는다.
