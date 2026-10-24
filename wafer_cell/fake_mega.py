@@ -53,6 +53,7 @@ class FakeMega:
         self.last_st = -1.0
         self.last_sl, self.last_sl_t = None, -10.0
         self.frozen = False                  # 시험용: 장비가 멈춘 척(아무것도 안 보냄)
+        self.trace = getattr(self, "trace", None)   # 시험용: {} 를 넣으면 ST 순번별 스냅샷을 모음
         self._send("HEL", {"p": P.PROTO_VERSION, "b": self.boot, "fw": "fake-sim"})
 
     # ------------------------------------------------------------ 입출력
@@ -122,46 +123,42 @@ class FakeMega:
             self._send("EV", {"q": e["seq"] % 65536, "lv": LV.get(e["level"], "I"), "c": _word(e["code"], 20),
                               "d": _word(e.get("d")), "stp": e.get("step"), "n": e.get("n"), "k": e.get("k"),
                               "w": e.get("w"), "s": e.get("seat")})
-        if now - self.last_st >= 1.0 / C.ST_HZ:
+        if now - self.last_st >= 1.0 / C.ST_HZ - 1e-6:
             self.last_st = now
-            self._send_st(now)
-        sl = self._sl_fields()
-        if sl != self.last_sl or now - self.last_sl_t >= C.SL_PERIOD_S:
-            self.last_sl, self.last_sl_t = sl, now
-            self._send("SL", sl)
+            snap = self.sim.snapshot()                    # ST · SL 은 같은 순간의 스냅샷 하나에서 만든다
+            self._send_st(now, snap)
+            if self.trace is not None:                    # 시험용: 보낸 ST 순번 -> 그 순간 장비 상태
+                self.trace[self.st_q] = snap
+            sl = self._sl_fields(snap)
+            if sl != self.last_sl or now - self.last_sl_t >= C.SL_PERIOD_S:
+                self.last_sl, self.last_sl_t = sl, now
+                self._send("SL", sl)
 
-    def _send_st(self, now):
-        s = self.sim
-        snap_step = s.program[s.pc] if s.pc < len(s.program) else None
-        m = s.meas()
-        sens = s.sensors(m)
-        ucur = s.cur if (s.cur and s.cur["kind"] == "uv") else None
+    def _send_st(self, now, snap):
+        st, m, sens, uv = snap["step"], snap["meas"], snap["sensors"], snap["uv"]
         self.st_q = (self.st_q + 1) % 65536
         self._send("ST", {
-            "q": self.st_q, "ms": int((now - self.t0) * 1000) % 4294967296, "st": s.state,
-            "stp": snap_step.key if snap_step else "-", "ai": s.ai, "n": s.slot or 0, "k": s.ng_slot or 0,
-            "w": s._wafer_no() or 0, "th": round(s.theta, 2), "zc": round(s.zc, 1), "rx": round(s.rx, 1),
-            "hm": P.homed_bits(s.homed), "ths": P.mask5(sens[k] for k in C.TH_SENSORS),
+            "q": self.st_q, "ms": int((now - self.t0) * 1000) % 4294967296, "st": snap["state"],
+            "stp": st["key"] if st else "-", "ai": st["action"] if st else 0, "n": snap["slot"] or 0,
+            "k": snap["ng_slot"] or 0, "w": snap["wafer_no"] or 0,
+            "th": round(snap["pose"]["theta"], 2), "zc": round(snap["pose"]["zc"], 1), "rx": round(snap["pose"]["rx"], 1),
+            "hm": P.homed_bits(snap["homed_axes"]), "ths": P.mask5(sens[k] for k in C.TH_SENSORS),
             "zd": "-" if m["zd"] is None else round(m["zd"], 1), "rd": "-" if m["rd"] is None else round(m["rd"], 1),
-            "s4": sens["S4"], "ti": sens["TOF_IN"], "tn": sens["TOF_NG"], "d9": sens["D9"], "uv": s.uv["lamp"],
-            "au": sens["A_UV"], "ul": round(C.UV_S - ucur["el"], 1) if ucur else "-",
-            "pr": (s.pause_reason if s.state == "PAUSED" and s.pause_reason else "-"),
-            "al": s.alarm["code"] if s.alarm else "-"})
+            "s4": sens["S4"], "ti": sens["TOF_IN"], "tn": sens["TOF_NG"], "d9": sens["D9"], "uv": uv["lamp"],
+            "au": uv["a_uv"], "ul": "-" if uv["left_s"] is None else round(uv["left_s"], 1),
+            "pr": snap["pause_reason"] or "-", "al": snap["alarm"]["code"] if snap["alarm"] else "-"})
 
-    def _sl_fields(self):
-        s = self.sim
-        iv = s._input_view()
-        cart = s.cart
-        j = s.last_judgment or {}
-        mv = cart["moves"][0]["code"] if cart["moves"] else None
+    def _sl_fields(self, snap):
+        cart, c, j = snap["cart"], snap["counts"], snap["judgment"] or {}
+        mv = self.sim.cart["moves"][0]["code"] if self.sim.cart["moves"] else None
         return {
-            "in": "".join(x["code"] for x in iv["slots"]), "ng": s.ng_ptr if s.dock["ng"] is not None else "-",
-            "cs": "".join(s.seat_stage(x) or "-" for x in C.CART_SEATS), "ca": CART_ST[cart["state"]],
-            "cal": s._cart_aligned_seat() or "-", "cmv": _word(mv) if mv else "-",
-            "fw": s._wafer_at("blade") is not None, "fc": s._fork_cassette() is not None,
-            "cr": s._wafer_at("inspect") is not None, "uh": s._wafer_at("uvh") is not None,
-            "ins": s.counts["inspected"], "okc": s.counts["ok"], "ngc": s.counts["ng"], "emp": s.counts["empty"],
-            "cyc": s.cycles[-1] if s.cycles else "-", "dep": s.carts_done,
+            "in": "".join(x["code"] for x in snap["docks"]["input"]["slots"]),
+            "ng": "-" if snap["docks"]["ng"]["count"] is None else snap["docks"]["ng"]["count"],
+            "cs": "".join(cart["seats"][x] or "-" for x in C.CART_SEATS), "ca": CART_ST[cart["state"]],
+            "cal": cart["aligned"] or "-", "cmv": _word(mv) if mv else "-",
+            "fw": snap["fork"]["wafer"], "fc": snap["fork"]["cassette"], "cr": snap["inspect"]["wafer"],
+            "uh": snap["uvh"]["wafer"], "ins": c["inspected"], "okc": c["ok"], "ngc": c["ng"], "emp": c["empty"],
+            "cyc": "-" if c["cycle_last"] is None else c["cycle_last"], "dep": c["carts"],
             "ju": j.get("result") or "-", "jw": j.get("no") or 0,
             "jdr": j.get("dr") if j else "-", "jdt": j.get("dth") if j else "-"}
 

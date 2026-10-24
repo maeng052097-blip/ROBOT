@@ -954,11 +954,11 @@ class CellSim:
         if j["result"] not in ("OK", "NG"):
             self._raise("CAMERA")
             return
+        if w:                                          # 분류는 알았음(보정 창 밖이어도 웨이퍼 색은 판정대로)
+            w["judgment"], w["dr"], w["dth"], w["t_inspect"] = j["result"], j["dr"], j["dth"], round(self.t, 2)
         if not Q.corr_ok(j["dr"], j["dth"]):
             self._raise("CORR_RANGE", f"{j['dr']:+.1f}/{j['dth']:+.2f}")
             return
-        if w:
-            w["judgment"], w["dr"], w["dth"], w["t_inspect"] = j["result"], j["dr"], j["dth"], round(self.t, 2)
         self._log("warn" if j["result"] == "NG" else "info", "JUDGE", j["result"], w=no, n=self.slot)
         self.cur = None
         self.ai += 1
@@ -1133,7 +1133,7 @@ class CellSim:
         ucur = self.cur if (self.cur and self.cur["kind"] == "uv") else None
         miss = self.uv_missing(m) if step and step.key == "U6" else []
         snap = {
-            "tick": self.tick_n, "t": round(self.t, 3), "source": self.source, "state": self.state,
+            "tick": self.tick_n, "t": round(self.t, 3), "t_src": None, "source": self.source, "state": self.state,
             "pause_reason": self.pause_reason if self.state == "PAUSED" else None, "speed": self.speed,
             "pose": {"theta": round(self.theta, 3), "zc": round(self.zc, 3), "rx": round(self.rx, 3)},
             "meas": {k: (None if v is None else round(v, 1)) for k, v in m.items()},
@@ -1153,7 +1153,7 @@ class CellSim:
             "cart": {"state": cart["state"], "seats": {s: self.seat_stage(s) for s in C.CART_SEATS},
                      "aligned": self._cart_aligned_seat(), "caption": X.cart_text(moving) if moving else None,
                      "rot": round(cart["rot"], 2), "lat": round(cart["lat"], 2), "dist": round(cart["dist"], 2),
-                     "departed": self.carts_done},
+                     "departed": self.carts_done, "pos_known": True},
             "judgment": self.last_judgment, "ng_next": self.ng_next, "ng_rate": self.ng_rate,
             "alarm": self.alarm,
             "interlock": self.interlock(m),

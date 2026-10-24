@@ -191,6 +191,8 @@ class LiveSource:
         self.last_hb = self.last_hello_req = 0.0
         self.hb_n = self.cmd_id = 0
         self.frames = 0
+        self.st_wall = None                # 마지막 ST 를 받은 벽시계 시각(화면 보간 기준 t_src)
+        self.last_cal = None               # 대차가 움직이는 동안 마지막으로 정렬됐던 받침
         self.events, self.seq = [], 0
         self.alarm_ev = {}
         self.acks = {}
@@ -306,7 +308,7 @@ class LiveSource:
                 gap = (f["q"] - self.st["q"]) % 65536
                 if gap > 1:
                     self.counters["st_gap"] += gap - 1
-            self.st, self.st_at = f, now
+            self.st, self.st_at, self.st_wall = f, now, time.time()
             self.frames += 1
         elif m.type == "SL":
             self.sl = f
@@ -445,7 +447,7 @@ class LiveSource:
         ng_present = bool(st.get("tn")) and ngc is not None
         k0 = C.SLOT_COUNT - (ngc or 0)
         ju, jw = sl.get("ju"), sl.get("jw") or None
-        jfor = (lambda on: (ju if on and jw and jw == w else None))
+        jfor = (lambda on: (ju if on and jw and jw == w and ju in ("OK", "NG") else None))
         homed_axes = P.homed_from_bits(st.get("hm"))
         alarm = None
         al = st.get("al")
@@ -455,13 +457,16 @@ class LiveSource:
                      "step": ev.get("step"), "slot": ev.get("n"), "fatal": X.alarm_fatal(al), "t": ev.get("t")}
         cal = sl.get("cal")
         cstate = CART_ST.get(sl.get("ca"), "away") if sl else "away"
+        if cal:
+            self.last_cal = cal
+        pcal = cal or (self.last_cal if cstate in ("moving", "leaving") else None)   # 위치 데이터 없음 -> 마지막 받침 자세
         mode = act.mode if act is not None and act.kind == "rot" else "swing"
         to = act.value if act is not None and act.kind == "rot" else pose["theta"]
         rx_ok = meas["rx_s"] is not None and meas["rx_s"] <= C.RX_RET_OK
         ok, why = Q.can_rotate(pose["zc"], rx_ok, pose["theta"], to, mode, bool(sl.get("fw")), bool(sl.get("fc")))
         cmv = sl.get("cmv")
         snap = {
-            "tick": self.frames, "t": round(self._dev_t(), 3), "source": "LIVE", "state": state,
+            "tick": self.frames, "t": round(self._dev_t(), 3), "t_src": self.st_wall, "source": "LIVE", "state": state,
             "pause_reason": st.get("pr") if state == "PAUSED" else None, "speed": 1.0,
             "pose": pose, "meas": meas, "target": target,
             "homed": all(homed_axes.values()), "homed_axes": homed_axes,
@@ -482,8 +487,9 @@ class LiveSource:
                      "seats": {s: (None if c == "-" else c) for s, c in zip(C.CART_SEATS, sl.get("cs") or "----")},
                      "aligned": cal if cstate == "docked" else None,
                      "caption": X.cart_text(cmv) if cmv else None,
-                     "rot": 180.0 if cal and cal[0] == "R" else 0.0,
-                     "lat": -C.CART_LATERAL if cal and cal[1] == "R" else 0.0,
+                     "rot": 180.0 if pcal and pcal[0] == "R" else 0.0,
+                     "lat": -C.CART_LATERAL if pcal and pcal[1] == "R" else 0.0,
+                     "pos_known": cstate in ("docked", "away"),
                      "dist": 0.0 if cstate == "docked" else (900.0 if cstate == "away" else C.CART_RETREAT),
                      "departed": sl.get("dep") or 0},
             "judgment": ({"no": jw, "result": ju, "dr": sl.get("jdr"), "dth": sl.get("jdt"), "t": None} if ju else None),

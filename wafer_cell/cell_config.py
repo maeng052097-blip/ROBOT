@@ -142,6 +142,20 @@ CART_SEAT_KR = {"FL": "앞 왼", "FR": "앞 오른", "RL": "뒤 왼", "RR": "뒤
 CART_DEFAULT_MAP = (True, True, True, True)   # 가정: 대차 한 대에 카세트 4 개 (R9 영상). 시뮬 도구로 1~4
 CART_RETREAT = 120.0       # 대차 물러남 -120 (옆걸음은 물러난 자리에서만)
 CART_LATERAL = 200.0       # 대차 옆걸음 ±200 (메카넘)
+# 대차 몸체(대차 로컬 mm: 앞 왼 받침 중심 = (0,0), +x = 오른쪽 받침, +y = 셀에서 멀어짐). 화면 · 3D 공용 (R9 화면 값)
+CART_SEAT_XY = {"FL": (0.0, 0.0), "FR": (200.0, 0.0), "RL": (200.0, 260.0), "RR": (0.0, 260.0)}
+CART_BODY = (-90.0, -80.0, 380.0, 420.0)    # 가정: x, y, 폭, 길이 -> 앞면은 받침 중심보다 80 mm 셀 쪽
+CART_SEAT_TOP_Z = 163.5    # 받침 윗면 z (R9 화면 값: Z223 에서 카세트가 받침에 닿는 높이)
+CASS_PLATE_UNDER = 125.0   # 카세트 바닥 -> 클램프 윗판 밑면 (R9 도면)
+
+# ===== 책상 (사용자: 공정은 책상 위, 대차는 책상 옆 바닥. 치수는 [불명] -> 가정) =====
+# 모든 장소(① 틀 · 클램프 -328, UV 탑 +331.5, ②③ 꼭짓점 +301, 로봇 받침 r 85)를 감싸는 최소 직사각형 + 여백 20 mm.
+# 대차 쪽 끝(-y, θ270)은 로봇 받침(-85)과 대차 앞면(-(269.5 - 80) = -189.5) 사이 -140 -> 포크 R85 가 책상 끝을 넘어 받침에 닿음.
+DESK_X0, DESK_X1 = -350.0, 352.0          # 가정: 셀 x (θ0 = +x)
+DESK_Y0, DESK_Y1 = -140.0, 322.0          # 가정: 셀 y (θ90 = +y, 대차 쪽이 -y)
+DESK_TOP_Z = -60.0         # 가정: 책상 윗면 z (θ 센서 링 z -37.5 · 노치판 -38.5 아래, 3D 전용)
+DESK_H = 720.0             # 가정: 책상 높이 (3D 전용)
+FLOOR_Z = DESK_TOP_Z - DESK_H
 
 # ===== 속도 / 시간 (가정) =====
 THETA_SPEED = 60.0         # 가정: θ deg/s
@@ -189,7 +203,7 @@ CELL_SERIAL_PORT = None    # 셀 Mega COM. 재활용 로봇 MOTOR_PORT/LIDAR 포
 ASSUMED = [
     "WAFER_T", "LEDGE_T", "SIDE_OFS", "THETA_STANDBY", "S4_LOCAL_X", "S4_RANGE", "SHARP_TOL", "SHARP_NOISE",
     "TOF_PRESENT_MM", "TOF_CASS_D", "UV_SEAT_Z", "UV_S", "JUDGE_TIMEOUT_S", "CASS_LIFT_Z", "CASS_SEAT_LIFT_Z",
-    "CART_DEFAULT_MAP", "THETA_SPEED", "Z_SPEED", "R_SPEED", "CAPTURE_S", "NG_RATE", "OPERATOR_S",
+    "CART_DEFAULT_MAP", "CART_BODY", "DESK_X0", "DESK_X1", "DESK_Y0", "DESK_Y1", "DESK_TOP_Z", "DESK_H", "THETA_SPEED", "Z_SPEED", "R_SPEED", "CAPTURE_S", "NG_RATE", "OPERATOR_S",
     "CART_CALL_S", "CART_DOCK_S", "CART_RETREAT_S", "CART_LATERAL_S", "CART_ROTATE_S", "CART_LEAVE_S",
 ]
 
@@ -260,6 +274,10 @@ def ui_geometry():
         "theta_standby": THETA_STANDBY,
         "cart_seats": list(CART_SEATS), "cart_seat_kr": CART_SEAT_KR,
         "cart_retreat": CART_RETREAT, "cart_lateral": CART_LATERAL,
+        "cart_seat_xy": CART_SEAT_XY, "cart_body": list(CART_BODY), "cart_seat_top_z": CART_SEAT_TOP_Z,
+        "cass_plate_under": CASS_PLATE_UNDER,
+        "desk": {"x0": DESK_X0, "x1": DESK_X1, "y0": DESK_Y0, "y1": DESK_Y1, "top_z": DESK_TOP_Z, "h": DESK_H,
+                 "floor_z": FLOOR_Z},
         "speeds": {"theta": THETA_SPEED, "z": Z_SPEED, "r": R_SPEED, "capture": CAPTURE_S},
         "assumed": ASSUMED,
     }

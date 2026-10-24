@@ -79,6 +79,9 @@ function buildPlan() {
   const svg = $('plan');
   svg.innerHTML = '';
   const g = el('g', { transform: `rotate(${VIEW})` }, svg);
+  // 책상(공정은 책상 위, 대차는 책상 옆 바닥) - 치수는 가정(cell_config DESK_*)
+  const dk = GEO.desk;
+  R.desk = rect(dk.x0, -dk.y1, dk.x1 - dk.x0, dk.y1 - dk.y0, 'desk', g);
   const arc = (a0, a1, r, cls) => { const [x0, y0] = pos(a0, r), [x1, y1] = pos(a1, r); el('path', { d: `M${x0} ${y0} A${r} ${r} 0 ${Math.abs(a1 - a0) > 180 ? 1 : 0} 0 ${x1} ${y1}`, class: cls }, g); };
   arc(0, 180, SR, 'path');                                   // 웨이퍼 경로 0 -> 180
   arc(180, GEO.side_theta, 184.5, 'path side');              // 옆길(후진 운반 웨이퍼 중심)
@@ -112,13 +115,13 @@ function buildPlan() {
   rect(37.47, -21.15, 42.3, 42.3, 'part', g);
   // 대차(메카넘, 받침 2x2). 로컬: FL(0,0) FR(200,0) RL(200,260) RR(0,260), 중심(100,130), +y = 셀에서 멀어짐
   R.cartGhost = el('g', { transform: `translate(0,${UR})` }, g);
-  rect(-90, -80, 380, 420, 'seat ghostcart', R.cartGhost);
+  const [bx, by, bw, bh] = GEO.cart_body;
+  rect(bx, by, bw, bh, 'seat ghostcart', R.cartGhost);
   const cart = el('g', {}, g); R.cart = cart;
-  rect(-90, -80, 380, 420, 'cartbody', cart);
-  for (const [x, y] of [[-90, -80], [250, -80], [-90, 300], [250, 300]]) rect(x, y, 40, 40, 'wheel', cart);
+  rect(bx, by, bw, bh, 'cartbody', cart);
+  for (const [x, y] of [[bx, by], [bx + bw - 40, by], [bx, by + bh - 40], [bx + bw - 40, by + bh - 40]]) rect(x, y, 40, 40, 'wheel', cart);
   R.seat = {};
-  const SEAT_XY = { FL: [0, 0], FR: [200, 0], RL: [200, 260], RR: [0, 260] };
-  for (const [s, [x, y]] of Object.entries(SEAT_XY)) {
+  for (const [s, [x, y]] of Object.entries(GEO.cart_seat_xy)) {
     const sr = rect(x - 62, y - 62, 124, 124, 'seat', cart);
     const box = el('g', {}, cart);
     const cb = rect(x - 50, y - 50, 100, 100, 'cassbox', box);
@@ -156,14 +159,16 @@ function buildPlan() {
   // 스테이션 이름(바깥쪽, 똑바로) - 회전하지 않는 겹에 화면 좌표로
   const lg = el('g', {}, svg);
   const lab = (k, r) => { const [x, y] = posV(GEO.stations[k], r); tx(ST_KR[k], { x, y, class: 'stn-t', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, lg); };
-  lab('uv', 362); lab('ng', 350); lab('inspect', 350); lab('input', 356);
+  lab('uv', 364); lab('ng', 350); lab('inspect', 350); lab('input', 368);
+  // 화면 좌표 = (-셀 y, -셀 x) (VIEW -90). 책상 글자는 화면 왼쪽 아래 안쪽 모서리
+  tx('책상', { x: -dk.y1 + 10, y: -dk.x0 - 10, class: 'desk-t', 'text-anchor': 'start' }, lg);
   const [lx, ly] = posV(GEO.side_theta, 238);
   tx('옆길', { x: lx + 26, y: ly + 8, class: 'side-t', 'text-anchor': 'start', 'dominant-baseline': 'central' }, lg);
 }
 
 /* ───────────────────────── 입면도 ───────────────────────── */
-const PLATE_UNDER = 125;         // 카세트 바닥 -> 클램프 윗판 밑면(도크: 172 -> 297)
-const SEAT_TOP = 163.5;          // 대차 받침 윗면 z
+let PLATE_UNDER = 125;           // 카세트 바닥 -> 클램프 윗판 밑면(도크: 172 -> 297), init 에서 GEO 값으로
+let SEAT_TOP = 163.5;            // 대차 받침 윗면 z, init 에서 GEO 값으로
 function cassElev(parent, z0, x0) {
   // 카세트 단면(반경 215~300 + x0). z0 = 카세트 바닥(도크 172).
   const g = el('g', { transform: `translate(${x0 || 0},${-(z0 - 172)})` }, parent);
@@ -230,7 +235,7 @@ function buildElev() {
   cassElev(R.st.cartCass, SEAT_TOP, 34);
   rect(205 + 34, -(SEAT_TOP + PLATE_UNDER + 6), 100, 6, 'clampE', R.st.cartCass);
   // 캐리지(Z=105 기준으로 그린 뒤 이동) + Sharp 로 잰 Z(상세, 점선)
-  R.carMeas = rect(-50, -135, 100, 30, 'measbox det', g);
+  R.carMeas = rect(-50, -135, 100, 30, 'measbox', g);
   const car = el('g', {}, g); R.car = car;
   rect(-50, -135, 100, 30, 'rob', car);
   rect(-51, -140, 22, 5, 'rob2', car);
@@ -376,10 +381,12 @@ function onSnap(s) {
   if (bootId && s.boot_id !== bootId) { buf.length = 0; offset = null; $('log').innerHTML = ''; }
   bootId = s.boot_id;
   lastMsgAt = now;
-  if (s.tick !== lastTick) { lastTick = s.tick; lastTickAt = now; }
-  const o = s.wall - Date.now() / 1000;
+  const fresh = s.tick !== lastTick;
+  if (fresh) { lastTick = s.tick; lastTickAt = now; }
+  // 보간은 데이터 시각(t_src)으로: LIVE 는 ST(20 Hz)를 받은 시각이라 같은 ST 를 다시 보낸 스냅샷은 버퍼에 넣지 않는다
+  const o = s.t_src - Date.now() / 1000;
   offset = offset === null ? o : Math.min(offset + 0.0005, o);
-  buf.push(s); while (buf.length > 6) buf.shift();
+  if (fresh || !buf.length) { buf.push(s); while (buf.length > 8) buf.shift(); }
   if (s.new_log && s.new_log.length) addLog(s.new_log);
   snap = s;
   updatePanels(s);
@@ -407,12 +414,13 @@ function handleCmdError(c, j, status) {
 /* ───────────────────────── 프레임(보간) ───────────────────────── */
 function interp() {
   if (!buf.length) return null;
-  const tNow = Date.now() / 1000 + (offset || 0) - 0.12;
+  const lag = buf[buf.length - 1].source === 'SIM' ? 0.12 : 0.16;     // LIVE: ST 50 ms + SSE 50 ms 를 넘게
+  const tNow = Date.now() / 1000 + (offset || 0) - lag;
   let a = buf[0], b = buf[buf.length - 1];
-  if (tNow >= b.wall) return b.pose;
-  if (tNow <= a.wall) return a.pose;
-  for (let i = 0; i < buf.length - 1; i++) { if (buf[i].wall <= tNow && tNow <= buf[i + 1].wall) { a = buf[i]; b = buf[i + 1]; break; } }
-  const f = (tNow - a.wall) / Math.max(1e-6, b.wall - a.wall);
+  if (tNow >= b.t_src) return b.pose;
+  if (tNow <= a.t_src) return a.pose;
+  for (let i = 0; i < buf.length - 1; i++) { if (buf[i].t_src <= tNow && tNow <= buf[i + 1].t_src) { a = buf[i]; b = buf[i + 1]; break; } }
+  const f = (tNow - a.t_src) / Math.max(1e-6, b.t_src - a.t_src);
   return { theta: a.pose.theta + (b.pose.theta - a.pose.theta) * f, zc: a.pose.zc + (b.pose.zc - a.pose.zc) * f, rx: a.pose.rx + (b.pose.rx - a.pose.rx) * f };
 }
 function frame() {
@@ -474,9 +482,11 @@ function updatePanels(s) {
   sb.className = 'srcbadge' + (live ? ' live' : '');
   sb.title = live ? '셀 Mega 데이터 (지령값 + 센서)' : '시뮬레이션 - 실제 장비 아님 · 사이클은 가정 속도 기준';
   const lb = $('link-badge'); const ls = (s.link || {}).status;
-  lb.hidden = !live; lb.textContent = LINK_KR[ls] || ls || '';
+  lb.hidden = !live;
+  const age = live && s.link.age_s !== null && s.link.age_s !== undefined ? Math.round(s.link.age_s * 1000) : null;
+  lb.textContent = (LINK_KR[ls] || ls || '') + (ls === 'OK' && age !== null ? ` · ${age} ms` : '');
   lb.className = 'linkbadge ' + (ls === 'OK' ? 'ok' : ls === 'WAIT_HELLO' ? 'warn' : 'crit');
-  if (live) { const L = s.link; lb.title = `${L.port || ''} · 응답 ${L.age_s === null ? '-' : L.age_s + ' s'}${L.err ? ' · ' + L.err : ''}${L.fw ? ' · ' + L.fw : ''}`; }
+  if (live) { const L = s.link; lb.title = `${L.port || ''} · 마지막 장비 데이터(ST)를 받은 뒤 ${age === null ? '-' : age + ' ms'} (장비 -> PC 전송 지연은 잴 수 없음)${L.err ? ' · ' + L.err : ''}${L.fw ? ' · ' + L.fw : ''}`; }
   for (const x of document.querySelectorAll('.simonly')) x.hidden = live || BOOT.view_only;
   const stEl = $('st-state'); stEl.textContent = STATE_KR[s.state] || s.state; stEl.className = 's-' + s.state;
   for (const li of document.querySelectorAll('#stages li')) li.classList.toggle('on', li.dataset.stage === s.stage);
@@ -520,6 +530,7 @@ function updatePanels(s) {
   show(R.cart, cart.state !== 'away');
   show(R.cartGhost, cart.state === 'away');
   R.cart.setAttribute('transform', `translate(${cart.lat},${UR + cart.dist}) rotate(${cart.rot} 100 130)`);
+  R.cart.classList.toggle('unknownpos', cart.pos_known === false);        // LIVE: 움직이는 동안 위치 데이터 없음
   R.cartLbl.setAttribute('transform', `rotate(${-cart.rot - VIEW} -120 130)`);
   let nF = 0, nD = 0;
   for (const [seat, code] of Object.entries(cart.seats)) {
@@ -610,12 +621,24 @@ function renderAttention(s) {
     text = s.headline; cls += ' wait'; key = 'P|LINK';
   } else if (s.state === 'WAIT_NG') {
     text = '③ 불량 카세트 교체 필요'; cls += ' wait'; key = 'W|NG';
+  } else {
+    const d = sharpGap(s);
+    if (d) { text = d; cls += ' wait'; key = 'S|' + d; }
   }
   if (key === attnKey) return;
   attnKey = key;
   const ab = $('alarmbar');
   if (!key) { ab.hidden = true; return; }
   ab.hidden = false; ab.className = cls; ab.textContent = text; ab.title = title;
+}
+// Sharp 실측과 지령값 차이(축이 움직이는 중에는 Sharp 평균이 늦으므로 보지 않음)
+function sharpGap(s) {
+  if (!s.homed || s.state === 'HOMING') return null;
+  const m = s.meas, p = s.pose, tol = GEO.sharp_tol, out = [];
+  const moving = (ax) => s.target && s.target.axis === ax;
+  if (m.zc_s !== null && m.zc_s !== undefined && !moving('zc') && Math.abs(m.zc_s - p.zc) > tol) out.push(`Z 실측 차 ${fmt(m.zc_s - p.zc)} mm (지령 ${fmt(p.zc)} · Sharp ${fmt(m.zc_s)})`);
+  if (m.rx_s !== null && m.rx_s !== undefined && !moving('rx') && Math.abs(m.rx_s - p.rx) > tol) out.push(`R 실측 차 ${fmt(m.rx_s - p.rx)} mm (지령 ${fmt(p.rx)} · Sharp ${fmt(m.rx_s)})`);
+  return out.length ? out.join(' · ') : null;
 }
 function updateTimeline(s) {
   const key = s.step ? s.step.key : null;
@@ -796,6 +819,7 @@ async function init() {
   } catch (e) { $('stale').hidden = false; $('stale-why').textContent = '서버에 연결할 수 없음'; return; }
   GEO = META.geometry;
   SR = GEO.station_r.inspect; IR = GEO.station_r.input; UR = GEO.station_r.uv;
+  PLATE_UNDER = GEO.cass_plate_under; SEAT_TOP = GEO.cart_seat_top_z;
   for (const c of META.steps) CAT[c.key] = c;
   document.title = `${META.cell} 공정 모니터`;
   $('cellname').textContent = `웨이퍼 검사셀 ${META.cell}`;

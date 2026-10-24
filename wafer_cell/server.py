@@ -152,6 +152,8 @@ class App:
         s["boot_id"] = self.boot_id
         s["cam"] = self.feed.status()
         s["wall"] = time.time()
+        if not s.get("t_src"):
+            s["t_src"] = s["wall"]                      # 데이터 시각(보간 기준). LIVE = 그 ST 를 받은 시각
         s["ng_next"] = self.judge.ng_next
         s["ng_rate"] = self.judge.ng_rate if not self.live else None
         s["captures"] = [c for c in self.captures[-6:]]

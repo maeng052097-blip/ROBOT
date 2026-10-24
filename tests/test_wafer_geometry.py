@@ -10,6 +10,7 @@
 
 실행: py -3.13 tests/test_wafer_geometry.py
 """
+import math
 import sys
 import pathlib
 
@@ -111,6 +112,24 @@ def main():
     worst = max(sum(G.th_mask(x / 20.0)) for x in range(-1000, 7300))
     assert worst == 1
     print("  OK theta station mask: +-1.65 deg windows, 270 == -90, never two LOW")
+
+    # 책상(가정 치수): 모든 장소 · 로봇 받침을 감싸고, 대차(책상 옆 바닥)는 밖, 포크 R85 는 책상 끝을 넘어 받침에 닿음
+    def rot(u, v, th):
+        t = math.radians(th)
+        return (u * math.cos(t) - v * math.sin(t), u * math.sin(t) + v * math.cos(t))
+    pts = []
+    for st, (u0, u1, hv) in {"input": (228, 328, 70), "ng": (212, 304, 65), "inspect": (220, 318, 52)}.items():
+        pts += [rot(u, v, C.STATIONS[st]) for u in (u0, u1) for v in (-hv, hv)]
+    for st, r in (("input", 50), ("ng", 50), ("inspect", 50), ("uv", 62)):
+        pts += [rot(C.station_r(st) + r * math.cos(a / 36 * math.pi), r * math.sin(a / 36 * math.pi), C.STATIONS[st]) for a in range(72)]
+    pts += [(85 * math.cos(a / 36 * math.pi), 85 * math.sin(a / 36 * math.pi)) for a in range(72)]
+    inside = lambda p, m: C.DESK_X0 + m <= p[0] <= C.DESK_X1 - m and C.DESK_Y0 + m <= p[1] <= C.DESK_Y1 - m
+    assert all(inside(p, 10) for p in pts), [p for p in pts if not inside(p, 10)][:3]
+    cart_front = -(C.station_r("cart") + C.CART_BODY[1])        # 받침 중심 r 269.5 에서 80 mm 셀 쪽
+    assert cart_front < C.DESK_Y0 and -C.station_r("cart") < C.DESK_Y0, (cart_front, C.DESK_Y0)
+    assert C.DESK_Y0 - cart_front >= 30, "cart should dock close to the desk edge"
+    print(f"  OK desk {C.DESK_X1 - C.DESK_X0:.0f}x{C.DESK_Y1 - C.DESK_Y0:.0f} mm (assumed) encloses all stations + robot, "
+          f"cart front {-cart_front:.1f} beyond desk edge {-C.DESK_Y0:.0f}")
 
     cl = {c["key"]: c["mm"] for c in G.clearances()}
     assert cl["insert_gap"] == 3.0 and cl["side_ledge"] == 3.5 and cl["input_tip"] == 2.5 and cl["uv_hand"] == 4.0

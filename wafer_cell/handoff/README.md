@@ -25,8 +25,11 @@
 | 시뮬 공정 | 끝까지 동작합니다. 대차 1대(카세트 4) → 20장 → 출발 → 새 대차. 불량은 ③ 위부터, ③ 가득이면 WAIT_NG, 빈 슬롯은 알람 없이 넘어갑니다. |
 | 센서 모형 | θ 자리 5(±1.65°), Z/R Sharp(환산식), ToF 2(있음/없음), S4, A_UV · D9 · KSD9700 → 고장 주입 15개, 각각 알람으로 확인했습니다. |
 | LIVE | **프로토콜 · PC 수신(`live.py`) · 가짜 장비(`fake_mega.py`) · 서버 연결 · 화면까지** 되어 있습니다. **Mega 펌웨어는 없습니다**(다음 단계). |
-| 화면 | 같은 화면이 SIM/LIVE를 보여 줍니다. 연결 배지, 6개 명령 확인 창, 장비 수락/거부 알림이 있습니다. 1920/1536 × 상세 OFF/ON × 14단계(56장)에서 겹침 · 잘림 0, 콘솔 오류 0입니다. 다크/라이트 모두 확인했습니다. |
-| 테스트 | 웨이퍼 9개 전부 통과(클라우드 python3 3.11). Windows `py -3.13`에서는 아직 돌려 보지 않았습니다 [불명]. |
+| 화면 | 같은 화면이 SIM/LIVE를 보여 줍니다. 연결 배지, 6개 명령 확인 창, 장비 수락/거부 알림이 있습니다. 1920/1536 × 상세 OFF/ON × 14단계(56장)에서 겹침 · 잘림 0, 콘솔 오류 0입니다. 다크/라이트 글자 대비(WCAG 4.5/3.0)를 64 + 8 + 3D 4화면에서 재서 미달을 고쳤습니다(남은 것은 비활성 버튼 · '없음' 슬롯 번호, 의도). |
+| 책상 · 대차 | 평면도에 **책상**(702 × 462 mm, 가정) 테두리. 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥에 도킹합니다(`test_wafer_geometry`가 강제). |
+| 3D | **`/3d.html`**(헤더 `3D`, 보기 전용). 같은 SSE 스냅샷으로 로봇 · 카세트 · UV · 대차가 움직입니다. three.js r160을 `web/`에 포함(오프라인). 상자/원기둥 근사입니다. |
+| 동기화 | `test_wafer_sync`: 가짜 장비의 `ST`마다 장비 스냅샷과 PC 스냅샷을 비교해 2,413 프레임 불일치 0. LIVE 보간은 `t_src`(ST 수신 시각) 기준, 연결 배지에 마지막 수신 ms, Sharp ≠ 지령이면 주황 경고, 움직이는 LIVE 대차는 점선. |
+| 테스트 | 웨이퍼 10개 전부 통과(클라우드 python3 3.11). Windows `py -3.13`에서는 아직 돌려 보지 않았습니다 [불명]. |
 | 구매 | R22 주문표를 정리했습니다. EE-SX670 5개는 이미 샀습니다(문서). 나머지는 아직 사지 않았습니다. |
 
 ## 2. 실행과 검증
@@ -43,6 +46,9 @@ python3 -m py_compile wafer_cell/*.py
 SP=<스크래치패드>
 (exec python3 wafer_cell/server.py --cam none --port 8791 --speed 20 > $SP/srv.log 2>&1 & echo $! > $SP/srv.pid)
 NODE_PATH=/opt/node22/lib/node_modules node $SP/verify_r22.js $SP/out http://127.0.0.1:8791/ C4,I3,U6 all   # 직접 작성한 점검 스크립트
+NODE_PATH=/opt/node22/lib/node_modules node $SP/verify_theme.js $SP/th http://127.0.0.1:8791/ sim         # 글자 대비(스크린샷 화소 기준)
+# 3D: headless Chromium 도 SwiftShader 로 WebGL 이 된다. 2D 페이지로 debug_hold 를 걸고 /3d.html 을 캡처
+# 주의: 점검 스크립트가 서버를 PAUSED 로 남기면 다음 실행의 'home' 이 거부돼 READY 를 영원히 기다린다 -> 서버를 다시 띄우고 돌린다
 kill $(cat $SP/srv.pid)                                                # pkill -f 금지
 ```
 - 화면 고정 · 고장 주입은 `POST /api/cmd`로 합니다(`debug_hold{step,frac}`, `fault{name,on}`, `speed`, `ng_rate`).
@@ -66,7 +72,7 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 3. 원점은 R 먼저 → Z → θ 순서입니다(문서는 Z 먼저).
 4. 대차는 카세트 1~4개를 싣고 옵니다(기본 4).
 5. 판정 알고리즘은 [미구현]입니다(기본 OK · δ 0).
-6. 가정값 28개: 대기 θ120 · UV 받침 z183 · ToF 문턱 120 · Sharp ±3 · 판정 5 s · UV 10 s 등
+6. 가정값 35개: 대기 θ120 · UV 받침 z183 · ToF 문턱 120 · Sharp ±3 · 판정 5 s · UV 10 s · 책상 702 × 462(윗면 z −60, 높이 720) · 대차 몸체 380 × 420 등
 
 ## 5. 미결정과 [불명]
 | 항목 | 왜 중요한가 | 확인 방법 |
@@ -80,6 +86,8 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 | 포트 열기 리셋(DTR) | 서버를 재시작하면 Mega가 리셋됩니다. | 운영 규칙(공정 중 재시작 금지) 또는 하드웨어 |
 | 대차(AGV) 통신 | 시뮬은 시간 모형입니다. LIVE는 Mega가 보내는 받침 정렬만 씁니다. | 사용자 |
 | 판정 알고리즘 | NG 판정과 δr · δθ | 다음 단계 |
+| 책상 · 대차 실측 | 화면(2D · 3D) 모양과 도킹 틈 49.5 mm가 가정값입니다. | 책상 네 끝 · 높이, 대차 몸체를 재서 `DESK_*` · `CART_BODY` |
+| 3D on 사용자 PC | headless(SwiftShader)로만 확인했습니다. | Chrome/Edge `chrome://gpu` WebGL, `/3d.html` 표시 |
 
 ## 6. 다음 할 일 (제안 순서)
 1. 사용자가 §4 해석 1–6을 확인합니다(틀리면 `sequence.py` · `cell_config.py`를 고치고 테스트를 갱신).
@@ -90,7 +98,7 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 ## 6-1. 파일 지도 (`wafer_cell/`)
 | 파일 | 역할 |
 |---|---|
-| `cell_config.py` | 모든 수치(R22 문서 값 + `ASSUMED` 28개), 링크 상수, `ui_geometry()` |
+| `cell_config.py` | 모든 수치(R22 문서 값 + `ASSUMED` 35개, 책상 `DESK_*` · 대차 `CART_BODY`/`CART_SEAT_XY`), 링크 상수, `ui_geometry()` |
 | `sequence.py` | 순수 로직. 단계 39개(H · C · P · E · I · N · U · R · L · W), `can_rotate`, `uv_interlock`, `corr_ok`, `describe`, `action_at` |
 | `geometry.py` | 순수 로직. 충돌 · 이송 이벤트(`z_move`, `r_move`), `s4_on`, `th_mask`, 여유 |
 | `tof.py` | `presence(d)`: 있음 · 없음 · 불가 |
@@ -102,8 +110,9 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 | `source.py` · `judge.py` | 소스 인터페이스(SimSource) · PC 판정 |
 | `server.py` | HTTP · SSE · 명령(LIVE 503/504) · 캡처 · CSV |
 | `camera_feed.py` | 웹캠(`common/camera.py` 재사용, common 수정 금지) |
-| `web/` | 대시보드(평면도 −90° 회전, 입면도, 카메라 개념도, 상세 열, LIVE 배지) |
-| 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,protocol,live,fake_mega,server,camera}.py` |
+| `web/` | 대시보드(평면도 −90° 회전 + 책상, 입면도, 카메라 개념도, 상세 열, LIVE 배지). 하위 폴더 금지(`SAFE_NAME`) |
+| `web/3d.html` · `view3d.js` | 3D 보기(보기 전용). `three.module.min.js` · `OrbitControls.js` = three.js r160(MIT, `three.LICENSE`) |
+| 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,protocol,live,fake_mega,sync,server,camera}.py` |
 
 ## 7. 작업 규칙 (CLAUDE.md에서 — 어기면 깨진다)
 - 실행은 `py -3.13`으로 한다(Windows). 클라우드는 `python3`.
@@ -133,5 +142,7 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 | seengreat.com, pololu.com 접속 불가 | 클라우드 네트워크 정책 | 검색 결과와 사용자 캡처로 판단하고 [불명]을 표시한다 |
 | (R22) 배속 ×50에서 ③ 교체 뒤 포인터가 0으로 안 감 | '빼기 → 새 카세트 놓기'가 한 tick 안에 끝나 TOF-NG '없음'을 못 봄 | 빼는 순간 전이를 기록합니다(테스트 있음). 실 펌웨어도 ToF 샘플 주기보다 빠른 교체에 주의 |
 | (R22) 마지막 웨이퍼가 불량이면 L1에서 θ 불일치 | L1이 ① 앞(θ180)에 있다고 가정했는데, 실제로는 θ60에서 시작 | L1 첫 동작에 θ180 선회를 넣었습니다(시뮬 테스트 ng_rate 1.0이 잡음). |
+| (3D) 대차를 통짜 상자로 그렸더니 비스듬한 시점에서 책상 앞을 다 가림 | 대차 몸체(바닥 −780 ~ 받침 133.5)가 셀보다 높고 큼 | 섀시 + 기둥 4 + 상판(속 빈 틀)으로 바꾸고 시점을 높였습니다. |
+| (테마) 알람 상태 글자가 반쯤 안 보임 | 깜박임이 글자 투명도 0.35까지 내려감(대비 1.9) | 글자는 그대로 두고 바탕만 깜박이게(`flash`) 바꿨습니다. |
 | (R22) 화면 점검 중 서버 처리 예외 1건 | 시뮬 HOLD 해제가 UV 동작을 지워, 램프는 켜졌는데 남은 시간이 None인 상태가 생김 | HOLD 해제는 그대로 이어가게 했고, 문구 생성도 방어했습니다. 서버 루프는 예외가 나도 살아 있게 했습니다(`ERROR loop ...` 로그). |
 

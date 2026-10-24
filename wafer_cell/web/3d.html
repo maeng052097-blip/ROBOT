@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R22 3D 보기</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
+<style>
+  html,body{overflow:hidden}
+  #c3d{position:fixed;inset:0;width:100vw;height:100vh;display:block;background:var(--bg)}
+  .hud{position:fixed;left:12px;right:12px;top:10px;display:flex;align-items:center;gap:12px;padding:8px 14px;border:1px solid var(--rule);background:color-mix(in srgb,var(--sheet) 90%,transparent);z-index:5;min-width:0}
+  .hud h1{margin:0;font-family:var(--f-kr);font-size:18px;font-weight:700;white-space:nowrap}
+  .hud #st-state{font-size:18px}
+  .hud .head3{font-family:var(--f-kr);font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+  .hud a.tool{text-decoration:none;color:inherit}
+  .views{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:5}
+  .legend{position:fixed;right:12px;bottom:12px;z-index:5;font-family:var(--f-kr);font-size:12px;color:var(--ink2);border:1px solid var(--rule);background:color-mix(in srgb,var(--sheet) 90%,transparent);padding:6px 10px;max-width:520px;line-height:1.5}
+  .legend b{color:var(--ink)}
+  .alarm3{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:6;max-width:80vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--crit);background:color-mix(in srgb,var(--sheet) 88%,var(--crit));color:var(--crit);padding:8px 16px;font-family:var(--f-kr);font-weight:700}
+  .alarm3.wait{border-color:var(--amber);color:var(--amber);background:color-mix(in srgb,var(--sheet) 88%,var(--amber))}
+  .lbl3{position:fixed;z-index:4;transform:translate(-50%,-50%);font-family:var(--f-kr);font-weight:700;font-size:15px;color:var(--ink);text-shadow:0 0 4px var(--bg),0 0 8px var(--bg);pointer-events:none;white-space:nowrap}
+  .lbl3.small{font-size:12px;font-weight:600;color:var(--ink2)}
+</style>
+</head>
+<body data-theme="dark">
+  <canvas id="c3d" aria-label="셀 3D 보기"></canvas>
+  <header class="hud">
+    <h1 id="cellname">웨이퍼 검사셀 3D</h1>
+    <span class="srcbadge" id="src-badge">-</span>
+    <span class="linkbadge" id="link-badge" hidden>-</span>
+    <b id="st-state">-</b>
+    <span class="head3" id="headline"></span>
+    <span class="viewonly" title="이 화면에서는 조작하지 않는다 - 조작은 기본 화면에서">보기 전용</span>
+    <button class="tool" id="btn-theme">밝은/어두운</button>
+    <a class="tool" href="/">2D 화면</a>
+  </header>
+  <div class="alarm3" id="alarm3" hidden></div>
+  <div id="labels"></div>
+  <div class="views" id="views">
+    <button class="b" data-view="iso">비스듬히</button>
+    <button class="b" data-view="top">위</button>
+    <button class="b" data-view="front">대차 쪽</button>
+    <button class="b" data-view="side">UV 쪽</button>
+    <button class="b" id="btn-follow" title="카메라가 포크를 따라 돈다">포크 따라가기</button>
+  </div>
+  <div class="legend" id="legend">끌기 = 돌리기 · 휠 = 확대 · 오른쪽 끌기 = 옮기기 · 치수는 2D 와 같은 R9/R22 값, 책상 · 대차 몸체는 <b>가정</b> · 모양은 상자/원기둥 근사(CAD 아님)</div>
+  <div class="stale" id="stale" hidden><div><b>데이터 정지</b><span id="stale-why">서버 연결 확인 중…</span></div></div>
+<script type="module" src="view3d.js"></script>
+</body>
+</html>

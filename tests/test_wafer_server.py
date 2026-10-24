@@ -59,6 +59,23 @@ def main():
         assert st == 200 and app.token.encode() in b and b"/*__BOOT__*/" not in b
         print("  OK state / meta / static MIME / token injected for loopback page")
 
+        # 3D 보기 페이지: 같은 서버가 정적 파일로 내보내고, 외부(CDN) 주소 없이 오프라인으로 뜬다
+        st, ct, b = req(port, "GET", "/3d.html")
+        assert st == 200 and ct.startswith("text/html") and b"importmap" in b and b"view3d.js" in b, ct
+        assert app.token.encode() not in b                     # 보기 전용 페이지에는 조작 토큰을 넣지 않는다
+        st, ct, b = req(port, "GET", "/view3d.js")
+        assert st == 200 and ct.startswith("text/javascript") and b"api/cmd" not in b, ct
+        st, ct, b = req(port, "GET", "/three.module.min.js")
+        assert st == 200 and ct.startswith("text/javascript") and len(b) > 300_000, (ct, len(b))
+        st, ct, b = req(port, "GET", "/OrbitControls.js")
+        assert st == 200 and ct.startswith("text/javascript"), ct
+        import re
+        web = pathlib.Path(__file__).resolve().parent.parent / "wafer_cell" / "web"
+        ext = re.compile(rb"""(?:\b(?:src|href)\s*=\s*["']|\bfrom\s*["']|\bimport\s*\(\s*["'])(?:https?:)?//""")
+        bad = [f.name for f in web.iterdir() if f.suffix in (".html", ".js", ".css") and ext.search(f.read_bytes())]
+        assert not bad, bad
+        print("  OK 3D page: /3d.html + view3d.js + vendored three.js served, no token, no external URL")
+
         c = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
         c.request("GET", "/events", headers={"Host": f"127.0.0.1:{port}"})
         r = c.getresponse()

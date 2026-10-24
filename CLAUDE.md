@@ -63,15 +63,15 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 23개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 24개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
    재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
     test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
     test_occupancy_grid, test_scan, test_zoom_geom
-   웨이퍼셀 9개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
-    test_wafer_protocol, test_wafer_live, test_wafer_fake_mega, test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
+   웨이퍼셀 10개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
+    test_wafer_protocol, test_wafer_live, test_wafer_fake_mega, test_wafer_sync, test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
 
@@ -130,6 +130,9 @@ py -3.13 tests/find_camera.py
 - 구조: **Mega 가 공정(권한), PC 는 표시 · 카메라 판정 · 운전 명령 6 개**(원점/시작/일시정지/재개/정지/알람 해제). 규격 = `wafer_cell/PROTOCOL.md`
   (`$TYPE,k=v*HH` XOR, PC->Mega <= 60 B). 같은 화면이 SIM(`CellSim`)과 LIVE(`live.py`)를 `source.py` 인터페이스로 받는다.
   실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--speed 5] [--source live --serial fake|tcp:H:P|COMx]` -> `http://127.0.0.1:8765/`.
+  3D 보기 = `/3d.html`(헤더 `3D`, 보기 전용, three.js r160 을 `web/` 에 포함 — CDN 금지, `web/` 은 하위 폴더 없음 = server `SAFE_NAME`).
+  책상(`DESK_*`, 702x462 가정)이 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥(앞면 y -189.5 < 책상 끝 -140)이다 — `test_wafer_geometry` 가 강제.
+  LIVE 화면 = 장비 상태는 `test_wafer_sync`(가짜 장비 ST 마다 스냅샷 비교, 불일치 0)가 보증한다. 스냅샷 키를 늘리면 SIM · LIVE · 비교 목록을 같이 고친다.
   Mega 펌웨어는 아직 없다(다음 단계). **AI 는 LIVE 를 가짜 장비(`--serial fake`, `wafer_cell/fake_mega.py`)로만 쓴다** — 실제 COM 으로 명령을 보내는 것은
   사용자가 화면 버튼 + 확인 창으로만 한다(§7). 실제 COM 을 열면 Mega 가 리셋(DTR)된다 -> 공정 중 서버 재시작 금지.
 - 셀: ① 투입 θ180(RX 73, 도크 +22 mm) · ② 검사 120(RX 51) · ③ 불량 60(RX 51) · UV 탑 0(RX 85) · 대차 270(RX 85), 옆길 220. 카세트 5 슬롯 Sn = 190 + 18(n-1).
