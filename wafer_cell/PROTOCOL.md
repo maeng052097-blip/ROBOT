@@ -67,7 +67,7 @@ $TYPE,key=value,key=value*HH\n
 | `zc` | float | Z 지령값 ZC mm(스텝 수로 환산) |
 | `rx` | float | R 지령값 RX mm(실린더 시간 모형) |
 | `hm` | int | 원점 확정 비트. 1 = θ, 2 = Z, 4 = R. 0–7입니다. |
-| `ths` | mask5 | θ 자리 센서 5개. 순서는 TH0 · TH60 · TH120 · TH180 · TH270이고, `1` = LOW(그 자리에 있음)입니다. 예: `00100` |
+| `ths` | mask5 | θ 자리 센서 5개. 순서는 TH0(③) · TH60(UV) · TH120(②) · TH180(①) · TH270(대차)이고, `1` = LOW(그 자리에 있음)입니다. 예: `00100`. ③ · UV 자리는 사용자 변경으로 R22 문서와 반대입니다. |
 | `zd` | float | Z Sharp 거리 mm(10–20번 평균). 읽을 수 없으면 `-`. ZC = 349.1 − zd. |
 | `rd` | float | R Sharp 거리 mm. RX = rd − 104. |
 | `s4` | bool | S4 포크 웨이퍼 |
@@ -112,7 +112,7 @@ $TYPE,key=value,key=value*HH\n
 | `q` | int | 이벤트 순번 |
 | `lv` | word | `I` 정보 · `W` 경고 · `A` 알람 |
 | `c` | word | 코드(§6) |
-| `d` | word | 짧은 세부(선택, ≤ 40자). 예: `TH0+D9`(UV 조건 중 못 채운 것), `FORK_WAFER/ng/3`, `+5.0/-0.00`(δr/δθ) |
+| `d` | word | 짧은 세부(선택, ≤ 40자). 예: `TH60+D9`(UV 조건 중 못 채운 것), `FORK_WAFER/ng/3`, `+5.0/-0.00`(δr/δθ) |
 | `stp` | word | 단계 키(선택) |
 | `n` | int | ① 슬롯(선택) |
 | `k` | int | ③ 슬롯(선택) |
@@ -195,8 +195,8 @@ $TYPE,key=value,key=value*HH\n
 
 - **③ 교체:** TOF-NG가 '없음 → 있음'으로 바뀌면 새 빈 카세트로 보고 `ng`를 0으로 합니다.
 - **UV 램프 켜기:** 7가지 조건을 모두 채울 때만 켭니다. 못 채우면 `UV_INTERLOCK`(`d`에 못 채운 항목을 `+`로 이어 붙임).
-  - `TH0`: θ0 센서 LOW
-  - `ANGLE`: θ 0 ± 0.2°
+  - `TH60`: UV 자리(θ60) 센서 LOW. 코드는 UV 자리 센서 이름입니다(`cell_config.UV_TH_SENSOR`).
+  - `ANGLE`: θ 60 ± 0.2°
   - `RX`: RX ≤ 2(R Sharp)
   - `ZC`: ZC ≤ 110
   - `HAND`: 받침에 넘김(U4 뒤 U5에서 S4 ON → OFF)
@@ -238,9 +238,9 @@ $TYPE,key=value,key=value*HH\n
 | `I2` | ② 검사 | ② 검사 크래들에 놓기 | z 192 · r 51 · vr · z 183 · r -2 · ret · expect S4 |
 | `I3` | ② 검사 | ② StreamCam 촬영 · 판정 (PC) | capture |
 | `I4` | ② 검사 | ② 보정해서 다시 집기 | rot 120 [fine] +δ · r 51 +δ · vr · z 192 · expect S4 · r -2 · ret · z 105 |
-| `N1` | ③ 불량 | ③ 불량 (60°) 으로 선회 | rot 60 · expect_th ng · expect TOF_NG |
+| `N1` | ③ 불량 | ③ 불량 (0°) 으로 선회 | rot 0 · expect_th ng · expect TOF_NG |
 | `N2` | ③ 불량 | ③ 슬롯 k 에 넣기 (위 슬롯부터) | z 201 · vz · r 51 · vr · z 193.5 · r -2 · ret · expect S4 · z 105 |
-| `U1` | UV | UV 탑 (0°) 으로 선회 | rot 0 · expect_th uv |
+| `U1` | UV | UV 탑 (60°) 으로 선회 | rot 60 · expect_th uv |
 | `U2` | UV | UV 넣기 높이 ZC 121.5 | z 121.5 · vz |
 | `U3` | UV | UV 탑 밑으로 RX 85 | r 85 · vr |
 | `U4` | UV | UV 받침에 넘기기 ZC 113.5 | z 113.5 · vz |
@@ -252,7 +252,7 @@ $TYPE,key=value,key=value*HH\n
 | `R3` | ① 원위치 | 옆길 -> ① (180°) | rot 180 [side] · expect_th input · expect TOF_IN |
 | `R4` | ① 원위치 | ① 원래 슬롯 n 에 넣기 | r 73 · vr · z 121.5 |
 | `R5` | ① 원위치 | 포크 빼고 내리기 (S4 없음) | r -2 · ret · expect S4 · z 105 |
-| `L1` | ① -> 대차 | ① 클램프 윗판 밑 높이 Z 228.5 | expect_th input · expect TOF_IN · z 228.5 · vz |
+| `L1` | ① -> 대차 | ① 클램프 윗판 밑 높이 Z 228.5 | rot 180 · expect_th input · expect TOF_IN · z 228.5 · vz |
 | `L2` | ① -> 대차 | 클램프 윗판 밑으로 RX 73 | r 73 · vr |
 | `L3` | ① -> 대차 | 카세트 들기 Z 241 -> 빼기 | z 241 · vz · r -2 · ret |
 | `L4` | ① -> 대차 | 든 채 대차로 선회 (180 -> 220 -> 270) | rot 270 [carry] · expect_th cart |

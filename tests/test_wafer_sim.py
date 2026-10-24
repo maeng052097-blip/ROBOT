@@ -1,7 +1,7 @@
 """tests/test_wafer_sim.py — R22 시뮬레이터 단위테스트(하드웨어 불필요, 스레드 없음).
 
   - 원점: 자리 사이(θ150 · Z140 · R30)에서 R 후진 -> Z105 -> θ 를 - 쪽으로 찾아 120 -> READY,
-          θ10 에서는 θ0 을 찾고 대기 120 으로, θ180 센서가 죽었고 268° 에서 시작하면 95° 안에 없음 -> HOME_NO_STATION
+          θ30 에서는 θ0(③ 자리) 을 찾고 대기 120 으로(θ10 은 ③ ±25° 안이라 Z140 에서 내리면 BETWEEN 충돌), θ180 센서가 죽었고 268° 에서 시작하면 95° 안에 없음 -> HOME_NO_STATION
   - 대차 1 대(카세트 4): 대차 -> ① -> 슬롯마다 검사 · UV · 원래 슬롯 -> 대차 -> 다음 받침(옆걸음 · 180° 회전) -> 출발,
     웨이퍼 20 장이 모두 원래 슬롯으로, 알람 0, 새 대차 호출
   - 불량: '다음 웨이퍼 NG' -> ③ 위 슬롯부터(5, 4), ① 슬롯 코드 N / 빈 슬롯 -> E1(알람 없이 다음 슬롯)
@@ -73,10 +73,15 @@ def main():
     assert run_until(s, lambda x: x.state != "HOMING", dt=0.05) and s.state == "READY"
     assert [e["d"] for e in s.events if e["code"] == "TH_FOUND"] == ["inspect"]
     s = CellSim()
-    s.theta = 10.0
+    s.theta = 30.0                       # ③(θ0) ±25° 밖. θ10 · Z140 에서는 H2 하강이 ③ 웨이퍼 높이를 지나 BETWEEN
     s.command("home")
     assert run_until(s, lambda x: x.state != "HOMING", dt=0.05) and s.state == "READY" and s.theta == 120
-    assert [e["d"] for e in s.events if e["code"] == "TH_FOUND"] == ["uv"]
+    assert [e["d"] for e in s.events if e["code"] == "TH_FOUND"] == ["ng"]      # θ0 = ③ (사용자 변경)
+    s = CellSim()
+    s.theta = 10.0                       # ③ 가까이 + Z140: 원점 Z 하강(H2)이 ③ 웨이퍼 반경을 지남 -> 멈추고 알림(보수 규칙)
+    s.command("home")
+    assert run_until(s, lambda x: x.state != "HOMING", dt=0.05) and s.alarm["code"] == "COLLISION", s.alarm
+    assert s.alarm["d"].startswith("BETWEEN/ng"), s.alarm
     s = CellSim()
     s.theta = 268.0
     s.command("fault", name="th_dead", on=True)
@@ -87,7 +92,7 @@ def main():
     s.command("fault", name="th_double", on=True)
     s.command("home")
     assert run_until(s, lambda x: x.state != "HOMING", dt=0.05) and s.alarm["code"] == "TH_SENSOR_FAULT", s.alarm
-    print("  OK homing: R -> Z105 -> theta search (150->120, 10->0->120), no station in 95 deg, two LOW = fault")
+    print("  OK homing: R -> Z105 -> theta search (150->120, 30->0->120), near NG at Z140 = BETWEEN, no station in 95 deg, two LOW = fault")
 
     s = started()
     assert run_until(s, lambda x: x.carts_done >= 1 or x.state == "ALARM", limit=2000000), (s.state, s.alarm)

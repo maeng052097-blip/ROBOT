@@ -139,8 +139,8 @@ def main():
     assert src.status == "OK"
     print("  OK reboot detection (boot id / ms), ST gaps counted, garbage counted, VERSION mismatch")
 
-    tr.inbox.append(st_line(P, q=3, ms=5000, st="RUNNING", stp="U6", ai=1, n=2, w=7, th=0.0, zc=105.0, rx=-2.0,
-                            hm=7, ths="10000", zd=244.1, rd=102.0, uv=1, au=1, ul=6.5)
+    tr.inbox.append(st_line(P, q=3, ms=5000, st="RUNNING", stp="U6", ai=1, n=2, w=7, th=60.0, zc=105.0, rx=-2.0,
+                            hm=7, ths="01000", zd=244.1, rd=102.0, uv=1, au=1, ul=6.5)
                     + sl_line(P, **{"in": "KOUUU"}, fw=0, uh=1, ins=7, okc=6, ju="OK", jw=7, jdr=-0.5, jdt=0.1,
                               ca="DOCKED", cal="FR", cs="DWFF"))
     src.tick()
@@ -150,17 +150,17 @@ def main():
     for k in ("docks", "cart", "uv", "counts", "fork", "interlock", "sensors"):
         assert set(snap[k]) >= set(ref[k]) - {"tof"}, (k, set(ref[k]) - set(snap[k]))
     assert snap["step"]["key"] == "U6" and snap["step"]["stage"] == "uv" and "UV" in snap["headline"]
-    assert snap["uv"]["lamp"] and snap["uv"]["left_s"] == 6.5 and snap["sensors"]["TH0"] and snap["homed"]
+    assert snap["uv"]["lamp"] and snap["uv"]["left_s"] == 6.5 and snap["sensors"]["TH60"] and snap["homed"]
     assert snap["docks"]["input"]["slots"][1]["code"] == "O" and snap["cart"]["seats"]["FR"] == "W"
     assert snap["cart"]["lat"] == -200.0 and snap["wafer_no"] == 7 and snap["meas"]["rx_s"] == -2.0
     assert snap["interlock"]["rotate_ok"] and snap["expect"] is None and snap["link"]["status"] == "OK"
     print("  OK snapshot keys == SIM snapshot keys; step/UV/slots/cart/sharp derived from ST + SL")
 
-    tr.inbox.append(P.encode("EV", {"q": 9, "lv": "A", "c": "UV_INTERLOCK", "d": "TH0+D9", "stp": "U6", "n": 2})
+    tr.inbox.append(P.encode("EV", {"q": 9, "lv": "A", "c": "UV_INTERLOCK", "d": "TH60+D9", "stp": "U6", "n": 2})
                     + st_line(P, q=4, ms=5100, st="ALARM", stp="U6", al="UV_INTERLOCK"))
     src.tick()
     a = src.snapshot()["alarm"]
-    assert a["code"] == "UV_INTERLOCK" and "θ0" in a["msg"] and "D9" in a["msg"] and a["step"] == "U6"
+    assert a["code"] == "UV_INTERLOCK" and "θ60 (UV 자리)" in a["msg"] and "D9" in a["msg"] and a["step"] == "U6"
     tr.inbox.append(P.encode("CAP", {"id": 41, "n": 3, "w": 8}))
     src.tick()
     caps = src.take_capture_requests()

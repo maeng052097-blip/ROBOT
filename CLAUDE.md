@@ -131,11 +131,13 @@ py -3.13 tests/find_camera.py
   (`$TYPE,k=v*HH` XOR, PC->Mega <= 60 B). 같은 화면이 SIM(`CellSim`)과 LIVE(`live.py`)를 `source.py` 인터페이스로 받는다.
   실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--speed 5] [--source live --serial fake|tcp:H:P|COMx]` -> `http://127.0.0.1:8765/`.
   3D 보기 = `/3d.html`(헤더 `3D`, 보기 전용, three.js r160 을 `web/` 에 포함 — CDN 금지, `web/` 은 하위 폴더 없음 = server `SAFE_NAME`).
-  책상(`DESK_*`, 702x462 가정)이 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥(앞면 y -189.5 < 책상 끝 -140)이다 — `test_wafer_geometry` 가 강제.
+  책상(`DESK_*`, 674x480 가정)이 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥(앞면 y -189.5 < 책상 끝 -140)이다 — `test_wafer_geometry` 가 강제.
   LIVE 화면 = 장비 상태는 `test_wafer_sync`(가짜 장비 ST 마다 스냅샷 비교, 불일치 0)가 보증한다. 스냅샷 키를 늘리면 SIM · LIVE · 비교 목록을 같이 고친다.
   Mega 펌웨어는 아직 없다(다음 단계). **AI 는 LIVE 를 가짜 장비(`--serial fake`, `wafer_cell/fake_mega.py`)로만 쓴다** — 실제 COM 으로 명령을 보내는 것은
   사용자가 화면 버튼 + 확인 창으로만 한다(§7). 실제 COM 을 열면 Mega 가 리셋(DTR)된다 -> 공정 중 서버 재시작 금지.
-- 셀: ① 투입 θ180(RX 73, 도크 +22 mm) · ② 검사 120(RX 51) · ③ 불량 60(RX 51) · UV 탑 0(RX 85) · 대차 270(RX 85), 옆길 220. 카세트 5 슬롯 Sn = 190 + 18(n-1).
+- 셀: ① 투입 θ180(RX 73, 도크 +22 mm) · ② 검사 120(RX 51) · ③ 불량 0(RX 51) · UV 탑 60(RX 85) · 대차 270(RX 85), 옆길 220. 카세트 5 슬롯 Sn = 190 + 18(n-1).
+  ※ ③ · UV 자리는 **사용자 변경**(R22 문서는 UV 0 · ③ 60). 각도는 `cell_config.STATIONS` 한 곳 — 코드 · 화면 · 3D 는 이름으로 따라간다.
+  θ 센서 이름: TH0 = ③, TH60 = UV(`UV_TH_SENSOR`, UV 켜기 조건 'θ 60 ± 0.2°'). 각도를 문구에 직접 쓰지 말고 `C.STATIONS` 로 만든다.
 - 확정된 공정 규칙(사용자 설명/R22 문서, 코드·테스트가 강제):
   대차 카세트 -> ① -> 슬롯 1->5: 집기 -> ② 촬영 · PC 판정(OK/NG + δr, δθ) -> 보정 다시 집기(RX 51+δr, θ120+δθ, 창 δr -3.5~+0.5 · |δθ|<=0.5)
   -> NG 는 ③ 위 슬롯부터 · 다음 웨이퍼 / OK 는 UV 받침(ZC 121.5 넣고 113.5 넘김) -> ZC<=110 · R 후진에서 UV -> 다시 집어 ① 원래 슬롯

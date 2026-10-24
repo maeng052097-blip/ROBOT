@@ -367,13 +367,15 @@ function interp() {
 }
 
 /* ───────────────────────── 카메라 · 그리기 ───────────────────────── */
-// 시점(target 기준 오프셋). '위' 는 2D 평면도와 같은 방향(화면 위 = UV θ0, 오른쪽 = 대차): 카메라를 -x 쪽으로 아주 조금 비킴
+// 시점(target 기준 오프셋). '위' 는 2D 평면도와 같은 방향(화면 위 = θ0 ③, 오른쪽 = 대차): 카메라를 -x 쪽으로 아주 조금 비킴
+// 'UV 쪽' 은 UV 탑 자리(GEO.stations.uv) 바깥에서 본다 - 장소를 옮겨도 따라감
 const VIEWS = {
-  iso: [1000, 1350, 1450], top: [-2, 2350, 0], front: [0, 1150, 1600], side: [1850, 700, 0],
+  iso: [1000, 1350, 1450], top: [-2, 2350, 0], front: [0, 1150, 1600],
+  side: () => { const a = GEO.stations.uv * D2R; return [1850 * Math.cos(a), 700, -1850 * Math.sin(a)]; },
 };
 function setView(k) {
   follow = false; $('btn-follow').classList.remove('on');
-  const v = VIEWS[k]; controls.target.set(0, 60, -60);
+  const v = typeof VIEWS[k] === 'function' ? VIEWS[k]() : VIEWS[k]; controls.target.set(0, 60, -60);
   camera.position.set(v[0], v[1] + 60, v[2] - 60); controls.update();
 }
 function resize() {

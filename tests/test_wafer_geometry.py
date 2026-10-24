@@ -23,7 +23,8 @@ def main():
 
     print("test_wafer_geometry:")
     full = {k: True for k in range(1, 6)}
-    I, NG, IN, UV, CART, SIDE = 120.0, 60.0, 180.0, 0.0, 270.0, C.SIDE_THETA
+    I, NG, IN, UV, CART = (C.STATIONS[k] for k in ("inspect", "ng", "input", "uv", "cart"))   # ③ 0 · UV 60 (사용자 변경)
+    SIDE = C.SIDE_THETA
     RI, RE, RU = C.STATION_RX["input"], C.STATION_RX["ng"], C.STATION_RX["uv"]
     ret = C.RX_RET
 
@@ -36,7 +37,8 @@ def main():
     assert G.z_move(SIDE, ret, 105, C.side_z(4), oc)["collision"] is None
     assert G.z_move(150, ret, 140, 105, G.Occupancy())["collision"] is None
     assert G.z_move(150, ret, 105, 140, G.Occupancy(blade=True))["collision"][0] == "BETWEEN"
-    assert G.z_move(70, ret, 105, 140, G.Occupancy())["collision"][0] == "BETWEEN"     # ③ 가까이
+    assert G.z_move(NG + 10, ret, 105, 140, G.Occupancy())["collision"][0] == "BETWEEN"   # ③ 가까이
+    assert G.z_move(UV + 10, ret, 105, 140, G.Occupancy())["collision"] is None            # UV 받침 웨이퍼(219.5~)는 후진 포크(205)와 안 겹침
     assert G.r_move(150, 105, ret, 30, G.Occupancy())[0] == "BETWEEN_R"
     assert G.r_move(SIDE, 105, ret, 30, G.Occupancy())[0] == "BETWEEN_R"
     assert G.r_move(150, 105, 30, ret, G.Occupancy()) is None                        # 후진은 언제나
@@ -120,14 +122,23 @@ def main():
     pts = []
     for st, (u0, u1, hv) in {"input": (228, 328, 70), "ng": (212, 304, 65), "inspect": (220, 318, 52)}.items():
         pts += [rot(u, v, C.STATIONS[st]) for u in (u0, u1) for v in (-hv, hv)]
-    for st, r in (("input", 50), ("ng", 50), ("inspect", 50), ("uv", 62)):
+    for st, r in (("input", 50), ("ng", 50), ("inspect", 50), ("uv", 74)):                # UV 는 빛(r 74)까지
         pts += [rot(C.station_r(st) + r * math.cos(a / 36 * math.pi), r * math.sin(a / 36 * math.pi), C.STATIONS[st]) for a in range(72)]
+    UR = C.station_r("uv")
+    pts += [rot(u, v, UV) for u in (UR + 40, UR + 70) for v in (-50, 50)]               # UV 탑 몸통 · 기둥(3D 와 같은 자리)
     pts += [(85 * math.cos(a / 36 * math.pi), 85 * math.sin(a / 36 * math.pi)) for a in range(72)]
     inside = lambda p, m: C.DESK_X0 + m <= p[0] <= C.DESK_X1 - m and C.DESK_Y0 + m <= p[1] <= C.DESK_Y1 - m
     assert all(inside(p, 10) for p in pts), [p for p in pts if not inside(p, 10)][:3]
     cart_front = -(C.station_r("cart") + C.CART_BODY[1])        # 받침 중심 r 269.5 에서 80 mm 셀 쪽
     assert cart_front < C.DESK_Y0 and -C.station_r("cart") < C.DESK_Y0, (cart_front, C.DESK_Y0)
     assert C.DESK_Y0 - cart_front >= 30, "cart should dock close to the desk edge"
+    # ③ <-> UV 자리 바꿈: 불량 경로 ② 120 -> ③ 0 이 Z105 · RX <= 2 로 웨이퍼를 든 채 UV 탑(60) 앞을 지난다
+    assert NG < UV < I and G.station_at(UV) == "uv" and G.station_at(NG) == "ng"
+    carried_out = C.BLADE_ORIGIN_X + C.WAFER_ON_BLADE_X + C.RX_RET_OK + C.WAFER_D / 2    # 운반 웨이퍼 바깥 236.5
+    pad_in = math.hypot(UR - 13.5, 43) - 4                     # UV 받침 패드(화면 · 3D 자리, 반지름 4) 가장 안쪽 255.6
+    assert pad_in - carried_out >= 10, (pad_in, carried_out)
+    print(f"  OK NG path passes the UV tower at Z105: carried wafer r {carried_out:.1f} vs UV pad r {pad_in:.1f} "
+          f"(gap {pad_in - carried_out:.1f} mm, assumed pad shape)")
     print(f"  OK desk {C.DESK_X1 - C.DESK_X0:.0f}x{C.DESK_Y1 - C.DESK_Y0:.0f} mm (assumed) encloses all stations + robot, "
           f"cart front {-cart_front:.1f} beyond desk edge {-C.DESK_Y0:.0f}")
 

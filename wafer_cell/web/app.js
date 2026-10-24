@@ -1,7 +1,7 @@
 /* R22 웨이퍼 검사셀 공정 모니터 — 브라우저 쪽.
    서버(SSE 20Hz) 스냅샷을 받아 벽시계 기준으로 보간해 도면을 움직인다. SIM(시뮬)과 LIVE(셀 Mega)가 같은 스냅샷 모양.
-   평면도: 셀좌표(y 아래로 증가). θ 0°=+x(UV 탑), 90°=위. 로봇 그룹 rotate(-θ).
-   스테이션 = UV 0 · ③ 불량 60 · ② 검사 120 · ① 투입 180 (22 mm 바깥) · 대차 270, 옆길 220.
+   평면도: 셀좌표(y 아래로 증가). θ 0°=+x(③ 불량), 90°=위. 로봇 그룹 rotate(-θ).
+   스테이션 = ③ 불량 0 · UV 60(사용자 변경) · ② 검사 120 · ① 투입 180 (22 mm 바깥) · 대차 270, 옆길 220.
    입면도 = 포크 방향 r-z 단면(포크는 항상 오른쪽), y = -z.
 */
 'use strict';
@@ -59,7 +59,7 @@ const R = {};            // SVG 참조
 /* ───────────────────────── 평면도 ───────────────────────── */
 const pos = (deg, r) => [r * Math.cos(deg * Math.PI / 180), -r * Math.sin(deg * Math.PI / 180)];
 // 평면도 보기 회전: 대차(270°, 셀 앞)를 화면 오른쪽에 둔다(넓은 패널에 대차 받침 4칸이 다 들어가게).
-// 화면에서 UV 0° = 위, ③ 60° = 왼쪽 위, ② 120° = 왼쪽 아래, ① 180° = 아래, 옆길 220° = 오른쪽 아래. 글자는 똑바로.
+// 화면에서 ③ 0° = 위, UV 60° = 왼쪽 위, ② 120° = 왼쪽 아래, ① 180° = 아래, 옆길 220° = 오른쪽 아래. 글자는 똑바로.
 const VIEW = -90;
 const posV = (deg, r) => pos(deg - VIEW, r);
 let SR = 235.5, IR = 257.5, UR = 269.5;
@@ -104,7 +104,7 @@ function buildPlan() {
   rect(238, -50, 30, 100, 'backlight', ig);
   for (const [x, y] of [[222, -43], [222, 43], [280.5, 0]]) circ(x, y, 4, 'pad', ig);
   R.inspW = circ(SR, 0, 50, 'wafer', ig);
-  // UV 탑 (θ0): 탑 몸통 + 받침 패드 + 받침 웨이퍼 + 램프 빛
+  // UV 탑 (θ60): 탑 몸통 + 받침 패드 + 받침 웨이퍼 + 램프 빛
   const ug = el('g', { transform: `rotate(${-GEO.stations.uv})` }, g);
   R.uvGlow = circ(UR, 0, 74, 'uvglow', ug);
   circ(UR, 0, 62, 'uvtower', ug);
@@ -217,7 +217,7 @@ function buildElev() {
   rect(276, -244, 20, 184, 'post', R.st.inspect);
   rect(238, -239, 30, 27, 'backlight', R.st.inspect);
   R.inspE = rect(185.5, -(GEO.cradle_seat_z + GEO.wafer_t), 100, GEO.wafer_t, 'wafer', R.st.inspect);
-  // UV 탑 (θ0, 받침 z183 · 위에 랜턴)
+  // UV 탑 (받침 z183 · 위에 랜턴)
   R.st.uv = el('g', {}, g);
   const sz = GEO.uv_seat_z, ux = UR - 50;
   rect(ux - 6, -(sz + 1), 8, 4, 'pad', R.st.uv); rect(ux + 104, -(sz + 1), 8, 4, 'pad', R.st.uv);
@@ -318,7 +318,9 @@ function buildPanels() {
   row('rx', 'R', -5, GEO.rx_max, 'mm', [GEO.rx_ret_ok, ...new Set(Object.values(GEO.station_rx))]);
   const chips = $('chips'); chips.innerHTML = '';
   R.chip = {};
-  const CH = [['TH0', 'θ0 UV 자리'], ['TH60', 'θ60 ③ 자리'], ['TH120', 'θ120 ② 자리'], ['TH180', 'θ180 ① 자리'], ['TH270', 'θ270 대차 자리'],
+  // θ 자리 센서 이름표는 설정(장소 각도)에서 만든다 - 장소를 옮겨도 따라감
+  const STN_MARK = { ng: '③', inspect: '②', input: '①', uv: 'UV', cart: '대차' };
+  const CH = [...GEO.station_order.map((k, i) => [GEO.th_sensors[i], `θ${GEO.stations[k]} ${STN_MARK[k] || k} 자리`]),
     ['S4', 'S4 포크 웨이퍼'], ['TOF_IN', 'TOF-IN ① 카세트'], ['TOF_NG', 'TOF-NG ③ 카세트'], ['UV', 'UV 램프 지령'], ['A_UV', 'A_UV LED 켜짐 확인'],
     ['D9', 'D9 E-stop 사슬 살아 있음'], ['ESTOP', '비상정지']];
   for (const [k, lbl] of CH) {

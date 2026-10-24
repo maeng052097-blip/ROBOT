@@ -68,7 +68,7 @@ def main():
                 elif a.kind == "home_th":
                     pose["th"] = C.STATIONS["inspect"]
                 elif a.kind == "uv":
-                    if pose["z"] > C.UV_ZC_LAMP_MAX or pose["r"] > C.RX_RET_OK or pose["th"] != 0.0:
+                    if pose["z"] > C.UV_ZC_LAMP_MAX or pose["r"] > C.RX_RET_OK or pose["th"] != C.STATIONS["uv"]:
                         problems.append(f"{st.key}: UV at bad pose {pose}")
                 elif a.kind == "expect" and a.sensor == "S4" and not a.expect:
                     if i == 0 or acts[i - 1].kind != "ret":
@@ -126,13 +126,16 @@ def main():
     assert not Q.can_rotate(192, True, 120, 120.2, "fine")[0]
     print("  OK can_rotate: side/carry/fine/swing rules + R retract required")
 
-    base = dict(th0_low=True, theta=0.0, rx_ret_ok=True, zc=105.0, handed_over=True, judgment_ok=True, d9_ok=True)
+    uv = C.STATIONS["uv"]                       # UV 자리 θ60 (사용자 변경) -> 자리 센서 TH60
+    assert C.UV_TH_SENSOR == "TH60" and C.TH_OF["ng"] == "TH0"
+    base = dict(th_uv_low=True, theta=uv, rx_ret_ok=True, zc=105.0, handed_over=True, judgment_ok=True, d9_ok=True)
     assert Q.uv_interlock(**base) == []
-    flips = {"th0_low": (False, "TH0"), "theta": (0.21, "ANGLE"), "rx_ret_ok": (False, "RX"), "zc": (110.01, "ZC"),
-             "handed_over": (False, "HAND"), "judgment_ok": (False, "JUDGE"), "d9_ok": (False, "D9")}
+    flips = {"th_uv_low": (False, C.UV_TH_SENSOR), "theta": (uv + 0.21, "ANGLE"), "rx_ret_ok": (False, "RX"),
+             "zc": (110.01, "ZC"), "handed_over": (False, "HAND"), "judgment_ok": (False, "JUDGE"), "d9_ok": (False, "D9")}
     for k, (v, code) in flips.items():
         assert Q.uv_interlock(**dict(base, **{k: v})) == [code], (k, Q.uv_interlock(**dict(base, **{k: v})))
-    assert Q.uv_interlock(**dict(base, theta=-0.2, zc=110.0)) == []
+    assert Q.uv_interlock(**dict(base, theta=uv - 0.2, zc=110.0)) == []
+    assert "ANGLE" in Q.uv_interlock(**dict(base, theta=0.0))      # ③ 자리(θ0)에서는 켜지 않음
     assert len(Q.uv_interlock(False, 5.0, False, 120.0, False, False, False)) == 7
     print("  OK UV interlock truth table (7 conditions, each alone)")
 

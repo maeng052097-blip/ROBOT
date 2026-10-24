@@ -44,7 +44,7 @@ ROT_WHY = {
     "FINE_POSE": f"미세 회전은 ② Z {C.CRADLE_ZC_SEAT:g} 에서만", "MODE": "선회 방식 오류",
 }
 UV_WHY = {
-    "TH0": "θ0 센서 LOW 아님", "ANGLE": f"θ 0 ± {C.UV_THETA_TOL:g}° 아님", "RX": f"RX <= {C.RX_RET_OK:g} 아님",
+    C.UV_TH_SENSOR: f"θ{C.STATIONS['uv']:g} (UV 자리) 센서 LOW 아님", "ANGLE": f"θ {C.STATIONS['uv']:g} ± {C.UV_THETA_TOL:g}° 아님", "RX": f"RX <= {C.RX_RET_OK:g} 아님",
     "ZC": f"ZC <= {C.UV_ZC_LAMP_MAX:g} 아님", "HAND": "받침에 넘김 미확인 (S4 ON -> OFF)",
     "JUDGE": "판정 OK 아님", "D9": "E-stop 사슬(D9) 끊김",
 }

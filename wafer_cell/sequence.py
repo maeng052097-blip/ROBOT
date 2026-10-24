@@ -4,7 +4,7 @@
   대차에서 카세트를 꺼내 ① 투입에 놓음 -> 슬롯 1 -> 5 (아래부터) 웨이퍼마다
       집기 -> ② 검사(촬영 · 판정 · 치우침 δr, δθ) -> 보정해 다시 집기
       -> 불량이면 ③ 불량에 넣고(위 슬롯부터) 다음 웨이퍼
-      -> 정상이면 θ0 UV 탑 받침에 넘김 -> UV 켜고 끔 -> 다시 집어 -> ① 원래 슬롯에 되돌림
+      -> 정상이면 UV 탑(θ60, 사용자 변경 - R22 문서는 θ0) 받침에 넘김 -> UV 켜고 끔 -> 다시 집어 -> ① 원래 슬롯에 되돌림
   -> 5 장이 끝나면 ① 카세트를 들어 원래 대차 받침에 놓고 대차가 움직인다.
 R22 문서 규칙:
   - ① 은 RX 73 · ②③ 51 · UV · 대차 85. 옆길 θ180 <-> 220 은 RX <= 2 에서만.
@@ -106,6 +106,7 @@ STAGE_OF_GROUP = {"home": None, "cart_in": "cart", "input": "input", "inspect": 
 STAGES = [("cart", "대차"), ("input", "투입"), ("inspect", "검사"), ("ng", "불량"), ("uv", "UV"), ("ret", "원위치")]
 
 RXI, RXE, RXU, RXC = C.STATION_RX["input"], C.STATION_RX["inspect"], C.STATION_RX["uv"], C.STATION_RX["cart"]
+NG_TH, UV_TH = C.STATIONS["ng"], C.STATIONS["uv"]
 SW, SIDE = C.ZC_SWING, C.SIDE_THETA
 
 
@@ -186,7 +187,8 @@ def inspect_steps(n):
 def ng_steps(k):
     sk, az, pz = C.slot_z(k), C.place_z(k), C.pick_z(k)
     return [
-        Step("N1", "ng", "③ 불량 (60°) 으로 선회", f"θ 120 -> 60 · Z {SW:g} · TOF-NG 카세트 있음",
+        Step("N1", "ng", f"③ 불량 ({NG_TH:g}°) 으로 선회",
+             f"θ {C.STATIONS['inspect']:g} -> {NG_TH:g} · Z {SW:g} (UV 탑 {UV_TH:g} 앞을 지남) · TOF-NG 카세트 있음",
              (Rotate(C.STATIONS["ng"]), ExpectTh("ng"), Expect("TOF_NG", True))),
         Step("N2", "ng", f"③ 슬롯 {k} 에 넣기 (위 슬롯부터)", f"Z {az:g} -> RX {RXE:g} -> Z {pz:g} -> R 후진 · S4 없음 -> Z {SW:g}",
              (MoveZ(az), VerifyZ(), MoveR(RXE), VerifyR(), MoveZ(pz), MoveR(C.RX_RET), ExpectRet(), Expect("S4", False),
@@ -197,7 +199,7 @@ def ng_steps(k):
 def uv_steps():
     zin, zh = C.UV_ZC_IN, C.UV_ZC_HAND
     return [
-        Step("U1", "uv", "UV 탑 (0°) 으로 선회", f"θ 120 -> 0 · Z {SW:g} · R 후진",
+        Step("U1", "uv", f"UV 탑 ({UV_TH:g}°) 으로 선회", f"θ {C.STATIONS['inspect']:g} -> {UV_TH:g} · Z {SW:g} · R 후진",
              (Rotate(C.STATIONS["uv"]), ExpectTh("uv"))),
         Step("U2", "uv", f"UV 넣기 높이 ZC {zin:g}", f"Z Sharp {C.z_sharp_d(zin):.0f} mm",
              (MoveZ(zin), VerifyZ())),
@@ -217,7 +219,8 @@ def uv_steps():
 def return_steps(n):
     sn, pz, sz = C.slot_z(n), C.pick_z(n), C.side_z(n)
     return [
-        Step("R1", "ret", "옆길 (θ220) 로 선회", f"θ 0 -> 60 -> 120 -> 180 -> {SIDE:g} · Z {SW:g} (긴 길 - 대차 쪽을 지나지 않음)",
+        Step("R1", "ret", f"옆길 (θ{SIDE:g}) 로 선회",
+             f"θ {UV_TH:g} -> {C.STATIONS['inspect']:g} -> {C.STATIONS['input']:g} -> {SIDE:g} · Z {SW:g} (대차 쪽을 지나지 않음)",
              (Rotate(SIDE),)),
         Step("R2", "ret", f"옆길에서 슬롯 {n} 높이로", f"Z {sz:g} (θ{SIDE:g} · RX <= 2)",
              (MoveZ(sz), VerifyZ())),
@@ -235,7 +238,7 @@ def cart_out_steps(seat):
     under, carry, seat_z = C.CASS_Z_UNDER, C.CASS_Z_CARRY, C.CASS_Z_SEAT
     return [
         Step("L1", "cart_out", f"① 클램프 윗판 밑 높이 Z {under:g}",
-             "θ 180 (마지막 웨이퍼가 ③ 이면 60 에서 옴) · TOF-IN 카세트 있음 · 빈 포크라 ① 앞에서 바로 오름",
+             f"θ {C.STATIONS['input']:g} (마지막 웨이퍼가 ③ 이면 {NG_TH:g} 에서 옴) · TOF-IN 카세트 있음 · 빈 포크라 ① 앞에서 바로 오름",
              (Rotate(C.STATIONS["input"]), ExpectTh("input"), Expect("TOF_IN", True), MoveZ(under), VerifyZ())),
         Step("L2", "cart_out", f"클램프 윗판 밑으로 RX {RXI:g}", "포크가 윗판 밑에 들어감",
              (MoveR(RXI), VerifyR())),
@@ -291,11 +294,12 @@ def can_rotate(zc, rx_ret_ok, th_from, th_to, mode="swing", carrying_wafer=False
     return (not why), why
 
 
-def uv_interlock(th0_low, theta, rx_ret_ok, zc, handed_over, judgment_ok, d9_ok):
-    """UV 램프 켜기 7 조건(문서 §7). 못 채운 항목 코드 목록(빈 목록 = 켜도 됨)."""
+def uv_interlock(th_uv_low, theta, rx_ret_ok, zc, handed_over, judgment_ok, d9_ok):
+    """UV 램프 켜기 7 조건(문서 §7). 못 채운 항목 코드 목록(빈 목록 = 켜도 됨).
+    th_uv_low = UV 자리 θ 센서(C.UV_TH_SENSOR, 지금 TH60) LOW. 코드도 그 센서 이름."""
     miss = []
-    if not th0_low:
-        miss.append("TH0")
+    if not th_uv_low:
+        miss.append(C.UV_TH_SENSOR)
     if abs(C.wrap_deg(theta - C.STATIONS["uv"])) > C.UV_THETA_TOL:
         miss.append("ANGLE")
     if not rx_ret_ok:

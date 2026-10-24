@@ -42,7 +42,7 @@ def main():
         "SL": {"in": "KKNOU", "ng": 5, "cs": "DWF-", "ca": "LEAVING", "cal": "RR", "cmv": "LATERAL:-200",
                "fw": True, "fc": False, "cr": True, "uh": True, "ins": 9999, "okc": 9999, "ngc": 9999,
                "emp": 9999, "cyc": 128.25, "dep": 999, "ju": "NG", "jw": 999, "jdr": -3.5, "jdt": -0.5},
-        "EV": {"q": 65535, "lv": "A", "c": "UV_INTERLOCK", "d": "TH0+ANGLE+RX+ZC+HAND+JUDGE+D9", "stp": "U6",
+        "EV": {"q": 65535, "lv": "A", "c": "UV_INTERLOCK", "d": "TH60+ANGLE+RX+ZC+HAND+JUDGE+D9", "stp": "U6",
                "n": 5, "k": 5, "w": 999, "s": "RR"},
         "CAP": {"id": 65535, "n": 5, "w": 999},
         "ACK": {"id": 65535, "ok": False, "e": "cell_not_clear", "st": "WAIT_CART"},

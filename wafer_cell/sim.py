@@ -794,7 +794,7 @@ class CellSim:
     def uv_missing(self, m=None):
         m = m or self.meas()
         w = self._wafer(self.wafer)
-        return Q.uv_interlock(self.sensors(m)["TH0"], self.theta, self._rx_ret_ok(m), self.zc, self.uv["handed"],
+        return Q.uv_interlock(self.sensors(m)[C.UV_TH_SENSOR], self.theta, self._rx_ret_ok(m), self.zc, self.uv["handed"],
                               bool(w and w["judgment"] == "OK"), not self.estop_in)
 
     def _judge_internal(self, cid):
