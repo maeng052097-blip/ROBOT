@@ -63,15 +63,15 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 20개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 23개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
    재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
     test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
     test_occupancy_grid, test_scan, test_zoom_geom
-   웨이퍼셀 6개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
-    test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
+   웨이퍼셀 9개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
+    test_wafer_protocol, test_wafer_live, test_wafer_fake_mega, test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
 
@@ -122,27 +122,26 @@ py -3.13 tests/find_camera.py
 
 ---
 
-## 9. 웨이퍼 검사셀 R9 공정 모니터 (`wafer_cell/`) — 별개 기계
+## 9. 웨이퍼 검사셀 R22 공정 모니터 (`wafer_cell/`) — 별개 기계
 
-- **인수인계 문서**: 새 세션은 [`wafer_cell/handoff/README.md`](wafer_cell/handoff/README.md)부터 읽는다(현재 상태, 확정 결정, 센서 추천, 미결정, 다음 할 일).
+- **인수인계 문서**: 새 세션은 [`wafer_cell/handoff/README.md`](wafer_cell/handoff/README.md)부터 읽는다(현재 상태, 확정 결정, 센서, 미결정, 다음 할 일).
 - 재활용 로봇과 **다른 기계**다. §1·§6(메카넘/LiDAR/카메라 시차)과 `common/config.py` 는 적용하지 않는다.
-  설정은 `wafer_cell/cell_config.py`(비디오 `R9 웨이퍼 검사 셀` 자막 수치 + `가정` 값 목록 ASSUMED). 이전 CELL_V9 문서
-  (Google Drive `ROBOT/웨이퍼 이송셀 CELL_V9/`)는 로봇 몸체 치수 출처로만 남았다. 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
-- 1단계 = **시뮬레이션**(`--source live` 는 미구현). 실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--lan] [--speed 5]`
-  -> 브라우저 `http://127.0.0.1:8765/` (localhost 대신 IP). 새 의존성 없음(표준 라이브러리 서버 + 기존 cv2).
-- 셀: ① 투입 180° · ② 검사 크래들 120° · ③ NG 60° · ④ OK 0° · 대차 받침 -90°(R85), 카세트 5슬롯 Sn = 190 + 18(n-1).
-- 확정된 공정 규칙(사용자 결정/비디오, 코드·테스트가 강제):
-  원점 = R 수축(S3) -> Z 최하단(S2) -> Z105 -> θ 원점(S1) -> 대기 θ120·Z105·R0,
-  선회는 Z105·R0·S3 에서만(예외: 대차 적재 T3 Z228.5, T8 Z241), 투입은 아래 슬롯부터, OK/NG 는 **위 슬롯부터** 채움,
-  판정 = NG 비율(시뮬) + '다음 웨이퍼 NG' 수동 지정, OK 가득 -> 대차 호출·적재(T1~T13, T6 없음) -> 4개 실으면 출발,
-  NG 가득 -> 멈추고 교체 요청, 투입 빔/빈 OK 도크 -> 작업자(자동 또는 버튼), 투입 S4 없음 -> 알람 + 운전자 확인.
-- 카세트 하단 TOF(VL53L0X, 도크마다 1개, `wafer_cell/tof.py`): 가장 아래 웨이퍼까지 거리 하나만 잰다 -> 개수는
-  '위로 빈칸 없이 붙어 있음' 가정의 **추정**(투입 화면은 가장 아래 = 확인, 위 = 점선 추정). 다음 투입 슬롯 = TOF 가 본
-  가장 아래 웨이퍼(중간 빈칸은 S4 없이 건너뜀), TOF 판정 불가면 S4 로 확인, 포크가 빔을 가리면 마지막 값 유지.
-- R 축 = 리니어 모터(양 끝단 리밋) + L298: 후진 리밋 = S3, 전진 리밋은 풀 스트로크(62)라 R51 은 기구 스토퍼 전제.
-- S4(TCRT5000, 포크 갈래) '없음' 확인은 **포크를 R0 로 뺀 뒤**(놓은 직후 4.5~5 mm 는 아직 보임). E-STOP 은 전원 차단 없음
-  (사용자 결정, Mega D2 입력 + 와치독 + L298 IN 풀다운). 배선은 `wafer_cell/README.md` 'S3·S4 장착'.
-- 화면 수치는 **지령값**이다(스테퍼 엔코더 미판독, R 전진 센서 없음). 하드웨어 의존값(R85 = 실린더 2개 전제 vs 실측 62,
-  S4 감지 범위, θ 270° 케이블, 웨이퍼 두께, 축 속도, 대차 시간, 카메라 인덱스)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
-- 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다.
-  2단계(실장비)에서 모터를 움직이는 명령은 §7 과 같이 사용자 확인 없이 트리거하지 않는다.
+  설정은 `wafer_cell/cell_config.py`(사용자 제공 `R22 센서 정리` 문서 수치 + `가정` 값 목록 ASSUMED, 몸체 치수는 R9 값). 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
+- 구조: **Mega 가 공정(권한), PC 는 표시 · 카메라 판정 · 운전 명령 6 개**(원점/시작/일시정지/재개/정지/알람 해제). 규격 = `wafer_cell/PROTOCOL.md`
+  (`$TYPE,k=v*HH` XOR, PC->Mega <= 60 B). 같은 화면이 SIM(`CellSim`)과 LIVE(`live.py`)를 `source.py` 인터페이스로 받는다.
+  실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--speed 5] [--source live --serial fake|tcp:H:P|COMx]` -> `http://127.0.0.1:8765/`.
+  Mega 펌웨어는 아직 없다(다음 단계). **AI 는 LIVE 를 가짜 장비(`--serial fake`, `wafer_cell/fake_mega.py`)로만 쓴다** — 실제 COM 으로 명령을 보내는 것은
+  사용자가 화면 버튼 + 확인 창으로만 한다(§7). 실제 COM 을 열면 Mega 가 리셋(DTR)된다 -> 공정 중 서버 재시작 금지.
+- 셀: ① 투입 θ180(RX 73, 도크 +22 mm) · ② 검사 120(RX 51) · ③ 불량 60(RX 51) · UV 탑 0(RX 85) · 대차 270(RX 85), 옆길 220. 카세트 5 슬롯 Sn = 190 + 18(n-1).
+- 확정된 공정 규칙(사용자 설명/R22 문서, 코드·테스트가 강제):
+  대차 카세트 -> ① -> 슬롯 1->5: 집기 -> ② 촬영 · PC 판정(OK/NG + δr, δθ) -> 보정 다시 집기(RX 51+δr, θ120+δθ, 창 δr -3.5~+0.5 · |δθ|<=0.5)
+  -> NG 는 ③ 위 슬롯부터 · 다음 웨이퍼 / OK 는 UV 받침(ZC 121.5 넣고 113.5 넘김) -> ZC<=110 · R 후진에서 UV -> 다시 집어 ① 원래 슬롯
+  -> 5 장 끝 -> ① 카세트를 원래 받침에 -> 대차 다음 받침 / 다 하면 출발. ③ 가득/없음 -> WAIT_NG(TOF-NG 없음->있음 = 새 카세트).
+  P3 S4 OFF = 빈 슬롯(알람 아님). 선회는 Z105 · RX<=2(R Sharp), 예외: 옆길 180<->220(RX<=2), 카세트 운반 180<->270(Z241), ② 미세 0.5°(Z183).
+  UV 탑 밑(RX>2)은 ZC 113.5~121.5 만, ZC 소프트 상한 245. UV 램프 = 7 조건(`sequence.uv_interlock`). 원점 = R 후진 -> Z(Sharp) -> θ 를 - 쪽 5°/s, 95° 안 첫 LOW.
+  하트비트 1.5 s 끊김 -> UV 즉시 끔 + 축 동작 끝낸 뒤 PAUSED(LINK). 판정 5 s 없음 -> JUDGE_TIMEOUT.
+- 내 해석(사용자 확인 대기, `wafer_cell/README.md` '해석'): ① 에서 웨이퍼를 든 Z 이동은 모두 옆길(SIDE_OFS -57 은 '205 슬롯 5 옆길' 역산),
+  카세트 운반 짧은 길, 원점 R 먼저, 대차 카세트 1~4(기본 4), 판정 알고리즘 [미구현](기본 OK · δ 0).
+- 화면 수치는 **지령값**이다(실측은 θ 자리 센서 · Sharp 로만). 하드웨어 의존값(Sharp 환산 · 반복 정밀도, θ ±1.65°, A_UV 문턱,
+  TOF-IN 문턱(도크 +22 로 다시 티칭), 옆길 틈, UV 받침 모양, S4 모듈 [보류], 축 속도, UV 시간, 대차 통신)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
+- 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다(E-STOP 사슬 = D9).

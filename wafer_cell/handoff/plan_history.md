@@ -2,10 +2,242 @@
 
 - 원본은 세션 전용 경로 `/root/.claude/plans/robot-idempotent-prism.md`에 있어서 다른 세션에서는 보이지 않는다. 그래서 그대로 복사했다.
 - **최신 계획이 위에 있다.** 아래로 갈수록 오래된 계획이다.
+- 맨 위 절이 **R22 전환**(지금 설계)이다. 그 아래 R9 절들은 R22로 대체됐다.
 - 아래쪽의 'CELL_V9' 계획(10슬롯, 카세트 상단 TOF, 21단계)은 **R9로 대체돼 더는 맞지 않는다.** 현재 공정은 `wafer_cell/README.md`와 `CLAUDE.md` §9를 따른다.
 - 각 절 제목의 '현재:'는 작성 당시 기준이다. 맨 위 절을 뺀 나머지는 모두 완료됐다(커밋은 `git log --oneline -- wafer_cell`로 본다).
 
 ---
+
+## (완료) R22 배치로 모니터 전환 + 실장비(LIVE) 동기화 (화면·서버·프로토콜·가짜 장비)
+
+### Context
+- **사용자 요청**: R22 센서 문서(MD와 같은 내용의 HTML, 그림 4장 포함)를 기준으로 모니터를 바꾼다. 장소는 **투입·검사·UV·불량 4곳**이 되고, 센서를 단 로봇이 **스스로 움직이며**, 화면은 **실제 움직임과 동기화**된다.
+- **사용자 결정**
+  - Mega가 공정을 돌리고 PC는 표시한다.
+  - 이번 범위는 화면·서버·프로토콜·가짜 장비까지다. Mega 펌웨어는 다음 단계에서 이 프로토콜에 맞춰 만든다.
+  - PC는 Mega에 원점·시작·일시정지·재개·정지·알람 해제만 보낸다(모두 확인 창을 거친다).
+  - 불량품은 ③에 넣고 다음 웨이퍼로 넘어간다.
+  - UV 조사 시간은 아직 모른다 → 10 s로 가정한다.
+- **사용자가 설명한 흐름**
+  1. 대차에서 카세트를 꺼내 ① 투입에 놓는다.
+  2. 슬롯 1→5(아래부터) 순서로 웨이퍼마다 다음을 한다.
+     - 집기 → ② 검사(촬영, OK/NG, 치우침 δr·δθ) → 보정해서 다시 집는다.
+     - NG면 ③ 불량에 위 슬롯부터 넣는다.
+     - OK면 θ0 UV 탑에 넘기고 → UV를 켰다 끄고 → 다시 집어 → ① 원래 슬롯에 되돌린다.
+  3. 5장이 끝나면 ① 카세트를 들어 원래 대차 자리에 놓고, 대차가 움직인다.
+- **R22 문서의 숫자**
+  - RX: ① 73, ②·③ 51, UV·대차 85
+  - ZC: 선회 105, UV 넣기 121.5, UV 아래 구간 113.5~121.5, 소프트 상한 245
+  - 옆길 θ180↔220은 RX ≤ 2에서만 지난다.
+  - Sharp 환산: Z 거리 = 349.1 − ZC, R 거리 = 104 + RX
+  - θ 자리 센서 5개(0·60·120·180·270), 각 자리 ±1.65° 안에서만 LOW
+  - ToF 2개(TOF-IN ①, TOF-NG ③)는 카세트 유무만 본다.
+  - S4는 P3·U5·U7·R5에서 확인한다.
+  - UV 켜기 조건 7가지
+  - 슬립링 18회로
+
+### 내가 정한 해석 (승인 때 확인받을 가정)
+1. **① 옆길은 모든 슬롯에 쓴다.**
+   - ① 도크가 22 mm 바깥으로 나가서, RX ≤ 2인 빈 포크는 슬롯 사이를 자유롭게 오르내린다.
+   - 하지만 **웨이퍼를 든 채로는** 아래 슬롯 웨이퍼와 27 mm 겹친다(R9 몸체 치수로 계산).
+   - 그래서 웨이퍼를 든 Z 이동은 θ220(옆길)으로 비켜서 한다. 문서의 "ZC 205 슬롯 5 옆길"은 그중 한 예로 본다.
+   - 옆으로 비킬 때 카세트 옆 레일과 간섭하는지는 [불명]이다(R22 도면 필요).
+2. **θ는 슬립링이라 계속 돌 수 있다.**
+   - 카세트를 들고 ① 180 ↔ 대차 270(=−90)을 오갈 때는 220 옆길을 지나는 90° 짧은 길로 간다.
+   - 긴 길(120·60·0 위)로 가면 ③ 카세트와 부딪힌다(계산 확인).
+3. **원점은 R을 먼저 뺀다(R → Z → θ).**
+   - 문서는 Z를 먼저 적었다. 하지만 포크가 카세트 안에 있을 때 Z를 먼저 움직이면 긁는다. R9에서 정한 순서를 따른다.
+   - θ는 −쪽으로 5°/s로 돌다가, 95° 안에서 처음 LOW가 난 센서를 그 자리로 삼는다. LOW가 없거나 2개 이상이면 멈춘다.
+4. **대차는 카세트를 1~4개 싣고 온다(기본 4개, R9 영상 기준)[가정].**
+   - 받침 하나마다 카세트를 내려 처리하고, 같은 받침에 되돌린 뒤 대차가 다음 받침으로 옮긴다.
+   - 다 끝나면 대차가 떠나고 새 대차가 온다.
+   - 시뮬 도구 '다음 대차 맵'에서 카세트를 1개로 하면 "한 번 오고 떠나는" 흐름이 된다.
+5. **판정 알고리즘은 [미구현]이다.**
+   - PC가 촬영한 뒤 기본값 OK, δ=0으로 보낸다.
+   - '다음 웨이퍼 NG' 버튼으로 수동 지정한다. SIM과 LIVE 모두에서 된다.
+6. **대기 자세 θ120, UV 받침 높이 z183, ToF 있음 문턱 120 mm, Sharp 검증 허용 ±3 mm, 판정 응답 제한 5 s**는 모두 ASSUMED로 둔다.
+
+### 구조
+- **`source.py`**: SIM(`CellSim`)과 LIVE(`LiveSource`)가 같은 메서드를 낸다.
+  - `tick`, `command`, `wait_ack`, `snapshot`, `events_since`, `take_capture_requests`, `submit_judgment`, `finished_wafers`, `raise_internal`
+  - `server.py`는 이 인터페이스만 쓴다.
+- **`judge.py`**: PC에서 판정한다. SIM과 LIVE 공통이다.
+  - Mega가 `CAP`(촬영 요청)를 보내면 → 카메라로 캡처하고 → 판정한 뒤 → `JDG`로 답한다.
+  - 시뮬도 같은 경로(외부 판정 모드)를 쓴다.
+- **`texts.py`**: 알람·이벤트 한글 문구와 headline을 모은다. SIM과 LIVE가 같은 글을 보이게 한다.
+- **`protocol.py`(순수) + `PROTOCOL.md`(펌웨어 작성자용 규격)**
+  - 줄 형식: `$TYPE,k=v,...*HH`. HH는 XOR 체크섬, ASCII만 쓴다.
+  - 길이: PC→Mega ≤ 60 B(Mega 수신 버퍼 64 B), Mega→PC ≤ 200 B.
+  - Mega→PC 메시지
+    - `HEL`: proto, boot id
+    - `ST` 20 Hz: 상태, 단계, θ/Z/R 지령값, θ 센서 마스크, Z/R Sharp mm, S4, E-STOP, D9, UV, A_UV, KSD
+    - `SL` 변경 시: ① 슬롯 코드 `U/O/K/N/E`, ③ 포인터, 대차 받침 `F/W/D/-`, 포크, 카운터
+    - `EV`: 이벤트·알람
+    - `CAP`: 촬영 요청
+    - `ACK`: 명령 응답
+  - PC→Mega 메시지
+    - `HB` 0.5 s
+    - `CMD`: id, 명령, 기대 상태
+    - `JDG`: 판정 결과
+  - 규칙
+    - 하트비트가 1.5 s 끊기면 Mega는 현재 축 동작만 끝내고 PAUSED(LINK)가 되며 UV를 끈다.
+    - 판정 응답이 5 s 안에 없으면 JUDGE_TIMEOUT.
+    - δ가 허용 창 밖이면 CORR_RANGE.
+    - Mega는 최근 명령 id 8개를 기억해 같은 명령을 두 번 실행하지 않는다.
+    - Mega는 포트를 열 때 리셋되므로 → 부팅하면 IDLE·원점 미확정·UV 꺼짐 상태로 시작하고, 스스로 움직이지 않는다.
+    - 단계 키는 `sequence.step_catalog()`와 같아야 한다.
+- **`live.py`**
+  - 전송 방식: `SerialTransport`(pyserial은 필요할 때 import, 1 s마다 재연결), `TcpTransport`, `FakeTransport`, 테스트용 `QueueTransport`
+  - `LiveSource`가 수신한 줄을 SIM과 **같은 모양의 스냅샷**으로 바꾸고 `link{status, port, age, 오류 카운터}`를 붙인다.
+  - 연결 상태: DOWN / WAIT_HELLO / OK / STALE / VERSION / NO_PYSERIAL
+  - 연결이 끊기면 명령은 503을 낸다. 재연결해도 명령을 다시 보내지 않는다.
+- **`fake_mega.py`**: 가짜 장비. `CellSim`(외부 판정 모드)을 감싸 프로토콜로만 대화한다.
+  - `server.py --source live --serial fake`로 서버 안에서 돌린다.
+  - 따로 띄울 수도 있다: `python3 wafer_cell/fake_mega.py --tcp 8770`, 또는 `--port COMx`
+  - 하드웨어 없이 LIVE 전체를 시험하는 데 쓴다.
+- **`server.py`**
+  - 실행 인자: `--source sim|live`, `--serial fake|tcp:H:P|COMx`, `--baud`
+  - "미구현" 메시지를 내고 종료하던 부분을 없앤다.
+  - LIVE에서 SIM 전용 명령과 고장 주입은 400을 낸다.
+  - 명령 ACK는 잠금 밖에서 기다린다. 응답이 없으면 504다.
+
+### R22 도메인 변경
+- **`cell_config.py`**
+  - STATIONS: input 180, inspect 120, ng 60, uv 0, cart −90. CASSETTES: input, ng(OK 카세트는 뺀다).
+  - 스테이션별 RX와 반경:
+    | 스테이션 | RX | 반경 |
+    |---|---|---|
+    | ① 투입 | 73 | 257.5 |
+    | ②·③ | 51 | 235.5 |
+    | UV·대차 | 85 | 269.5 |
+  - R 후진 `RX_RET` −2, 후진 판정 ≤ 2
+  - ZC 상한 245
+  - UV 상수: 121.5 / 113.5 / ≤ 110, 받침 z183, UV_S 10, A_UV 0.3 s, |θ| ≤ 0.2°
+  - 보정 창: δr −3.5~+0.5 mm, |δθ| ≤ 0.5°
+  - Sharp 환산식과 잡음·허용값, θ 센서(창 ±1.65°), ToF 있음 문턱
+  - 링크 상수: HB 0.5 s, LOSS 1.5 s, STALE 1 s, ACK 1 s, BAUD 115200, ST 20 Hz
+  - 옆길: 220, ZC 205
+  - ASSUMED 목록과 `ui_geometry()`를 갱신한다.
+  - 예전 TOF 개수 세기 상수, `CART_SIDE_THETA`, `ZC_HOME`은 지운다.
+- **`sequence.py`**
+  - 단계 키: H1–H4, P1–P3, E1(빈 슬롯), I1–I4, N1–N2, U1–U7, R1–R5, C1–C12(대차→①), L1–L13(①→대차), W(대기) — 모두 52개
+  - 새 동작 종류
+    - `home_theta`: θ 원점 찾기
+    - `expect_th`: θ 자리 센서 확인
+    - `expect_ret`: R Sharp ≤ 2 확인
+    - `uv`: 인터록 확인 → 램프 켬 → A_UV 확인 → 시간 경과 → 끔
+    - 보정 동작: δθ·δr를 붙인 회전·전진
+  - 순수 함수
+    - `can_rotate`: RX ≤ 2이고, ZC 105 또는 옆길 205 또는 카세트 운반 241 또는 검사 미세 회전 183(≤ 0.5°)일 때만 허용
+    - `uv_interlock`: 7조건, 못 채운 항목 코드를 돌려준다
+    - `corr_ok`
+  - `CheckPick`은 S4 OFF면 빈 슬롯으로 처리한다(운전자 확인 창 없음).
+- **`geometry.py`**
+  - 스테이션별 반경과 RX를 쓴다.
+  - ①에서 웨이퍼를 든 채 Z를 움직이면 충돌로 판정한다(그래서 옆길을 쓴다).
+  - UV 아래 구간 규칙, Z > 245 충돌을 넣는다.
+  - 집기·놓기 판정: ①(원래 슬롯), ②, ③, UV 받침
+  - 카세트 들기·놓기는 ①과 대차에서 한다.
+  - Sharp와 θ 마스크 모델, S4는 UV 받침도 포함한다.
+- **`tof.py`**: `presence(d)`만 남긴다(있음/없음/불가). `blocked`는 input과 ng에 적용한다.
+- **`sim.py`**
+  - 상태: IDLE, HOMING, READY, RUNNING, WAIT_CART, WAIT_NG, PAUSED, ALARM, ESTOP. WAIT_INPUT/OK/OPERATOR와 확인 창은 없앤다.
+  - 알람: HOME_NO_STATION, TH_SENSOR_FAULT, TH_MISMATCH, R_NOT_RETRACTED, Z_VERIFY, UV_INTERLOCK, UV_FAULT, UV_OVERTEMP, CORR_RANGE, JUDGE_TIMEOUT, CASS_MISSING. 기존 S4·충돌·E-STOP 등은 유지한다.
+  - 고장 주입: r_sharp_fail, z_sharp_drift, belt_skip, th_double, th_dead, uv_led_fail, uv_overtemp, d9_open, corr_out, judge_drop, tof_in_none, cart_delay. 기존 S4·camera·sim_exception은 유지한다.
+  - 지령값(pose)과 측정값(meas: Sharp, θ 마스크)을 나눈다. 처음 θ는 150으로 둬서 원점 찾기를 실제로 거치게 한다.
+  - 스케줄 순서
+    1. ①을 다 처리했으면 → L(같은 받침)
+    2. NG가 가득 찼으면 → WAIT_NG
+    3. ①에 처리 안 한 슬롯이 있으면 → 웨이퍼 공정
+    4. ①이 비었으면 → C(다음 받침) / 대차 이동 / 출발 / 새 대차
+  - 웨이퍼 기록: 원래 슬롯, δr, δθ, UV 초, 도착지
+  - 새 기능: `submit_judgment`, `link_lost()`(PAUSED LINK, UV 끔), `uv_verified` 확인
+  - R9 가정이 박혀 있던 곳을 단계 키 기준으로 바꾼다: `_abort pc>=4`, `_busy_dock`, 캡처 단계 '6'
+  - 스냅샷: `sensors{TH0..TH270, S4, TOF_IN, TOF_NG, A_UV, THERM, D9, ESTOP}`, `meas`, `uv{lamp, left_s, interlock, …}`, `docks.input/ng`, `cart.seats F/W/D/-`, `counts`, `link`
+
+### 화면
+- 데이터 기반으로 바꾼다. 스테이션, 센서, 눈금을 GEO에서 읽는다. 하드코딩된 `['input','ng','ok']`, S1–S3, `'6'`을 없앤다.
+- **평면도**
+  - ①(반경 257.5, 윗판), ②, ③, **UV 탑**(받침, 램프 켜지면 빛남), 대차 270
+  - 허브의 **θ 센서 고리 5점**: LOW이면 켜지고, 2개 이상이면 빨간 링
+  - 포크 위 S4
+  - 카세트 운반 경로: 180→220→270 점선
+- **입면도**: ① 카세트(+22, 옆길 표시), ③, UV 탑(받침 z183, 램프, 상세에서는 113.5~121.5 띠), 대차. 상세에서는 Sharp로 잰 Z 위치를 점선으로 겹쳐 그린다.
+- **하단 띠**
+  - ① 슬롯: 대기 점선 / 꺼냄 / OK 되돌림 / NG로 감 / 빈 슬롯
+  - ③ 슬롯과 포인터
+  - **UV 칸**: 웨이퍼, 램프, 남은 초
+  - 대차 받침: F / W / D
+- **흐름 띠**: 투입 › 검사 › 불량 › UV › 대차
+- **상세**
+  - 축은 지령/측정을 함께 보인다(θ는 지령 + 센서 자리).
+  - 칩: θ 5, S4, TOF-IN, TOF-NG, UV, KSD, D9, E-STOP
+  - UV 인터록 못 채운 항목, 판정과 δ, 가정 경고 배지
+- **LIVE**
+  - 연결 배지: 연결 / 끊김 / 응답 대기 / 데이터 멈춤 / 프로토콜 불일치 / pyserial 없음
+  - 연결이 OK일 때만 버튼을 켠다. 6개 명령은 모두 확인 창을 거치고, 장비가 받으면 '장비 수락', 거부하면 '장비 거부' 알림을 띄운다.
+  - SIM 전용 도구는 숨긴다.
+
+### 테스트 (하드웨어·pyserial 없이. live/fake 테스트에서 `"serial" not in sys.modules`를 확인한다)
+- **새로 만든다**
+  - `test_wafer_protocol.py`: 체크섬, 왕복 변환, 오류 코드, 분할된 줄·CRLF·쓰레기 바이트, 60 B 제한, PROTOCOL.md에 모든 키가 있는지
+  - `test_wafer_live.py`: 스냅샷 키가 SIM과 같은지, STALE, HB, ACK/NAK/시간 초과, VERSION, 재부팅 감지
+  - `test_wafer_fake_mega.py`: OK가 원래 슬롯으로 돌아오는지, NG가 ③으로 가는지, 상태가 틀린 명령에 NAK, HB가 끊기면 PAUSED·UV 꺼짐, JUDGE_TIMEOUT
+- **다시 쓴다**
+  - `test_wafer_sequence.py`: 52 키, 회전 불변식, S4 '없음' 확인은 뺀 뒤, UV 인터록 진리표, 보정 창 경계
+  - `test_wafer_geometry.py`: 옆길, UV 구간, 카세트 들기·놓기, 245 상한
+  - `test_wafer_tof.py`: 있음/없음만
+  - `test_wafer_sim.py`
+    - 대차 1대: 받침 4개 처리 → 출발 → 새 대차, 20장
+    - 빈 슬롯은 E1로 넘어가고 알람이 없다
+    - NG가 가득 차면 WAIT_NG
+    - 고장 주입 각각이 해당 알람을 낸다
+    - θ150에서 원점을 찾는다
+    - 판정 응답 대기와 시간 초과
+    - dt를 바꿔도 같다
+    - UV 중 E-STOP이면 램프가 꺼진다
+  - `test_wafer_server.py`: meta(52, R22), SIM 캡처 경로, **LIVE+가짜 장비 끝까지**(API로 원점·시작 → ACK → 1장 이상 검사, LIVE에서 fault 명령은 400, 장비가 멈추면 STALE이고 명령은 503)
+- `test_wafer_camera.py`는 그대로 둔다.
+- 웨이퍼 테스트는 6개에서 9개가 되고, 전체는 23개가 된다.
+
+### 문서
+- `wafer_cell/README.md`를 R22로 바꾼다: 스테이션, 단계 표, 센서, LIVE 실행법, 현장 확인(Sharp 곡선, θ ±1.65°, A_UV 문턱, D9, ToF 문턱, 자동 리셋)
+- `PROTOCOL.md`를 새로 만든다.
+- `CLAUDE.md` §4(23개)와 §9(R22, LIVE 구조)를 고친다. LIVE 명령은 사용자 버튼과 확인 창을 거쳐서만 보내고, AI는 가짜 장비만 쓴다는 점을 적는다.
+- handoff 3종을 갱신한다.
+- `센서_구매목록.md` 최종 주문표를 R22 문서 §10에 맞춘다.
+  - EE-SX670 5개는 이미 삼 + EE-1001-1 5개
+  - GP2Y0A21 2개 + 예비 1개, 10 µF 2개
+  - VL53L0X 2개 + TCA9548A
+  - KSD9700
+  - S4는 보류
+  - 철물
+  - 예전 S1/S2/S3·브레이크빔·INA219는 '선택/보류'로 옮긴다.
+
+### 순서 (단계마다 테스트 통과)
+1. protocol + 테스트 + PROTOCOL.md 초안
+2. source / judge / texts로 서버를 재구성한다. R9 동작은 그대로 두고 기존 6개 테스트가 통과해야 한다.
+3. R22 도메인 전환(config, sequence, geometry, tof, sim)과 테스트 다시 쓰기
+4. 화면 R22 (SIM). Playwright로 1920/1536, 다크/라이트, 상세 OFF/ON에서 겹침·잘림 0, 오류 0을 확인한다.
+5. live, fake_mega, 서버 LIVE 연결, 화면 LIVE 부분과 테스트. Playwright로 LIVE(가짜 장비) 화면도 확인한다.
+6. 문서. py_compile, 웨이퍼 테스트 9개(3.11), 커밋 후 `claude/gracious-cannon-lh630u`에 푸시(트레일러 2줄)
+
+### 검증
+- `for t in tests/test_wafer_*.py; do python3 $t; done`가 모두 OK여야 한다.
+- `python3 wafer_cell/server.py --source live --serial fake --cam none`으로 띄우고 Playwright로 확인한다.
+  - 원점 → 시작 → 웨이퍼 1장이 ①→②→UV→①로 도는 것을 캡처한다.
+  - NG 지정 → ③
+  - 가짜 장비를 멈추면 '데이터 멈춤'이 뜬다.
+- 사용자 PC 확인([불명] 항목): Windows 3.13에서 `--serial fake`, 실제 COM(펌웨어가 생긴 뒤), Sharp/θ/ToF/A_UV 실측 보정
+
+### 실제 구현과 계획의 차이 (구현 뒤 기록)
+- 단계는 52개가 아니라 **39개**가 됐다(한 단계 안에 동작을 묶음).
+- ① 앞에서 **빈 포크**는 옆길 없이 바로 오르내린다(도크 +22 mm 덕분). 그래서 L(① → 대차)과 C5는 옆길을 쓰지 않는다. 웨이퍼를 든 Z 이동만 옆길(P3 → I1, E1, R1–R3)을 쓴다.
+- 고장 주입은 15개다. `d9_open`은 E-STOP 시뮬과 같아서 뺐다. 과열은 Mega가 A_UV로만 알 수 있어서 `UV_LOST`로 합쳤다.
+- 화면 타임라인은 프로그램 목록이 아니라 **고정 단계 목록**(39칸)이다. LIVE에서도 같은 칸을 쓴다.
+
+---
+
 
 # 계획 — 웨이퍼 이송셀 CELL_V9 공정 모니터 (웹 대시보드, 시뮬레이션 우선)
 

@@ -95,7 +95,7 @@ class CameraFeed:
             self.requests = [r for r in self.requests if n < r["n0"] + 2]
         for r in due:
             img = frame.copy()
-            txt = f"SIM PROCESS / REAL CAMERA  slot {r['slot']}  {r['stamp']}"
+            txt = f"{getattr(self, 'tag', 'sim').upper()} PROCESS / REAL CAMERA  slot {r['slot']}  {r['stamp']}"
             self.cv2.putText(img, txt, (12, 32), self.cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4)
             self.cv2.putText(img, txt, (12, 32), self.cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 1)
             C.CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -123,7 +123,7 @@ class CameraFeed:
 
     def capture(self, slot, wafer_id):
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        name = f"sim_slot{int(slot or 0):02d}_w{int(wafer_id or 0)}_{stamp}.jpg"
+        name = f"{getattr(self, 'tag', 'sim')}_slot{int(slot or 0):02d}_w{int(wafer_id or 0)}_{stamp}.jpg"
         with self.lock:
             self.requests.append({"slot": slot, "wafer": wafer_id, "n0": self.last_n,
                                   "stamp": stamp, "name": name})

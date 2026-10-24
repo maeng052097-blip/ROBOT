@@ -1,145 +1,111 @@
-# 웨이퍼 검사셀 R9 — 인수인계 (새 세션은 여기부터)
+# 웨이퍼 검사셀 R22 — 인수인계 (새 세션은 여기부터)
 
-- **기준 커밋**: 이 폴더를 만든 커밋. 직전 작업 커밋은 `a49e667`이다.
-- **브랜치**: `claude/gracious-cannon-lh630u`. 기본 브랜치는 `main`이다.
-- **PR**: [maeng052097-blip/ROBOT#1](https://github.com/maeng052097-blip/ROBOT/pull/1)은 열려 있고 머지되지 않았다. 지켜보기(구독·정기 점검)는 해제했다.
-- **작업 트리**: 깨끗하다. 모든 작업은 커밋하고 푸시했다.
+- **브랜치**: `claude/gracious-cannon-lh630u`. 기본 브랜치는 `main`입니다.
+- **PR**: [maeng052097-blip/ROBOT#1](https://github.com/maeng052097-blip/ROBOT/pull/1)이 열려 있고, 머지되지 않았습니다. 지켜보기는 해제했습니다.
+- **직전 큰 변경**: R9 → **R22 전환** + **실장비(LIVE) 연결 경로**(프로토콜 · PC 수신 · 가짜 장비). 커밋 메시지 'R22'를 보면 됩니다.
 
-## 0. 이 폴더
+## 0. 이 폴더와 원본
 | 파일 | 내용 |
 |---|---|
-| `README.md` (이 파일) | 현재 상태, 확정 결정, 센서 추천 요약, 미결정, 다음 할 일, 규칙, 함정 |
-| [`sensors.md`](sensors.md) | 센서 추천 **전문**: 구매 목록, TOF 제품 결정, 부품 용도, 배선과 핀, 장착·보정 절차. 원본 두 파일을 그대로 모은 스냅샷이다 |
-| [`plan_history.md`](plan_history.md) | 이 세션에서 쓴 계획 전부(최신이 위). 결정이 어떻게 바뀌었는지 추적할 때 본다 |
+| `README.md` (이 파일) | 현재 상태, 확정 결정, 해석(확인 대기), 미결정, 다음 할 일, 규칙, 함정 |
+| [`sensors.md`](sensors.md) | **R9 시절** 센서 추천 전문 스냅샷(이력). R22 센서는 `../센서_구매목록.md` 맨 위와 `../README.md` '센서' |
+| [`plan_history.md`](plan_history.md) | 세션 계획 전부(최신이 위) |
 
-**원본 문서**: 수정은 원본에서 하고, 필요하면 이 스냅샷을 다시 만든다.
-- [`../README.md`](../README.md): 모니터 사용법, 공정, TOF, 현장 확인, S3·S4 장착, 센서 목록, 2단계
-- [`../센서_구매목록.md`](../센서_구매목록.md): 구매용 목록
-- 저장소 루트 `CLAUDE.md` §9: 공정 규칙 요약. 자동으로 읽힌다.
+원본 문서
+- [`../README.md`](../README.md): 사용법, 공정, 센서, 화면, LIVE, 가정값, 현장 확인
+- [`../PROTOCOL.md`](../PROTOCOL.md): 셀 Mega ↔ PC 줄 프로토콜(펌웨어 작성자용, 테스트가 코드와 대조함)
+- [`../센서_구매목록.md`](../센서_구매목록.md): R22 최종 주문표가 맨 위에 있음
+- 저장소 루트 `CLAUDE.md` §9: 공정 규칙 요약(자동으로 읽힘)
+- 사용자 원본: `R22 센서 정리` 문서(MD/HTML, 2026-10-24 업로드). 저장소에는 없습니다. 수치는 `cell_config.py` 주석에 옮겨 두었습니다.
 
-## 1. 한 줄 요약과 현재 상태
-R9 웨이퍼 검사셀의 공정을 브라우저에서 애니메이션과 대시보드로 보여주는 **시뮬레이터(1단계)**다. 실장비 연동(2단계, `--source live`)은 **미구현**이다.
-
+## 1. 현재 상태
 | 항목 | 상태 |
 |---|---|
-| 시뮬 공정 | 끝까지 동작한다. 카세트 3개(투입·NG·OK), 검사 크래들, 대차 적재 T1~T13, 4개를 실으면 출발. 비디오와 같은 21장 |
-| 하단 TOF | 시뮬에 반영했다. 다음 투입 슬롯 결정, 개수 추정, 가림 시 값 유지, `tof_invalid` 고장 주입 |
-| S4 | '없음' 확인을 R0 뒤로 옮겼다. 위치는 포크 갈래 (175, 27) |
-| 화면 | 발표용 기본 화면 + `상세`(D키), 다크/라이트 테마. 1920×1080과 1536×864에서 겹침·잘림 0으로 확인했다 |
-| 테스트 | 웨이퍼 6개 전부 통과. 재활용 로봇 14개 중 `test_fusion`과 `test_scan`은 LiDAR(COM8)를 직접 열려고 해서 클라우드에서는 실패한다(하드웨어 시험에 가깝다. PC 결과는 [불명]) |
-| 센서 | 구매 목록을 확정했다. TOF는 SEENGREAT + TCA9548A로 정했다. **아직 사지 않았다** |
-| 펌웨어 | 웨이퍼셀 펌웨어는 없다. README에 확인용 스케치(센서 읽기만)가 있지만 컴파일하지 못했다 |
+| 셀 | **R22**: ① 투입 180(RX 73, +22 mm) · ② 검사 120 · ③ 불량 60 · UV 탑 0 · 대차 270, 옆길 220. OK 카세트는 없습니다(정상품은 ① 원래 슬롯으로). |
+| 시뮬 공정 | 끝까지 동작합니다. 대차 1대(카세트 4) → 20장 → 출발 → 새 대차. 불량은 ③ 위부터, ③ 가득이면 WAIT_NG, 빈 슬롯은 알람 없이 넘어갑니다. |
+| 센서 모형 | θ 자리 5(±1.65°), Z/R Sharp(환산식), ToF 2(있음/없음), S4, A_UV · D9 · KSD9700 → 고장 주입 15개, 각각 알람으로 확인했습니다. |
+| LIVE | **프로토콜 · PC 수신(`live.py`) · 가짜 장비(`fake_mega.py`) · 서버 연결 · 화면까지** 되어 있습니다. **Mega 펌웨어는 없습니다**(다음 단계). |
+| 화면 | 같은 화면이 SIM/LIVE를 보여 줍니다. 연결 배지, 6개 명령 확인 창, 장비 수락/거부 알림이 있습니다. 1920/1536 × 상세 OFF/ON × 14단계(56장)에서 겹침 · 잘림 0, 콘솔 오류 0입니다. 다크/라이트 모두 확인했습니다. |
+| 테스트 | 웨이퍼 9개 전부 통과(클라우드 python3 3.11). Windows `py -3.13`에서는 아직 돌려 보지 않았습니다 [불명]. |
+| 구매 | R22 주문표를 정리했습니다. EE-SX670 5개는 이미 샀습니다(문서). 나머지는 아직 사지 않았습니다. |
 
 ## 2. 실행과 검증
 ```powershell
 # 사용자 PC (Windows, 저장소 루트)
-py -3.13 wafer_cell/server.py --cam none --speed 5     # 브라우저 http://127.0.0.1:8765/
-# 바탕화면 바로가기: 저장소의 웨이퍼셀_시뮬.bat (git pull 후 서버 실행, 브라우저 열기)
+py -3.13 wafer_cell/server.py --cam none --speed 5                  # SIM -> http://127.0.0.1:8765/
+py -3.13 wafer_cell/server.py --source live --serial fake --speed 5 # LIVE 경로를 가짜 장비로
 Get-ChildItem tests\test_wafer_*.py | ForEach-Object { py -3.13 $_.FullName }
 ```
 ```bash
-# 클라우드 세션 (Linux, python3 3.11)
+# 클라우드 세션 (Linux, python3)
 for t in tests/test_wafer_*.py; do python3 $t | tail -1; done
 python3 -m py_compile wafer_cell/*.py
-# 화면 확인: 서버를 백그라운드로 띄우고 Playwright로 캡처한다
 SP=<스크래치패드>
-(cd /home/user/ROBOT && exec python3 wafer_cell/server.py --cam none --port 8765 > $SP/server.log 2>&1) & echo $! > $SP/pid.txt
-NODE_PATH=/opt/node22/lib/node_modules node $SP/verify.js     # 직접 작성. chromium = /opt/pw-browsers
-kill $(cat $SP/pid.txt)                                         # pkill -f 금지
+(exec python3 wafer_cell/server.py --cam none --port 8791 --speed 20 > $SP/srv.log 2>&1 & echo $! > $SP/srv.pid)
+NODE_PATH=/opt/node22/lib/node_modules node $SP/verify_r22.js $SP/out http://127.0.0.1:8791/ C4,I3,U6 all   # 직접 작성한 점검 스크립트
+kill $(cat $SP/srv.pid)                                                # pkill -f 금지
 ```
-- 고장 주입과 화면 고정은 `POST /api/cmd`로 한다(`debug_hold`, `fault`, `speed`, `load_map`).
-  - 조건: loopback, JSON, Host/Origin 일치, 기동 토큰.
-  - 토큰은 index.html의 `window.BOOT.token`에 들어 있고, 헤더 `X-Wafer-Token`으로 보낸다.
+- 화면 고정 · 고장 주입은 `POST /api/cmd`로 합니다(`debug_hold{step,frac}`, `fault{name,on}`, `speed`, `ng_rate`).
+  - 조건: loopback, JSON, Host/Origin, 기동 토큰. 토큰은 페이지의 `window.BOOT.token`에 있고 `X-Wafer-Token` 헤더로 보냅니다.
 
 ## 3. 확정된 사용자 결정
 | 항목 | 결정 |
 |---|---|
-| 기계 | R9로 확정(CELL_V9 대체). 출처는 비디오 `R9 웨이퍼 검사 셀` 자막 수치이고, 없는 값은 `cell_config.ASSUMED` |
-| 판정 | 시뮬에서는 NG 비율 + '다음 웨이퍼 NG' 수동 지정 |
-| 작업자 일 | 자동(8 s)과 헤더 버튼 둘 다 |
-| NG 카세트 가득 참 | 멈추고 교체를 요청한다 |
-| 기본 화면 | 제목 한 줄. 세부는 `상세`에 둔다 |
-| 원점 | R 수축(S3) → Z 최하단(S2) → Z105 → θ0(S1) → 대기 θ120 |
-| 웨이퍼 개수 | 카세트 도크 하단 TOF로 잰다 |
-| R축 | 리니어 모터, 양 끝단 리밋 있음, **L298**로 구동 |
-| E-STOP | **전원 차단 없음**. Mega D2 입력 + 와치독 + L298 IN 풀다운으로 보완 |
-| 제어보드 | **Arduino Mega 2560** |
-| 센서 연결 | 모두 Arduino에 직결하거나 USB |
-| TOF 제품 | **SEENGREAT VL53L0X 215921 ×4 + TCA9548A** |
+| 장소 | **4곳**: 투입 · 검사 · UV · 불량. OK 카세트는 없앴습니다. |
+| 공정 | 대차 카세트 → ① → 슬롯마다 검사 → 불량은 ③ · 정상은 UV 뒤 **① 원래 자리** → 5장 끝나면 카세트를 원래 대차 자리로 → 대차가 움직입니다. |
+| 불량 뒤 | 다음 웨이퍼로 계속합니다. |
+| 구조 | **Mega가 공정, PC는 표시**(+ 카메라 판정) |
+| 이번 범위 | 화면 · 서버 + 프로토콜(+ 가짜 장비). **Mega 펌웨어는 다음 단계** |
+| PC → Mega 명령 | 원점 · 시작 · 일시정지 · 재개 · 정지 · 알람 해제(LIVE에서는 모두 확인 창) |
+| UV 시간 | 모름 → 10 s로 가정합니다. |
+| 제어보드 | Arduino Mega 2560. E-STOP 사슬 = D9(전원 차단 없음, R9 결정 유지) |
 
-## 4. 센서 추천 요약 (전문은 [`sensors.md`](sensors.md))
-**사야 할 것**: 최종 주문표는 [`sensors.md`](sensors.md) 맨 위의 '최종 주문표'에 있다(원본 `../센서_구매목록.md`).
-- 지금 주문: SEENGREAT VL53L0X ×4, TCA9548A ×1, TCRT5000 ×3, E-STOP ×1, 마이크로스위치 10개 묶음, IR 브레이크빔 ×4, 저항·커패시터, 5 V 2 A 전원, 일반 4심·유연 케이블, 듀폰/나사 단자, 수축튜브
-- 조건부: VL53L4CD ×4(장착 높이 불가 시), CT-02 0~1, BSS138 0~1, PH2.0–듀폰 0~4, INA219 0~2, E18 0~1
-- 보유: Autonics BS5 슬롯 센서 + CT-01(추정), StreamCam, GP2Y0A21(추정)
+## 4. 내 해석 — 사용자 확인 대기 (`../README.md` '해석')
+1. ① 에서 웨이퍼를 든 Z 이동은 모두 옆길 θ220에서 합니다. 옆길 높이 Sn − 57은 문서 'ZC 205 (슬롯 5 옆길)'에서 역산한 값입니다.
+2. 카세트 운반은 180 ↔ 220 ↔ 270 짧은 길(슬립링)로 합니다.
+3. 원점은 R 먼저 → Z → θ 순서입니다(문서는 Z 먼저).
+4. 대차는 카세트 1~4개를 싣고 옵니다(기본 4).
+5. 판정 알고리즘은 [미구현]입니다(기본 OK · δ 0).
+6. 가정값 28개: 대기 θ120 · UV 받침 z183 · ToF 문턱 120 · Sharp ±3 · 판정 5 s · UV 10 s 등
 
-**주문 전 확인** (수량이 바뀐다)
-1. TOF 장착 높이: 슬롯 1 바닥보다 70 mm 이상 아래(z ≤ 120)에 달 수 있는지 확인한다. 이때 바닥판 구멍은 Ø32 이상이다. 안 되면 VL53L4CD로 바꾼다.
-2. 리니어 모터 리밋에 신호선이 있는지 확인한다. 없으면 INA219를 산다.
-3. R85 실린더가 1개인지 2개인지 확인한다.
-4. θ·Z 원점 방식을 정한다. 수동으로 하더라도 S1·S2용 센서는 사 둔다.
-
-**TOF를 받은 뒤 Mega에 꽂기 전**
-- 모듈에 5 V만 넣고 SDA·SCL 전압을 잰다.
-  - 약 2.8 V면 레벨 변환이 없다 → 직결하지 않는다.
-  - 4.5 V 이상이면 핀 옆 3핀 부품이 MOSFET인지 표시를 확인한다(BSS138 `SS`/`J1`, 2N7002 `702`/`K72`).
-- 동봉 PH2.0 케이블의 반대쪽 끝 모양을 확인한다([불명]).
-- 고정밀 모드(타이밍 버짓 200 ms)로 쓴다.
-
-**Mega 2560 핀 계획**
-| 용도 | 핀 |
-|---|---|
-| E-STOP | D2(인터럽트) |
-| θ 오버트래블 ×2, Z 오버트래블 | 인터럽트 3, 18, 19 |
-| S3 | D30 |
-| S4 LED / 수광 | D31 / A0 |
-| I2C(TCA9548A → TOF ×3, INA219) | 20 SDA, 21 SCL |
-| XSHUT | 쓰지 않는다(TCA9548A 방식) |
-| 나머지 DI | 23~41 |
-| 스테퍼 STEP/DIR/EN ×2, L298 IN1~4 + ENA/ENB | 디지털 핀 |
-
-## 5. 미결정과 [불명] (사용자 확인 필요)
+## 5. 미결정과 [불명]
 | 항목 | 왜 중요한가 | 확인 방법 |
 |---|---|---|
-| θ·Z 원점 방식(수동 정렬 vs S1·S2) | 정전이나 벨트 튐 뒤 복구 방법이 달라진다. 사용자는 수동 쪽으로 기울어 있다 | 사용자 결정. 시뮬은 센서 원점을 유지한다 |
-| 리밋 스위치 신호선 유무 | 없으면 S3를 외부 센서로, R 끝단은 INA219로 판정해야 한다 | 모터 배선과 데이터시트 |
-| R85 실린더 수 | 단일 실측 스트로크는 62라서 R85에 못 미친다 | 실측 |
-| TOF 장착 높이 | VL53L0X는 약 50 mm부터 안정적이다. 가정값 `TOF_Z`=140이면 슬롯 1까지 50 mm로 하한 경계다 | 도크 도면. 70 mm 이상 확보할 수 있으면 `TOF_Z`=120으로 시뮬 가정을 바꿀지 사용자에게 묻는다 |
-| 스테퍼 드라이버 모델 | 알람 입력과 원점 탐색 방식이 정해진다 | 사용자 |
-| TCRT5000 높이 7 mm vs 갈래 4 mm | 아래로 약 3 mm 튀어나온다. 시뮬상 아래 웨이퍼와의 틈은 4.5 mm | 실물 |
-| Mega 와치독 부트로더 버그 | 리셋이 무한 반복될 수 있다 | 일부러 멈추게 해서 확인 |
-| L298 전류 | 2 A/채널이고 전압이 2~4 V 떨어진다 | 액추에이터 정격·스톨 전류. 부족하면 MDD10A 또는 VNH5019 |
-| θ 270° 케이블, 웹캠 인덱스, 웨이퍼 두께 | 시뮬 가정값이다 | `../README.md` '현장 확인 절차' |
+| Mega 펌웨어 | LIVE의 실제 장비 쪽이 아직 없습니다. | `../PROTOCOL.md`를 따라 작성합니다. 시퀀스는 `sequence.py`, 인터록은 `can_rotate` · `uv_interlock`. 가짜 장비 `fake_mega.py`가 기준 동작입니다. |
+| 공정 중 정지 뒤 재시작 | 셀 안에 웨이퍼가 남으면 시뮬은 `cell_not_clear`로 시작을 거부합니다. LIVE 명령 6개로는 '치웠음'을 알릴 방법이 없습니다. | 사용자 결정(명령 추가 또는 펌웨어 규칙) |
+| P3 S4 거짓 '없음' | 빈 슬롯으로 믿고 웨이퍼를 든 채 다음 슬롯으로 갑니다. 시뮬에서는 기하 판정이 충돌로 잡습니다(테스트 있음). 실장비에는 그 판정이 없습니다. | S4 모듈을 정할 때 두 번 확인할지 결정합니다(예: 빼기 전과 뒤). |
+| S4 모듈 · 자리 | 문서 [보류] | R23 받침 설계 |
+| 옆길 틈 · UV 받침 모양 | 계산은 R9 몸체 기준입니다(옆판까지 약 4 mm, 받침은 패드형으로 가정). | R22 도면, 저속 실측 |
+| Sharp · θ 센서 · A_UV · TOF-IN 문턱 | 모두 가정값입니다. | `../README.md` '현장 확인 절차' 1–5 |
+| 포트 열기 리셋(DTR) | 서버를 재시작하면 Mega가 리셋됩니다. | 운영 규칙(공정 중 재시작 금지) 또는 하드웨어 |
+| 대차(AGV) 통신 | 시뮬은 시간 모형입니다. LIVE는 Mega가 보내는 받침 정렬만 씁니다. | 사용자 |
+| 판정 알고리즘 | NG 판정과 δr · δθ | 다음 단계 |
 
 ## 6. 다음 할 일 (제안 순서)
-1. **센서 구매**: 위 '주문 전 확인' 1~4를 정한 뒤 주문한다.
-2. **받은 뒤 벤치 확인**(모터 구동 없음)
-   - TOF 레벨 확인
-   - S3·S4·E-STOP 확인용 스케치를 Mega에 올리고 값을 읽는다
-   - TOF 현장 보정(빈 카세트, 슬롯별 20회)
-   - 결과로 `cell_config.py`의 `TOF_Z`, `CASS_TOP_Z`, `S4_RANGE`를 고친다
-3. **2단계 설계**
-   - Mega 시퀀스 펌웨어(인터록은 MCU에서)
-   - PC↔Mega 시리얼 프로토콜(스냅샷 필드를 그대로 쓴다. `../README.md` '상태 스냅샷')
-   - 하트비트 0.5 s / 1.5 s 끊기면 안전 정지
-   - `server.py --source live` 구현
-4. **PR #1 정리**: 머지 여부는 사용자가 정한다. 재활용 로봇 커밋(전원분배 PCB, 메카넘 펌웨어 `928b2a8`)도 같은 PR에 섞여 있다.
+1. 사용자가 §4 해석 1–6을 확인합니다(틀리면 `sequence.py` · `cell_config.py`를 고치고 테스트를 갱신).
+2. 구매: `../센서_구매목록.md` R22 주문표(EE-1001-1 번호는 데이터시트로 확인)
+3. Mega 펌웨어 1차: 센서 읽기만(θ 5 · Sharp 2 · ToF 2 · D9 · A_UV)과 `HEL`/`ST`/`SL` 송신 → `server.py --source live --serial COMx`로 화면에 값이 나오는지 봅니다(모터 구동 없음).
+4. 펌웨어 2차: `CMD`/`ACK`, `HB` 끊김, 원점 → 한 단계씩 저속으로(CLAUDE.md §7: 사용자 확인 뒤, 하드웨어 E-STOP을 손에 쥐고)
 
-## 7. 파일 지도 (`wafer_cell/`)
+## 6-1. 파일 지도 (`wafer_cell/`)
 | 파일 | 역할 |
 |---|---|
-| `cell_config.py` | 모든 수치. 비디오 값과 `ASSUMED` 가정값, `ui_geometry()` |
-| `sequence.py` | 순수 로직. 원점 절차, 웨이퍼 1장 단계, 대차 T단계 |
-| `geometry.py` | 순수 로직. 충돌 판정(`z_move` 등), `s4_on` |
-| `tof.py` | 순수 로직. `classify(d)`, `blocked(...)`, `geometry_problems()` |
-| `sim.py` | `CellSim.tick(dt)` / `command()`. 상태 기계, 고장 주입, 스냅샷 |
-| `server.py` | 표준 라이브러리 HTTP 서버. SSE `/events`, `/api/state`, `/api/cmd`, `/camera.jpg` |
-| `camera_feed.py` | 웹캠(cv2 지연 import, `common/camera.py` 재사용. common은 수정 금지) |
-| `web/index.html` · `app.js` · `style.css` | 대시보드. 평면도 −90° 회전, 입면도, 카메라 개념도, 상세 열 |
-| 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,server,camera}.py` |
-| 저장소 루트 `웨이퍼셀_시뮬.bat` | 바탕화면 바로가기용. 저장소 경로를 대체 경로로 찾고, `git pull` 후 서버를 실행한다 |
+| `cell_config.py` | 모든 수치(R22 문서 값 + `ASSUMED` 28개), 링크 상수, `ui_geometry()` |
+| `sequence.py` | 순수 로직. 단계 39개(H · C · P · E · I · N · U · R · L · W), `can_rotate`, `uv_interlock`, `corr_ok`, `describe`, `action_at` |
+| `geometry.py` | 순수 로직. 충돌 · 이송 이벤트(`z_move`, `r_move`), `s4_on`, `th_mask`, 여유 |
+| `tof.py` | `presence(d)`: 있음 · 없음 · 불가 |
+| `texts.py` | 한글 문구 한 곳(알람 · 이벤트 · headline). 장비와 시뮬은 ASCII 코드만 냅니다. |
+| `sim.py` | `CellSim` 상태 기계(실장비 Mega 모형). 판정 internal/external, 고장 주입, 스냅샷 |
+| `protocol.py` · `PROTOCOL.md` | 줄 프로토콜(체크섬 · 파서 · SPEC 검증)과 펌웨어용 규격 |
+| `live.py` | 전송(Serial · TCP · Fake · Queue) + `LiveSource`(스냅샷 변환, 연결 상태, ACK) |
+| `fake_mega.py` | 가짜 셀 Mega(`CellSim`을 프로토콜 뒤에 둠). `--tcp 8770` / `--port COMx`로 따로 띄울 수도 있습니다. |
+| `source.py` · `judge.py` | 소스 인터페이스(SimSource) · PC 판정 |
+| `server.py` | HTTP · SSE · 명령(LIVE 503/504) · 캡처 · CSV |
+| `camera_feed.py` | 웹캠(`common/camera.py` 재사용, common 수정 금지) |
+| `web/` | 대시보드(평면도 −90° 회전, 입면도, 카메라 개념도, 상세 열, LIVE 배지) |
+| 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,protocol,live,fake_mega,server,camera}.py` |
 
-## 8. 작업 규칙 (CLAUDE.md에서 — 어기면 깨진다)
+## 7. 작업 규칙 (CLAUDE.md에서 — 어기면 깨진다)
 - 실행은 `py -3.13`으로 한다(Windows). 클라우드는 `python3`.
 - 콘솔 print와 putText에는 **ASCII만** 쓴다(cp949). em-dash, `→`, `°` 등을 넣으면 앱이 죽는다. 웹 화면 글자는 예외다.
 - **커밋과 푸시는 사용자가 요청할 때만** 한다. 다만 이 세션은 정지 훅이 미커밋 변경의 커밋·푸시를 요구했다.
@@ -154,7 +120,7 @@ kill $(cat $SP/pid.txt)                                         # pkill -f 금�
 - 간단한 설명에는 Workflow(다중 에이전트)를 쓰지 않는다(사용자 지시).
 - 프로세스 종료에 `pkill -f`를 쓰지 않는다. pid 파일로 `kill`한다.
 
-## 9. 함정과 교훈 (이번 세션에서 실제로 겪음)
+## 8. 함정과 교훈 (실제로 겪음)
 | 증상 | 원인 | 대처 |
 |---|---|---|
 | 사용자 PC 화면이 안 바뀜 | `.bat`이 `git pull`을 안 했다. 로컬 변경 때문에 pull이 막혔다 | `.bat`에 pull을 넣었다. 막히면 `git stash push -u` 후 pull, 그다음 Ctrl+F5 |
@@ -165,3 +131,7 @@ kill $(cat $SP/pid.txt)                                         # pkill -f 금�
 | 푸시 non-fast-forward | 사용자가 같은 브랜치에 커밋했다(`928b2a8`) | fetch 후 내 커밋을 rebase하고 푸시. 강제 푸시 금지 |
 | 플랜 모드에서 ExitPlanMode 거절 | 사용자가 질문하려고 거절했다 | 질문에 답하고 계획을 갱신한 뒤 다시 요청 |
 | seengreat.com, pololu.com 접속 불가 | 클라우드 네트워크 정책 | 검색 결과와 사용자 캡처로 판단하고 [불명]을 표시한다 |
+| (R22) 배속 ×50에서 ③ 교체 뒤 포인터가 0으로 안 감 | '빼기 → 새 카세트 놓기'가 한 tick 안에 끝나 TOF-NG '없음'을 못 봄 | 빼는 순간 전이를 기록합니다(테스트 있음). 실 펌웨어도 ToF 샘플 주기보다 빠른 교체에 주의 |
+| (R22) 마지막 웨이퍼가 불량이면 L1에서 θ 불일치 | L1이 ① 앞(θ180)에 있다고 가정했는데, 실제로는 θ60에서 시작 | L1 첫 동작에 θ180 선회를 넣었습니다(시뮬 테스트 ng_rate 1.0이 잡음). |
+| (R22) 화면 점검 중 서버 처리 예외 1건 | 시뮬 HOLD 해제가 UV 동작을 지워, 램프는 켜졌는데 남은 시간이 None인 상태가 생김 | HOLD 해제는 그대로 이어가게 했고, 문구 생성도 방어했습니다. 서버 루프는 예외가 나도 살아 있게 했습니다(`ERROR loop ...` 로그). |
+

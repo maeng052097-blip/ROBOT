@@ -1,13 +1,15 @@
 """tests/test_wafer_server.py — 웨이퍼셀 웹 서버 단위테스트(하드웨어/카메라 불필요, 표준 라이브러리만).
 
 임시 포트('127.0.0.1', 0)에 서버를 띄우고:
-  - /api/state, /api/meta, 정적 파일 MIME(.js = text/javascript), index 토큰 주입
+  - /api/state, /api/meta(R22, 단계 39), 정적 파일 MIME(.js = text/javascript), index 토큰 주입
   - SSE 첫 이벤트(retry + data) 수신
   - 조작 보호: 토큰 없음 403 / JSON 아님 415 / 다른 Origin 403 / 이상한 Host 403 / expect_state 불일치 409
-  - 정상 명령(home) 200 -> 원점 복귀 완료
+  - 정상 명령(home) 200 -> 원점 복귀 완료, 시작 -> 촬영 요청 -> 서버 판정(PC) -> 캡처 기록
   - 시뮬 내부 예외 -> 서버가 ALARM(SIM_EXCEPTION) 으로 바꾸고 tick 은 계속 증가(화면이 '살아있는 척' 안 함)
   - /captures 경로 이탈 차단
-20초 워치독으로 테스트 루프가 멈추지 않게 한다.
+  - LIVE + 가짜 장비(--serial fake): 연결 OK -> API 원점(장비 ACK) -> 시작 -> 1 장 이상 판정,
+    고장 주입 같은 시뮬 명령 400, '다음 웨이퍼 NG' 는 PC 판정이라 200, 장비가 멈추면 STALE -> 명령 503
+40초 워치독으로 테스트 루프가 멈추지 않게 한다.
 
 실행: py -3.13 tests/test_wafer_server.py
 """
@@ -35,7 +37,7 @@ def req(port, method, path, body=None, headers=None):
 
 
 def main():
-    wd = threading.Timer(20.0, lambda: (print("WATCHDOG timeout"), os._exit(1)))
+    wd = threading.Timer(40.0, lambda: (print("WATCHDOG timeout"), os._exit(1)))
     wd.daemon = True
     wd.start()
     from wafer_cell.server import App
@@ -49,7 +51,8 @@ def main():
         assert st == 200 and s["state"] == "IDLE" and s["source"] == "SIM" and s["boot_id"] == app.boot_id
         st, ct, b = req(port, "GET", "/api/meta")
         m = json.loads(b)
-        assert m["view_only"] is False and len(m["steps"]) == 27 and m["clearances"][0]["mm"] == 3.0 and m["cell"] == "R9"
+        assert m["view_only"] is False and len(m["steps"]) == 39 and m["clearances"][0]["mm"] == 3.0 and m["cell"] == "R22"
+        assert m["source"] == "SIM" and "rot_why" in m and "uv_why" in m and len(m["stages"]) == 6
         st, ct, b = req(port, "GET", "/app.js")
         assert st == 200 and ct.startswith("text/javascript"), ct
         st, ct, b = req(port, "GET", "/")
@@ -89,6 +92,17 @@ def main():
             time.sleep(0.05)
         print("  OK home via API -> READY")
 
+        assert req(port, "POST", "/api/cmd", {"cmd": "start", "expect_state": "READY"}, good)[0] == 200
+        t0 = time.time()
+        while json.loads(req(port, "GET", "/api/state")[2])["counts"]["inspected"] < 1:
+            assert time.time() - t0 < 10, "no inspection"
+            time.sleep(0.1)
+        s = json.loads(req(port, "GET", "/api/state")[2])
+        assert s["captures"] and s["captures"][0]["judgment"] == "OK" and s["alarm"] is None
+        assert req(port, "POST", "/api/cmd", {"cmd": "next_ng", "args": {"on": True}}, good)[0] == 200
+        assert json.loads(req(port, "GET", "/api/state")[2])["ng_next"] is True
+        print("  OK start -> capture request -> PC judge -> capture record, next_ng held by PC judge")
+
         assert req(port, "POST", "/api/cmd", {"cmd": "fault", "args": {"name": "sim_exception"}}, good)[0] == 200
         time.sleep(0.3)
         s1 = json.loads(req(port, "GET", "/api/state")[2])
@@ -102,6 +116,50 @@ def main():
         assert req(port, "GET", "/../cell_config.py")[0] == 404
         assert req(port, "GET", "/camera.jpg")[0] == 404
         print("  OK path traversal blocked, no camera frame in SIM")
+    finally:
+        app.stop()
+
+    app = App(cam=None, port=0, record=False, speed=20.0, source="live", serial="fake").start()
+    port = app.port
+    good = {"Content-Type": "application/json", "X-Wafer-Token": app.token}
+    try:
+        t0 = time.time()
+        while json.loads(req(port, "GET", "/api/state")[2])["link"]["status"] != "OK":
+            assert time.time() - t0 < 5, "fake link not OK"
+            time.sleep(0.05)
+        s = json.loads(req(port, "GET", "/api/state")[2])
+        m = json.loads(req(port, "GET", "/api/meta")[2])
+        assert s["source"] == "LIVE" and s["state"] == "IDLE" and m["source"] == "LIVE" and s["link"]["port"] == "fake"
+        st, _, b = req(port, "POST", "/api/cmd", {"cmd": "home", "expect_state": "IDLE"}, good)
+        r = json.loads(b)
+        assert st == 200 and r["device"] and r["state"] == "HOMING", r
+        t0 = time.time()
+        while json.loads(req(port, "GET", "/api/state")[2])["state"] != "READY":
+            assert time.time() - t0 < 8, "LIVE homing too slow"
+            time.sleep(0.05)
+        st, _, b = req(port, "POST", "/api/cmd", {"cmd": "start"}, good)
+        assert st == 200 and json.loads(b)["state"] == "RUNNING"
+        st, _, b = req(port, "POST", "/api/cmd", {"cmd": "start"}, good)
+        r = json.loads(b)
+        assert st in (400, 409) and (r.get("device") or r["error"] == "state_changed"), r
+        assert req(port, "POST", "/api/cmd", {"cmd": "fault", "args": {"name": "belt_skip"}}, good)[0] == 400
+        assert req(port, "POST", "/api/cmd", {"cmd": "speed", "args": {"value": 5}}, good)[0] == 400
+        assert req(port, "POST", "/api/cmd", {"cmd": "next_ng", "args": {"on": False}}, good)[0] == 200
+        t0 = time.time()
+        while json.loads(req(port, "GET", "/api/state")[2])["counts"]["inspected"] < 1:
+            assert time.time() - t0 < 12, "LIVE no inspection"
+            time.sleep(0.1)
+        s = json.loads(req(port, "GET", "/api/state")[2])
+        assert s["alarm"] is None and s["captures"] and s["captures"][-1]["judgment"] == "OK"
+        print("  OK LIVE + fake Mega: link OK -> home (device ACK) -> start -> NAK -> CAP/JDG judged by PC")
+        with app.lock:
+            app.src.tr.fake.frozen = True
+        t0 = time.time()
+        while json.loads(req(port, "GET", "/api/state")[2])["link"]["status"] != "STALE":
+            assert time.time() - t0 < 4, "no STALE"
+            time.sleep(0.05)
+        assert req(port, "POST", "/api/cmd", {"cmd": "pause"}, good)[0] == 503
+        print("  OK device frozen -> link STALE -> commands 503")
     finally:
         app.stop()
         wd.cancel()

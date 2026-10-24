@@ -1,9 +1,12 @@
-"""tests/test_wafer_sequence.py — R9 시퀀스/인터록 단위테스트(하드웨어 불필요).
+"""tests/test_wafer_sequence.py — R22 공정 시퀀스 단위테스트(순수 로직, 하드웨어 불필요).
 
-  - 원점: R 수축 -> Z 최하단 -> Z105 -> θ1 원점 -> 대기 θ120 (θ1 은 반드시 Z 뒤, Z105 에서만)
-  - 웨이퍼: 비디오 수치(투입 슬롯 바닥 190+18(n-1), Z = 바닥-68.5, 들기 +7.5, 크래들 Z192/183, 넣기 Z201->193.5)
-  - 대차 T1~T13: θ -40 · Z228.5 · θ0 · R51 · Z241 · θ -90 · R85 · Z205
-  - 모든 선회는 R0 · 직전 S3 확인 + 지정 높이(Z105, 대차 T3=Z228.5, T8=Z241)에서만
+  - 단계 키 39 개가 서로 다르고 묶음 이름이 있음, describe(키, 슬롯) 문구, action_at
+  - 자세 따라가기(walk): 원점 -> 대차->① -> 웨이퍼(정상 · 불량) -> ①->대차 를 지령값으로 밟으며
+      모든 선회가 그 자리 인터록(can_rotate)을 통과, 옆길은 θ180~220 · 카세트 운반은 180~270 · Z241 에서만,
+      UV 탑 앞에서 R 전진은 ZC 113.5~121.5 에서만, ZC 는 245 이하, UV 조사는 ZC <= 110 · R 후진에서
+  - S4 '없음' 확인은 언제나 R 후진 확인 바로 뒤(놓은 직후에는 아직 보임)
+  - ① 앞에서 웨이퍼를 든 채 R 후진 상태로 Z 를 바꾸는 동작이 없음(옆길에서만, 슬롯 안 들기/놓기는 제외)
+  - UV 켜기 7 조건 진리표, 보정 창(δr -3.5~+0.5 · |δθ| <= 0.5) 경계
 
 실행: py -3.13 tests/test_wafer_sequence.py
 """
@@ -13,96 +16,130 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 
-def walk(steps, zc, rx):
-    """동작을 순서대로 따라가며 (단계, 동작, 그 시점 zc, rx, 직전 S3 확인 여부) 를 낸다."""
-    s3_ok = rx == 0
-    for st in steps:
-        for a in st.actions:
-            yield st, a, zc, rx, s3_ok
-            if a.kind == "z":
-                zc = a.value
-            elif a.kind == "r":
-                rx = a.value
-                s3_ok = False
-            elif a.kind == "expect" and a.sensor == "S3" and a.expect:
-                s3_ok = rx == 0
-
-
-def moves(steps):
-    return [(a.kind, a.value) for st in steps for a in st.actions if a.kind in ("z", "r", "rot")]
-
-
 def main():
     from wafer_cell import cell_config as C
     from wafer_cell import sequence as Q
 
     print("test_wafer_sequence:")
-    h = Q.homing_steps()
-    assert moves(h) == [("r", 0.0), ("z", C.ZC_HOME), ("z", C.ZC_SWING), ("rot", 0.0), ("rot", 120.0)], moves(h)
-    print("  OK homing R -> Z bottom -> Z105 -> theta1 origin -> standby 120")
-
-    assert C.slot_z(1) == 190 and C.slot_z(2) == 208 and C.slot_z(5) == 262
-    w1 = Q.wafer_steps(1)
-    assert [s.key for s in w1] == ["1", "2", "3", "4", "5", "6", "7"]
-    assert moves(w1) == [("rot", 180.0), ("z", 121.5), ("r", 51.0), ("z", 129.0), ("r", 0.0), ("z", 105.0),
-                         ("rot", 120.0), ("z", 192.0), ("r", 51.0), ("z", 183.0), ("r", 0.0),
-                         ("r", 51.0), ("z", 192.0), ("r", 0.0), ("z", 105.0)], moves(w1)
-    assert moves(Q.wafer_steps(2))[1] == ("z", 139.5)      # 비디오: 슬롯 바닥 208 - 68.5
-    assert any(a.kind == "check_pick" for a in w1[2].actions)
-    assert any(a.kind == "capture" for a in w1[5].actions)
-    print("  OK wafer pick/inspect numbers match the video (Z121.5 / 139.5, +7.5, Z192 -> 183)")
-
-    s5 = Q.sort_steps("ok", 5)
-    assert moves(s5) == [("rot", 0.0), ("z", 201.0), ("r", 51.0), ("z", 193.5), ("r", 0.0), ("z", 105.0),
-                         ("rot", 120.0)], moves(s5)
-    assert moves(Q.sort_steps("ok", 1))[1:3] == [("z", 129.0), ("r", 51.0)]
-    assert moves(Q.sort_steps("ok", 3))[1] == ("z", 165.0)
-    assert moves(Q.sort_steps("ng", 5))[0] == ("rot", 60.0)
-    assert "OK" in s5[0].title and "NG" in Q.sort_steps("ng", 5)[0].title
-    print("  OK sort: OK 0 deg / NG 60 deg, slot 5 Z201 -> 193.5, slot 3 Z165, slot 1 Z129")
-
-    cs = Q.cart_steps("FL", 1)
-    assert [s.key for s in cs] == ["T1", "T2", "T3", "T4", "T5", "T7", "T8", "T9", "T10", "T11", "T12", "T13"]
-    assert moves(cs) == [("rot", -40.0), ("z", 228.5), ("rot", 0.0), ("r", 51.0), ("z", 241.0), ("r", 0.0),
-                         ("rot", -90.0), ("r", 85.0), ("z", 205.0), ("r", 0.0), ("z", 105.0), ("rot", 120.0)], moves(cs)
-    print("  OK cart T1..T13 numbers match the video")
-
-    seqs = [("homing", h, C.ZC_SWING, 0.0)]
-    for n in (1, 5):
-        seqs.append((f"wafer{n}", Q.wafer_steps(n) + Q.sort_steps("ok", 6 - n), 105.0, 0.0))
-        seqs.append((f"retry{n}", Q.retry_steps(n), C.pick_z(n) + C.PICK_LIFT, C.RX_EXT))
-    seqs.append(("cart", cs, 105.0, 0.0))
-    nrot = 0
-    for name, steps, zc, rx in seqs:
-        for st, a, z, r, s3 in walk(steps, zc, rx):
-            if a.kind == "rot":
-                nrot += 1
-                assert abs(z - a.z_ok) < 1e-9 and r == 0 and s3, (name, st.key, z, r, s3)
-                if a.z_ok != C.ZC_SWING:
-                    assert st.key in ("T3", "T8"), (name, st.key)
-    print(f"  OK all {nrot} rotations at R0 + S3, Z105 except cart T3 (Z228.5) / T8 (Z241)")
-
-    ok, why = Q.can_rotate(150.0, 0.0, True)
-    assert not ok and "Z 105" in why
-    ok, _ = Q.can_rotate(105.0, 0.0, True)
-    assert ok
-    ok, why = Q.can_rotate(105.0, 51.0, True)
-    assert not ok and "R" in why
-    ok, _ = Q.can_rotate(241.0, 0.0, True, z_ok=241.0)
-    assert ok
-    print("  OK can_rotate interlock")
-
+    keys = Q.step_keys()
+    assert len(keys) == len(set(keys)) == 39, keys
     cat = Q.step_catalog()
-    keys = [c["key"] for c in cat]
-    assert len(keys) == len(set(keys)) == 5 + 10 + 12, keys
-    print("  OK step catalog", len(keys))
-    # S4 '없음' 확인은 포크를 R0 로 뺀 뒤(놓은 직후 4.5~5 mm 는 TCRT5000 에 아직 보임)
-    for st in (Q.wafer_steps(1)[4], Q.sort_steps("ok", 5)[1], Q.sort_steps("ng", 3)[1]):
-        kinds = [(a.kind, getattr(a, "sensor", None), getattr(a, "expect", None), getattr(a, "value", None)) for a in st.actions]
-        i_off = next(i for i, k in enumerate(kinds) if k[1] == "S4" and k[2] is False)
-        i_ret = next(i for i, k in enumerate(kinds) if k[0] == "r" and k[3] == C.RX_RET)
-        assert i_ret < i_off, (st.key, kinds)
-    print("  OK S4 off-check comes after retract (steps 5 and 9)")
+    assert [c["key"] for c in cat] == keys and all(c["group"] in Q.GROUP_LABELS for c in cat)
+    assert all(Q.STAGE_OF_GROUP[g] in (None,) + tuple(k for k, _ in Q.STAGES) for g in Q.GROUP_LABELS)
+    assert "슬롯 n" in Q.describe("P2")[1] and "슬롯 3" in Q.describe("P2", 3)[1]
+    assert "슬롯 k" in Q.describe("N2")[1] and "슬롯 4" in Q.describe("N2", None, 4)[1]
+    assert "앞 오른" in Q.describe("C1", seat="FR")[1] and "(" not in Q.describe("C1")[1]
+    assert Q.action_at("U6", 1).kind == "uv" and Q.action_at("P3", 1).kind == "check_pick"
+    assert Q.action_at("P2", 0, 4).value == C.pick_z(4) and Q.action_at("ZZ", 0) is None
+    assert Q.action_count("I4") == len(Q.inspect_steps(1)[3].actions)
+    print("  OK 39 unique step keys, groups, describe(slot/NG slot/seat), action_at")
+
+    # ---- 지령값 따라가기
+    pose = {"th": 150.0, "z": 140.0, "r": 30.0}
+    carry = {"wafer": False, "cass": False}
+    rots, problems = [], []
+
+    def walk(steps, wafer=None, cass=None):
+        for st in steps:
+            acts = st.actions
+            for i, a in enumerate(acts):
+                if a.kind == "z":
+                    if abs(C.wrap_deg(pose["th"] - C.STATIONS["input"])) < 1 and carry["wafer"] \
+                            and pose["r"] <= C.RX_RET_OK and abs(a.value - pose["z"]) > 0.01:
+                        problems.append(f"{st.key}: Z move at input while carrying a wafer")
+                    if abs(C.wrap_deg(pose["th"] - C.STATIONS["uv"])) < 1 and pose["r"] > C.RX_RET_OK \
+                            and not C.UV_ZC_HAND <= a.value <= C.UV_ZC_IN:
+                        problems.append(f"{st.key}: Z {a.value} under UV tower")
+                    if a.value > C.ZC_SOFT_MAX:
+                        problems.append(f"{st.key}: Z {a.value} > soft max")
+                    pose["z"] = a.value
+                elif a.kind == "r":
+                    if abs(C.wrap_deg(pose["th"] - C.STATIONS["uv"])) < 1 and a.value > C.RX_RET_OK \
+                            and not C.UV_ZC_HAND <= pose["z"] <= C.UV_ZC_IN:
+                        problems.append(f"{st.key}: R out under UV at Z {pose['z']}")
+                    pose["r"] = a.value
+                elif a.kind == "rot":
+                    ok, why = Q.can_rotate(pose["z"], pose["r"] <= C.RX_RET_OK, pose["th"], a.value, a.mode,
+                                           carry["wafer"], carry["cass"])
+                    if not ok:
+                        problems.append(f"{st.key}: rotate {pose['th']}->{a.value} {a.mode} blocked {why}")
+                    rots.append((st.key, pose["th"], a.value, a.mode, pose["z"]))
+                    pose["th"] = a.value
+                elif a.kind == "home_th":
+                    pose["th"] = C.STATIONS["inspect"]
+                elif a.kind == "uv":
+                    if pose["z"] > C.UV_ZC_LAMP_MAX or pose["r"] > C.RX_RET_OK or pose["th"] != 0.0:
+                        problems.append(f"{st.key}: UV at bad pose {pose}")
+                elif a.kind == "expect" and a.sensor == "S4" and not a.expect:
+                    if i == 0 or acts[i - 1].kind != "ret":
+                        problems.append(f"{st.key}: S4 none not right after R retract check")
+            if wafer is not None and st.key == wafer[0]:
+                carry["wafer"] = wafer[1]
+            if cass is not None and st.key == cass[0]:
+                carry["cass"] = cass[1]
+
+    walk(Q.homing_steps())
+    walk(Q.cart_in_steps("FL")[:3])
+    carry["cass"] = True                                       # C3 들기 뒤 ~ C5 놓기 전 (C4 = 카세트 든 선회)
+    walk(Q.cart_in_steps("FL")[3:4])
+    carry["cass"] = False
+    walk(Q.cart_in_steps("FL")[4:])
+    for n, ng in ((1, False), (2, True), (5, False)):
+        walk(Q.input_steps(n)[:2])
+        carry["wafer"] = True                                  # P3 들기 뒤
+        walk(Q.input_steps(n)[2:] + Q.inspect_steps(n)[:2], wafer=("I2", False))
+        walk(Q.inspect_steps(n)[2:], wafer=("I4", True))
+        if ng:
+            walk(Q.ng_steps(C.SLOT_COUNT), wafer=("N2", False))
+        else:
+            walk(Q.uv_steps()[:4], wafer=("U4", False))
+            walk(Q.uv_steps()[4:], wafer=("U7", True))
+            walk(Q.return_steps(n), wafer=("R4", False))
+    walk(Q.empty_steps(3))
+    walk(Q.input_steps(1)[:1])
+    walk(Q.cart_out_steps("FL")[:3])
+    carry["cass"] = True
+    walk(Q.cart_out_steps("FL")[3:5], cass=("L5", False))
+    walk(Q.cart_out_steps("FL")[5:] + Q.standby_steps())
+    assert not problems, problems
+    for key, a, b, mode, z in rots:
+        lo, hi = min(a, b), max(a, b)
+        if mode == "side":
+            assert lo >= 180 - 1e-6 and hi <= 220 + 1e-6, (key, a, b)
+        if mode == "carry":
+            assert lo >= 180 - 1e-6 and hi <= 270 + 1e-6 and z == C.CASS_Z_CARRY, (key, a, b, z)
+        if mode == "swing":
+            assert z == C.ZC_SWING, (key, z)
+    assert any(r[3] == "carry" and r[2] == 180 for r in rots) and any(r[3] == "carry" and r[2] == 270 for r in rots)
+    assert sum(1 for r in rots if r[3] == "side") >= 4
+    print(f"  OK walk {len(rots)} rotations: interlock passes, side 180-220, carry 180-270 @ Z241, swing @ Z105")
+    print("  OK no Z move at input while carrying, UV zone respected, UV lamp at ZC<=110 & R retracted, S4-none after retract")
+
+    assert Q.can_rotate(205, True, 180, 220, "side")[0]
+    assert not Q.can_rotate(205, False, 180, 220, "side")[0]
+    assert "SIDE_PATH" in Q.can_rotate(205, True, 120, 180, "side")[1]
+    assert "Z_NOT_SWING" in Q.can_rotate(121.5, True, 0, 120, "swing")[1]
+    assert "CASS_SWING" in Q.can_rotate(105, True, 180, 270, "swing", carrying_cassette=True)[1]
+    assert "CARRY_PATH" in Q.can_rotate(241, True, 180, 0, "carry")[1]
+    assert "THETA_RANGE" in Q.can_rotate(105, True, 0, -60, "swing")[1]
+    assert Q.can_rotate(183, True, 120, 120.5, "fine")[0] and not Q.can_rotate(183, True, 120, 120.6, "fine")[0]
+    assert not Q.can_rotate(192, True, 120, 120.2, "fine")[0]
+    print("  OK can_rotate: side/carry/fine/swing rules + R retract required")
+
+    base = dict(th0_low=True, theta=0.0, rx_ret_ok=True, zc=105.0, handed_over=True, judgment_ok=True, d9_ok=True)
+    assert Q.uv_interlock(**base) == []
+    flips = {"th0_low": (False, "TH0"), "theta": (0.21, "ANGLE"), "rx_ret_ok": (False, "RX"), "zc": (110.01, "ZC"),
+             "handed_over": (False, "HAND"), "judgment_ok": (False, "JUDGE"), "d9_ok": (False, "D9")}
+    for k, (v, code) in flips.items():
+        assert Q.uv_interlock(**dict(base, **{k: v})) == [code], (k, Q.uv_interlock(**dict(base, **{k: v})))
+    assert Q.uv_interlock(**dict(base, theta=-0.2, zc=110.0)) == []
+    assert len(Q.uv_interlock(False, 5.0, False, 120.0, False, False, False)) == 7
+    print("  OK UV interlock truth table (7 conditions, each alone)")
+
+    for dr, dth, want in ((-3.5, 0, True), (-3.51, 0, False), (0.5, 0, True), (0.51, 0, False),
+                          (0, 0.5, True), (0, -0.5, True), (0, -0.51, False), (0, 0, True)):
+        assert Q.corr_ok(dr, dth) is want, (dr, dth)
+    print("  OK correction window boundaries")
     print("OK (all passed)")
 
 
