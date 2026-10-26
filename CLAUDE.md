@@ -4,7 +4,7 @@
 새 작업을 시작하기 전에 이 파일을 먼저 읽고, 아래 환경/검증/안전 규칙을 지킨다.
 더 깊은 맥락은 [HANDOFF.md](HANDOFF.md)(인수인계 문서), [README.md](README.md)(구조/진행)를 참조.
 
-- Repo: https://github.com/maeng052097-blip/ROBOT (코드는 `ddd/` 안). 기본 브랜치 `main`.
+- Repo: https://github.com/maeng052097-blip/ROBOT (코드는 저장소 루트 — 예전 `ddd/` 경로는 커밋 34abf61 에서 루트로 이동). 기본 브랜치 `main`.
 - 아래 포트/경로 값은 **현재 개발 PC 기준**이다. 다른 PC면 장치관리자/`tests/check_devices.py`로 확인 후 `common/config.py` 수정.
 
 ---
@@ -30,7 +30,7 @@
 
 ---
 
-## 3. 실행 명령 (작업폴더 = `ddd/`)
+## 3. 실행 명령 (작업폴더 = 저장소 루트)
 
 ```powershell
 # 의존성 설치(최초 1회). torch 는 requirements.txt 주석의 CUDA 안내 참고.
@@ -63,13 +63,15 @@ py -3.13 tests/find_camera.py
 
 1. 컴파일: `py -3.13 -m py_compile visualization/track_and_approach.py` (변경 파일들)
 2. 임포트: `py -3.13 -c "import sys; sys.path.insert(0,'.'); import visualization.track_and_approach"`
-3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 13개 모두 통과해야 함):
+3. 단위테스트(전부 **하드웨어 불필요·순수 로직**, 24개 모두 통과해야 함):
    ```powershell
    Get-ChildItem tests\test_*.py | ForEach-Object { py -3.13 $_.FullName }
    ```
-   (test_approach, test_color, test_dualcam, test_flip, test_frame_grabber, test_fusion,
-    test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
-    test_occupancy_grid, test_scan, test_zoom_geom)
+   재활용 로봇 14개: test_approach, test_color, test_depth_correct, test_dualcam, test_flip, test_frame_grabber,
+    test_fusion, test_lidar_freshest, test_lidar_parser, test_lidar_probe, test_mecanum,
+    test_occupancy_grid, test_scan, test_zoom_geom
+   웨이퍼셀 10개(§9): test_wafer_sequence, test_wafer_geometry, test_wafer_tof, test_wafer_sim,
+    test_wafer_protocol, test_wafer_live, test_wafer_fake_mega, test_wafer_sync, test_wafer_server, test_wafer_camera(가짜 캡처, cv2 없으면 SKIP)
 4. **"동작 검증"을 하드웨어 없이 단정하지 말 것.** 하드웨어 의존값(toe 각, 전방각, 포트, 거리 스케일, 카메라 인덱스)은 **[불명]으로 명시**하고, 사용자가 현장에서 확인할 절차(명령/성공기준)를 함께 제시한다.
 5. 순수 로직(common/)을 바꾸면 대응 단위테스트도 함께 갱신/추가한다.
 
@@ -117,3 +119,35 @@ py -3.13 tests/find_camera.py
 - **커밋/푸시는 사용자가 명시적으로 요청할 때만** 한다(자동 커밋 금지). 커밋 메시지 끝에 `Co-Authored-By: ...` 라인.
 - 응답 시: **변경 전/후를 명확히 구분**, **가정·불명을 따로 표기**, **검증/실행 절차를 함께 제시**(사용자 선호). 근거 없는 칭찬·추측 금지, 약점부터.
 - 새 도구는 `visualization/`, 순수 로직은 `common/`(+ `tests/` 단위테스트). 하드웨어 드라이버는 `drivers/`.
+
+---
+
+## 9. 웨이퍼 검사셀 R22 공정 모니터 (`wafer_cell/`) — 별개 기계
+
+- **인수인계 문서**: 새 세션은 [`wafer_cell/handoff/README.md`](wafer_cell/handoff/README.md)부터 읽는다(현재 상태, 확정 결정, 센서, 미결정, 다음 할 일).
+- 재활용 로봇과 **다른 기계**다. §1·§6(메카넘/LiDAR/카메라 시차)과 `common/config.py` 는 적용하지 않는다.
+  설정은 `wafer_cell/cell_config.py`(사용자 제공 `R22 센서 정리` 문서 수치 + `가정` 값 목록 ASSUMED, 몸체 치수는 R9 값). 재사용하는 공용 코드는 `common/camera.py` 뿐(수정 금지).
+- 구조: **Mega 가 공정(권한), PC 는 표시 · 카메라 판정 · 운전 명령 6 개**(원점/시작/일시정지/재개/정지/알람 해제). 규격 = `wafer_cell/PROTOCOL.md`
+  (`$TYPE,k=v*HH` XOR, PC->Mega <= 60 B). 같은 화면이 SIM(`CellSim`)과 LIVE(`live.py`)를 `source.py` 인터페이스로 받는다.
+  실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--speed 5] [--source live --serial fake|tcp:H:P|COMx]` -> `http://127.0.0.1:8765/`.
+  3D 보기 = `/3d.html`(헤더 `3D`, 보기 전용, three.js r160 을 `web/` 에 포함 — CDN 금지, `web/` 은 하위 폴더 없음 = server `SAFE_NAME`).
+  동작 과정 그림 = `docs/process_flow.svg`(`flow_diagram.py` 가 단계 동작 · 수치에서 생성). 자리 · 단계 · 높이를 바꾸면 `py -3.13 wafer_cell/flow_diagram.py` 로 다시 만든다(`test_wafer_sequence` 가 비교).
+  책상(`DESK_*`, 674x480 가정)이 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥(앞면 y -189.5 < 책상 끝 -140)이다 — `test_wafer_geometry` 가 강제.
+  LIVE 화면 = 장비 상태는 `test_wafer_sync`(가짜 장비 ST 마다 스냅샷 비교, 불일치 0)가 보증한다. 스냅샷 키를 늘리면 SIM · LIVE · 비교 목록을 같이 고친다.
+  Mega 펌웨어는 아직 없다(다음 단계). **AI 는 LIVE 를 가짜 장비(`--serial fake`, `wafer_cell/fake_mega.py`)로만 쓴다** — 실제 COM 으로 명령을 보내는 것은
+  사용자가 화면 버튼 + 확인 창으로만 한다(§7). 실제 COM 을 열면 Mega 가 리셋(DTR)된다 -> 공정 중 서버 재시작 금지.
+- 셀: ① 투입 θ180(RX 73, 도크 +22 mm) · ② 검사 120(RX 51) · ③ 불량 0(RX 51) · UV 탑 60(RX 85) · 대차 270(RX 85). 옆길 없음(사용자 변경, 문서는 220). 카세트 5 슬롯 Sn = 190 + 18(n-1).
+  ※ ③ · UV 자리는 **사용자 변경**(R22 문서는 UV 0 · ③ 60). 각도는 `cell_config.STATIONS` 한 곳 — 코드 · 화면 · 3D 는 이름으로 따라간다.
+  θ 센서 이름: TH0 = ③, TH60 = UV(`UV_TH_SENSOR`, UV 켜기 조건 'θ 60 ± 0.2°'). 각도를 문구에 직접 쓰지 말고 `C.STATIONS` 로 만든다.
+- 확정된 공정 규칙(사용자 설명/R22 문서, 코드·테스트가 강제):
+  대차 카세트 -> ① -> 슬롯 1->5: 집기 -> ② 촬영 · PC 판정(OK/NG + δr, δθ) -> 보정 다시 집기(RX 51+δr, θ120+δθ, 창 δr -3.5~+0.5 · |δθ|<=0.5)
+  -> NG 는 ③ 위 슬롯부터 · 다음 웨이퍼 / OK 는 UV 받침(ZC 121.5 넣고 113.5 넘김) -> ZC<=110 · R 후진에서 UV -> 다시 집어 ① 원래 슬롯
+  -> 5 장 끝 -> ① 카세트를 원래 받침에 -> 대차 다음 받침 / 다 하면 출발. ③ 가득/없음 -> WAIT_NG(TOF-NG 없음->있음 = 새 카세트).
+  P3 S4 OFF = 빈 슬롯(알람 아님). 선회는 Z105 · RX<=2(R Sharp), 예외: 높이 선회 ② 120<->① 180(사용자 변경 - 웨이퍼를 든 채 transfer_z 그대로, RX<=2, ② 크래들 띠 z244~252 ±5 밖, Z105 로 내리지 않음 · 되돌릴 때 높이는 ② 앞에서), 카세트 운반 180<->270(Z241), ② 미세 0.5°(Z183).
+  UV 탑 밑(RX>2)은 ZC 113.5~121.5 만, ZC 소프트 상한 245. UV 램프 = 7 조건(`sequence.uv_interlock`). 원점 = R 후진 -> Z(Sharp) -> θ 를 - 쪽 5°/s, 95° 안 첫 LOW.
+  하트비트 1.5 s 끊김 -> UV 즉시 끔 + 축 동작 끝낸 뒤 PAUSED(LINK). 판정 5 s 없음 -> JUDGE_TIMEOUT.
+- 내 해석(사용자 확인 대기, `wafer_cell/README.md` '해석'): ① 앞 든 채 Z 이동은 다른 슬롯 높이를 안 지날 때만(들기 높이 SIDE_OFS -57 은 '205 슬롯 5 옆길' 역산),
+  카세트 운반 짧은 길, 원점 R 먼저, 대차 카세트 1~4(기본 4), 판정 알고리즘 [미구현](기본 OK · δ 0).
+- 화면 수치는 **지령값**이다(실측은 θ 자리 센서 · Sharp 로만). 하드웨어 의존값(Sharp 환산 · 반복 정밀도, θ ±1.65°, A_UV 문턱,
+  TOF-IN 문턱(도크 +22 로 다시 티칭), 높이 선회 틈(② 크래들 · 백라이트), UV 받침 모양, S4 모듈 [보류], 축 속도, UV 시간, 대차 통신)은 [불명]/가정 — 확인 절차는 `wafer_cell/README.md`.
+- 조작 API 는 loopback + JSON + Host/Origin + 기동 토큰 필수. 웹 '정지'는 소프트 정지이며 E-STOP 이 아니다(E-STOP 사슬 = D9).

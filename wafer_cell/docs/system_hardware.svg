@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100">
+<title>웨이퍼 검사셀 R22 하드웨어 구성도</title>
+<defs>
+<marker id="a-usb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+<marker id="a-dig" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+<marker id="a-ana" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/></marker>
+<marker id="a-i2c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker>
+<marker id="a-drv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+<marker id="a-safe" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+<marker id="a-unk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+</defs>
+<rect x="0" y="0" width="1600" height="1100" fill="#ffffff"/>
+<text class="t" x="40" y="46" font-size="26" font-weight="700" fill="#0f172a" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">웨이퍼 검사셀 R22 — 하드웨어 구성도</text>
+<text class="t" x="40" y="74" font-size="13" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">2026-10-26 · 사용자 변경 반영(③ 불량 θ0 · UV 탑 θ60 · ① ↔ ② 높이 선회, 옆길 없음) · 점선 상자 = [불명] / 미정</text>
+<rect class="zone" x="1080" y="104" width="490" height="330" rx="10" fill="#eef6ff" stroke="#93c5fd" stroke-width="1.2"/>
+<text class="t" x="1094" y="126" font-size="14.5" font-weight="700" fill="#1d4ed8" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">회전부 — θ 축 위 (Z 캐리지 · R 포크)</text>
+<rect class="zone" x="1080" y="452" width="490" height="478" rx="10" fill="#f6f7f2" stroke="#cbd5a1" stroke-width="1.2"/>
+<text class="t" x="1094" y="474" font-size="14.5" font-weight="700" fill="#4d7c0f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">고정부 — 책상 위 (674 × 480 mm, 가정)</text>
+<rect class="zone" x="1080" y="946" width="490" height="78" rx="10" fill="#fff7ed" stroke="#fdba74" stroke-width="1.2"/>
+<rect class="slip" x="1030" y="142" width="30" height="284" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.4"/>
+<text class="t" x="1045" y="118" font-size="12.5" font-weight="700" fill="#5b21b6" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">슬립링</text>
+<text class="t" x="1045" y="134" font-size="12.5" font-weight="700" fill="#5b21b6" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">18회로</text>
+<g class="node">
+<rect class="box" x="40" y="104" width="300" height="152" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text class="t" x="50" y="123" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">PC (Windows)</text>
+<text class="t" x="50" y="139" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">py -3.13 wafer_cell/server.py</text>
+<text class="t" x="50" y="155" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">· 2D / 3D 화면 (브라우저)</text>
+<text class="t" x="50" y="171" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">· 카메라 판정 OK / NG · δr · δθ</text>
+<text class="t" x="50" y="187" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">· 운전 명령 6개 (확인 창)</text>
+<text class="t" x="50" y="203" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">· 기록 captures/ (CSV · jpg)</text>
+<text class="t" x="50" y="219" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">· 보기 전용 원격 화면 (LAN)</text>
+</g>
+<g class="node">
+<rect class="box" x="40" y="272" width="300" height="116" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.4"/>
+<text class="t" x="50" y="291" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">PC ↔ Mega 줄 프로토콜</text>
+<text class="t" x="50" y="307" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">USB 시리얼 115200 · $TYPE,k=v*HH (XOR)</text>
+<text class="t" x="50" y="323" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Mega → PC: ST 20 Hz · SL · EV · CAP · ACK</text>
+<text class="t" x="50" y="339" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">PC → Mega: HB 0.5 s · CMD · JDG</text>
+<text class="t" x="50" y="355" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">HB 1.5 s 끊김 → UV 끔 · PAUSED(LINK)</text>
+<text class="t" x="50" y="371" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">COM 을 열면 Mega 리셋(DTR)</text>
+</g>
+<g class="node">
+<rect class="box" x="40" y="404" width="300" height="52" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.4"/>
+<text class="t" x="50" y="423" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">StreamCam (USB)</text>
+<text class="t" x="50" y="439" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">② 검사 크래들 위 · I3 촬영 → PC 판정</text>
+</g>
+<path d="M40,430 L24,430 L24,236 L38,236" fill="none" stroke="#2563eb" stroke-width="3.2" marker-end="url(#a-usb)"/>
+<g class="node">
+<rect class="box" x="40" y="474" width="300" height="248" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.4"/>
+<text class="t" x="52" y="496" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">선 · 표시</text>
+<path d="M54,520 L114,520" fill="none" stroke="#2563eb" stroke-width="3.2" marker-end="url(#a-usb)"/>
+<text class="t" x="126" y="524" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">USB (PC)</text>
+<path d="M54,544 L114,544" fill="none" stroke="#334155" stroke-width="1.8" marker-end="url(#a-dig)"/>
+<text class="t" x="126" y="548" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">디지털 신호</text>
+<path d="M54,568 L114,568" fill="none" stroke="#0f766e" stroke-width="1.9" stroke-dasharray="7 4" marker-end="url(#a-ana)"/>
+<text class="t" x="126" y="572" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">아날로그 신호</text>
+<path d="M54,592 L114,592" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#a-i2c)"/>
+<text class="t" x="126" y="596" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">I2C</text>
+<path d="M54,616 L114,616" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<text class="t" x="126" y="620" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">구동 · 전원 (모터 · 실린더 · LED)</text>
+<path d="M54,640 L114,640" fill="none" stroke="#dc2626" stroke-width="2.6" marker-end="url(#a-safe)"/>
+<text class="t" x="126" y="644" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">안전 사슬 (E-STOP)</text>
+<path d="M54,664 L114,664" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#a-unk)"/>
+<text class="t" x="126" y="668" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">연결 방식 [불명]</text>
+<rect class="box" x="54" y="688" width="40" height="20" rx="4" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="t" x="104" y="703" font-size="12" font-weight="400" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">부품 · 배정 [불명] / 보류</text>
+</g>
+<g class="node">
+<rect class="box" x="40" y="740" width="300" height="108" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="t" x="50" y="759" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">전원 [불명]</text>
+<text class="t" x="50" y="775" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">24 V: E-STOP 사슬 (→ 10 kΩ → PC817)</text>
+<text class="t" x="50" y="791" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">5 V: Sharp · ToF · θ 센서 (Mega)</text>
+<text class="t" x="50" y="807" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">모터 · R 실린더 · UV LED 전원: 미정</text>
+<text class="t" x="50" y="823" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">E-STOP 이 모터 전원을 끊는지: 미정</text>
+</g>
+<g class="node">
+<rect class="box" x="420" y="104" width="300" height="920" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+<text class="t" x="434" y="130" font-size="17" font-weight="700" fill="#92400e" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Arduino Mega 2560</text>
+<text class="t" x="434" y="150" font-size="12.5" font-weight="700" fill="#b45309" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">셀 제어기 — 공정 권한</text>
+<text class="t" x="434" y="452" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">시퀀스 · 인터록</text>
+<text class="t" x="434" y="469" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">와치독 250 ms</text>
+<text class="t" x="434" y="486" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">부팅 = IDLE ·</text>
+<text class="t" x="434" y="503" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif"> 원점 미확정 · UV 꺼짐</text>
+<text class="t" x="434" y="520" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">UV 켜기 7 조건</text>
+<text class="t" x="434" y="537" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">판정 5 s 없음 →</text>
+<text class="t" x="434" y="554" font-size="11.5" font-weight="400" fill="#78350f" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif"> JUDGE_TIMEOUT</text>
+</g>
+<path d="M340,190 L418,190" fill="none" stroke="#2563eb" stroke-width="3.2" marker-end="url(#a-usb)" marker-start="url(#a-usb)"/>
+<text class="t" x="379" y="182" font-size="11.5" font-weight="700" fill="#2563eb" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">USB</text>
+<circle cx="720" cy="172" r="4" fill="#ea580c"/>
+<text class="port" x="710" y="176" font-size="11.5" font-weight="700" fill="#ea580c" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Z  STEP · DIR · EN</text>
+<g class="node">
+<rect class="box" x="760" y="152" width="230" height="40" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="t" x="770" y="171" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">스테퍼 드라이버 [불명]</text>
+</g>
+<path d="M720,172 L758,172" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<path d="M990,172 L1098,172" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<g class="node">
+<rect class="box" x="1100" y="150" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="169" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Z 스테퍼 → Z 캐리지</text>
+<text class="t" x="1110" y="185" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">ZC 지령 · 선회 105 · 소프트 상한 245</text>
+</g>
+<circle cx="720" cy="228" r="4" fill="#ea580c"/>
+<text class="port" x="710" y="232" font-size="11.5" font-weight="700" fill="#ea580c" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">R  IN1 · IN2 (PWM)</text>
+<g class="node">
+<rect class="box" x="760" y="208" width="230" height="40" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="770" y="227" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">L298 (정 · 역 + PWM)</text>
+</g>
+<path d="M720,228 L758,228" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<path d="M990,228 L1098,228" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<g class="node">
+<rect class="box" x="1100" y="206" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="225" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">R 전동 실린더 → 포크</text>
+<text class="t" x="1110" y="241" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">RX −2 ~ 85 · 시간 구동 · 실린더 구성(1개 / 2개) [불명]</text>
+</g>
+<circle cx="720" cy="284" r="4" fill="#0f766e"/>
+<text class="port" x="710" y="288" font-size="11.5" font-weight="700" fill="#0f766e" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Z Sharp (아날로그)</text>
+<path d="M1098,284 L726,284" fill="none" stroke="#0f766e" stroke-width="1.9" stroke-dasharray="7 4" marker-end="url(#a-ana)"/>
+<text class="t" x="875.0" y="277" font-size="11" font-weight="400" fill="#0f766e" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">5 V · 10 µF</text>
+<g class="node">
+<rect class="box" x="1100" y="262" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="281" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Sharp GP2Y0A21 — Z (ZH-01)</text>
+<text class="t" x="1110" y="297" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">거리 = 349.1 − ZC · 원점(H2) · 높이 확인</text>
+</g>
+<circle cx="720" cy="340" r="4" fill="#0f766e"/>
+<text class="port" x="710" y="344" font-size="11.5" font-weight="700" fill="#0f766e" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">R Sharp (아날로그)</text>
+<path d="M1098,340 L726,340" fill="none" stroke="#0f766e" stroke-width="1.9" stroke-dasharray="7 4" marker-end="url(#a-ana)"/>
+<text class="t" x="875.0" y="333" font-size="11" font-weight="400" fill="#0f766e" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">5 V · 10 µF</text>
+<g class="node">
+<rect class="box" x="1100" y="318" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="337" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">Sharp GP2Y0A21 — R (SH-01)</text>
+<text class="t" x="1110" y="353" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">거리 = 104 + RX · RX ≤ 2 = 후진 (선회 조건)</text>
+</g>
+<circle cx="720" cy="396" r="4" fill="#94a3b8"/>
+<text class="port" x="710" y="400" font-size="11.5" font-weight="700" fill="#94a3b8" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">S4 (입력) [보류]</text>
+<path d="M1098,396 L726,396" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#a-unk)"/>
+<g class="node">
+<rect class="box" x="1100" y="374" width="455" height="44" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="t" x="1110" y="393" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">S4 포크 웨이퍼 [모듈 보류]</text>
+<text class="t" x="1110" y="409" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">슬립링 17번 · P3 꺼냄 / 빈 슬롯 · U5 · U7 · R5 확인</text>
+</g>
+<circle cx="1045" cy="172" r="4.5" fill="#ffffff" stroke="#7c3aed" stroke-width="1.6"/>
+<circle cx="1045" cy="228" r="4.5" fill="#ffffff" stroke="#7c3aed" stroke-width="1.6"/>
+<circle cx="1045" cy="284" r="4.5" fill="#ffffff" stroke="#7c3aed" stroke-width="1.6"/>
+<circle cx="1045" cy="340" r="4.5" fill="#ffffff" stroke="#7c3aed" stroke-width="1.6"/>
+<circle cx="1045" cy="396" r="4.5" fill="#ffffff" stroke="#7c3aed" stroke-width="1.6"/>
+<circle cx="720" cy="508" r="4" fill="#ea580c"/>
+<text class="port" x="710" y="512" font-size="11.5" font-weight="700" fill="#ea580c" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">θ  STEP · DIR · EN</text>
+<g class="node">
+<rect class="box" x="760" y="488" width="230" height="40" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text class="t" x="770" y="507" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">스테퍼 드라이버 [불명]</text>
+</g>
+<path d="M720,508 L758,508" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<path d="M990,508 L1098,508" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<g class="node">
+<rect class="box" x="1100" y="486" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="505" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">θ 스테퍼 (받침) → 회전부</text>
+<text class="t" x="1110" y="521" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">원점 = − 쪽 5°/s, 95° 안 첫 LOW 센서 · 대기 θ120</text>
+</g>
+<circle cx="720" cy="562" r="4" fill="#334155"/>
+<text class="port" x="710" y="566" font-size="11.5" font-weight="700" fill="#334155" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">θ 센서 ×5 (디지털)</text>
+<path d="M1098,562 L726,562" fill="none" stroke="#334155" stroke-width="1.8" marker-end="url(#a-dig)"/>
+<text class="t" x="875.0" y="555" font-size="11" font-weight="400" fill="#334155" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">EE-1001-1 (Light-ON)</text>
+<g class="node">
+<rect class="box" x="1100" y="540" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="559" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">θ 자리 센서 EE-SX670 ×5 — TS-11 링</text>
+<text class="t" x="1110" y="575" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">TH0 ③ · TH60 UV · TH120 ② · TH180 ① · TH270 대차 (±1.65°)</text>
+</g>
+<circle cx="720" cy="642" r="4" fill="#7c3aed"/>
+<text class="port" x="710" y="646" font-size="11.5" font-weight="700" fill="#7c3aed" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">I2C  SDA · SCL</text>
+<g class="node">
+<rect class="box" x="760" y="602" width="230" height="80" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="770" y="621" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">TCA9548A</text>
+<text class="t" x="770" y="637" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">I2C 멀티플렉서</text>
+<text class="t" x="770" y="653" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">ch0 · ch1 (주소 0x29 같음)</text>
+</g>
+<path d="M720,642 L758,642" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+<path d="M990,620 L1098,620" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+<path d="M990,668 L1098,668" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+<text class="t" x="1010" y="614" font-size="11" font-weight="400" fill="#7c3aed" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">ch0</text>
+<text class="t" x="1010" y="662" font-size="11" font-weight="400" fill="#7c3aed" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">ch1</text>
+<g class="node">
+<rect class="box" x="1100" y="598" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="617" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">VL53L0X TOF-IN — ① 투입 도크 θ180</text>
+<text class="t" x="1110" y="633" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">① 카세트 있음 / 없음 (문턱 120 mm, 가정)</text>
+</g>
+<g class="node">
+<rect class="box" x="1100" y="646" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="665" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">VL53L0X TOF-NG — ③ 불량 도크 θ0</text>
+<text class="t" x="1110" y="681" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">③ 있음 / 없음 · 없음 → 있음 = 새 카세트</text>
+</g>
+<circle cx="720" cy="736" r="4" fill="#334155"/>
+<text class="port" x="710" y="740" font-size="11.5" font-weight="700" fill="#334155" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">UV 켜기 (출력)</text>
+<g class="node">
+<rect class="box" x="760" y="716" width="230" height="40" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="770" y="735" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">K_UV 릴레이</text>
+</g>
+<path d="M720,736 L758,736" fill="none" stroke="#334155" stroke-width="1.8" marker-end="url(#a-dig)"/>
+<path d="M990,736 L1098,736" fill="none" stroke="#ea580c" stroke-width="3.2" marker-end="url(#a-drv)"/>
+<g class="node">
+<rect class="box" x="1100" y="714" width="455" height="84" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="733" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">UV 탑 θ60 — UV LED</text>
+<text class="t" x="1110" y="749" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">KSD9700 50 °C NC (직렬) → UV LED 드라이버 → UV LED</text>
+<text class="t" x="1110" y="765" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">켜기 7 조건: TH60 · θ60±0.2° · RX≤2 · ZC≤110 · 넘김 · OK · D9</text>
+<text class="t" x="1110" y="781" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">드라이버 Vo+ → A_UV: 켠 뒤 0.3 s 안 확인</text>
+</g>
+<circle cx="720" cy="792" r="4" fill="#0f766e"/>
+<text class="port" x="710" y="796" font-size="11.5" font-weight="700" fill="#0f766e" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">A_UV (아날로그)</text>
+<g class="node">
+<rect class="box" x="760" y="778" width="230" height="28" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="770" y="797" font-size="11.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">47 kΩ / 10 kΩ 분압</text>
+</g>
+<path d="M1098,792 L992,792" fill="none" stroke="#0f766e" stroke-width="1.9" stroke-dasharray="7 4"/>
+<path d="M758,792 L726,792" fill="none" stroke="#0f766e" stroke-width="1.9" stroke-dasharray="7 4" marker-end="url(#a-ana)"/>
+<circle cx="720" cy="846" r="4" fill="#94a3b8"/>
+<text class="port" x="710" y="850" font-size="11.5" font-weight="700" fill="#94a3b8" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">백라이트 [불명]</text>
+<path d="M720,846 L1098,846" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#a-unk)"/>
+<text class="t" x="875.0" y="839" font-size="11" font-weight="400" fill="#64748b" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">제어 주체 · 방식 [불명]</text>
+<g class="node">
+<rect class="box" x="1100" y="824" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="843" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">② 검사 θ120 — 백라이트 C-03N · 크래들 C-02N</text>
+<text class="t" x="1110" y="859" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">StreamCam 이 위에서 촬영 (USB → PC) · 0.5 s (가정)</text>
+</g>
+<circle cx="720" cy="900" r="4" fill="#dc2626"/>
+<text class="port" x="710" y="904" font-size="11.5" font-weight="700" fill="#dc2626" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">D9 (디지털, LOW = 정상)</text>
+<g class="node">
+<rect class="box" x="760" y="880" width="230" height="40" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="770" y="899" font-size="12.5" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">24 V → 10 kΩ → PC817</text>
+</g>
+<path d="M1098,900 L992,900" fill="none" stroke="#dc2626" stroke-width="2.6" marker-end="url(#a-safe)"/>
+<path d="M758,900 L726,900" fill="none" stroke="#dc2626" stroke-width="2.6" marker-end="url(#a-safe)"/>
+<g class="node">
+<rect class="box" x="1100" y="878" width="455" height="44" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="897" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">E-STOP ×2 (NC 직렬, 테이블 양 끝)</text>
+<text class="t" x="1110" y="913" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">끊기면 D9 HIGH → 비상정지 · UV 꺼짐 · 원점 다시</text>
+</g>
+<circle cx="720" cy="985" r="4" fill="#94a3b8"/>
+<text class="port" x="710" y="989" font-size="11.5" font-weight="700" fill="#94a3b8" text-anchor="end" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">대차 [불명]</text>
+<path d="M720,985 L1098,985" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#a-unk)"/>
+<text class="t" x="875.0" y="978" font-size="11" font-weight="400" fill="#64748b" text-anchor="middle" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">셀 ↔ 대차 통신 [불명]</text>
+<g class="node">
+<rect class="box" x="1100" y="959" width="455" height="52" rx="6" fill="#ffffff" stroke="#64748b" stroke-width="1.4"/>
+<text class="t" x="1110" y="978" font-size="13" font-weight="700" fill="#1e293b" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">대차 AGV — 메카넘 · 받침 4 (책상 밖 바닥 θ270)</text>
+<text class="t" x="1110" y="994" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">카세트 입구는 그리퍼 쪽 · 다음 받침 = 물러남 · 옆걸음 · 180° 회전</text>
+</g>
+<text class="t" x="40" y="1050" font-size="12" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">※ 저장소에 없음 [불명]: 핀 배정(D9 외) · 슬립링 회로 배정(S4 = 17번 외). 수치 출처: 사용자 제공 'R22 센서 정리'(2026-10-24) + wafer_cell/cell_config.py. 몸체 치수는 R9 값, 책상 · 대차 몸체는 가정.</text>
+<text class="t" x="40" y="1072" font-size="12" font-weight="400" fill="#475569" text-anchor="start" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif">※ 화면 축 값은 지령값이고 실측은 θ 자리 센서 · Sharp 뿐입니다. 웹 '정지'는 소프트 정지이며 E-STOP 이 아닙니다.</text>
+</svg>
