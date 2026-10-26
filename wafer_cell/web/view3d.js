@@ -119,7 +119,7 @@ function buildScene() {
     const c = makeCassette(k === 'ng' ? 'ng' : 'in');
     c.g.position.set(dx, 172, 0); g.add(c.g);
     if (k === 'input') {
-      R.clamp = box(c.g, 205, 305, -70, 70, GEO.cass_plate_under, GEO.cass_plate_under + 6, useMat('amber', { transparent: true, opacity: 0.35 }));
+      R.clamp = box(c.g, 205, 305, -70, 70, GEO.cass_plate_under, GEO.cass_plate_under + 6, useMat('amber', { transparent: true, opacity: 0.18, depthWrite: false }));
     }
     R.cass[k] = c;
   }
@@ -206,8 +206,12 @@ function buildCart(cell) {
   R.seat = {};
   for (const [s, [x, y]] of Object.entries(GEO.cart_seat_xy)) {
     box(inner, x - 62, x + 62, y - 62, y + 62, top - 30, top, useMat('part2'));
+    // 카세트 입구(로컬 낮은 x)를 그리퍼 쪽으로: 앞 받침은 셀 쪽(-z), 뒤 받침은 바깥(+z) -> 대차가 180° 돌면 셀 쪽
+    const sg = group(inner); sg.position.set(x, top, y);
+    sg.rotation.y = (GEO.cart_seat_face[s] < 0 ? -1 : 1) * Math.PI / 2;     // +x(카세트 뒤) -> +z / -z
     const c = makeCassette('in');
-    c.g.position.set(x - 235.5, top, y); inner.add(c.g);
+    c.g.position.set(-235.5, 0, 0); sg.add(c.g);
+    box(c.g, 205, 305, -70, 70, GEO.cass_plate_under, GEO.cass_plate_under + 6, useMat('amber', { transparent: true, opacity: 0.18, depthWrite: false }));   // 클램프 윗판째로 실림
     R.seat[s] = c;
   }
 }
@@ -239,7 +243,7 @@ function buildRobot(cell) {
   const cc = makeCassette('in');
   cc.g.position.set(GEO.station_r.input - 235.5 - GEO.station_rx.input, 170.5 - GEO.cass_plate_under, 0);
   fork.add(cc.g); R.carryCass = cc;
-  box(cc.g, 205, 305, -70, 70, GEO.cass_plate_under, GEO.cass_plate_under + 6, useMat('amber', { transparent: true, opacity: 0.35 }));
+  box(cc.g, 205, 305, -70, 70, GEO.cass_plate_under, GEO.cass_plate_under + 6, useMat('amber', { transparent: true, opacity: 0.18, depthWrite: false }));
   R.s4 = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), new THREE.MeshStandardMaterial({ color: PALETTE.dark.led }));
   R.s4.position.set(GEO.s4_local[0], 172, GEO.s4_local[1]); fork.add(R.s4);
   R.collide = new THREE.Mesh(new THREE.SphereGeometry(18, 16, 12), new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.7 }));

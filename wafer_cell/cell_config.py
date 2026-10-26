@@ -147,6 +147,9 @@ CART_RETREAT = 120.0       # 대차 물러남 -120 (옆걸음은 물러난 자�
 CART_LATERAL = 200.0       # 대차 옆걸음 ±200 (메카넘)
 # 대차 몸체(대차 로컬 mm: 앞 왼 받침 중심 = (0,0), +x = 오른쪽 받침, +y = 셀에서 멀어짐). 화면 · 3D 공용 (R9 화면 값)
 CART_SEAT_XY = {"FL": (0.0, 0.0), "FR": (200.0, 0.0), "RL": (200.0, 260.0), "RR": (0.0, 260.0)}
+# 받침 카세트 입구 방향(대차 로컬 y 부호). 로봇은 -y(셀 쪽). 뒤 받침(R*)은 대차가 180° 돌아 내어 주므로 바깥(+y)을 보게 실어야
+# 돈 뒤 입구가 로봇을 본다(그래야 ① 에 놓았을 때도 입구가 포크 쪽). 사용자 요청: 카세트 입구가 그리퍼 쪽.
+CART_SEAT_FACE = {"FL": -1, "FR": -1, "RL": 1, "RR": 1}
 CART_BODY = (-90.0, -80.0, 380.0, 420.0)    # 가정: x, y, 폭, 길이 -> 앞면은 받침 중심보다 80 mm 셀 쪽
 CART_SEAT_TOP_Z = 163.5    # 받침 윗면 z (R9 화면 값: Z223 에서 카세트가 받침에 닿는 높이)
 CASS_PLATE_UNDER = 125.0   # 카세트 바닥 -> 클램프 윗판 밑면 (R9 도면)
@@ -277,7 +280,7 @@ def ui_geometry():
         "theta_standby": THETA_STANDBY,
         "cart_seats": list(CART_SEATS), "cart_seat_kr": CART_SEAT_KR,
         "cart_retreat": CART_RETREAT, "cart_lateral": CART_LATERAL,
-        "cart_seat_xy": CART_SEAT_XY, "cart_body": list(CART_BODY), "cart_seat_top_z": CART_SEAT_TOP_Z,
+        "cart_seat_xy": CART_SEAT_XY, "cart_seat_face": CART_SEAT_FACE, "cart_body": list(CART_BODY), "cart_seat_top_z": CART_SEAT_TOP_Z,
         "cass_plate_under": CASS_PLATE_UNDER,
         "desk": {"x0": DESK_X0, "x1": DESK_X1, "y0": DESK_Y0, "y1": DESK_Y1, "top_z": DESK_TOP_Z, "h": DESK_H,
                  "floor_z": FLOOR_Z},

@@ -96,7 +96,7 @@ function buildPlan() {
     const sg = el('g', { transform: `rotate(${-GEO.stations[k]})` }, g);
     rect(GEO.station_r[k] - 23.5, -65, 92, 130, 'dock', sg);                   // 도크 자리(카세트가 없어도 보이게)
     R.cass[k] = drawCassette(sg, k, GEO.station_r[k]);
-    if (k === 'input') rect(IR - 29.5, -70, 100, 140, 'clamp', R.cass[k].g);
+    if (k === 'input') rect(235.5 - 29.5, -70, 100, 140, 'clamp', R.cass[k].g);   // 카세트 그룹 좌표(웨이퍼 중심 235.5) - 3D 와 같은 자리
   }
   // ② 검사 크래들 (백라이트 C-03N 위 크래들 C-02N, 위에 StreamCam)
   const ig = el('g', { transform: `rotate(${-GEO.stations.inspect})` }, g);
@@ -123,10 +123,11 @@ function buildPlan() {
   R.seat = {};
   for (const [s, [x, y]] of Object.entries(GEO.cart_seat_xy)) {
     const sr = rect(x - 62, y - 62, 124, 124, 'seat', cart);
-    const box = el('g', {}, cart);
-    const cb = rect(x - 50, y - 50, 100, 100, 'cassbox', box);
-    const w = circ(x, y, 36, 'wafer', box);
-    R.seat[s] = { box, cb, w, sr };
+    // 카세트 입구가 그리퍼 쪽: 앞 받침은 셀 쪽(-y), 뒤 받침은 바깥(+y) -> 대차가 180° 돌면 셀 쪽 (cell_config.CART_SEAT_FACE)
+    const box = el('g', { transform: `translate(${x},${y}) rotate(${GEO.cart_seat_face[s] < 0 ? 90 : -90})` }, cart);
+    const { w } = drawCassette(box, 'in', 0);
+    rect(-29.5, -70, 100, 140, 'clamp', box);                   // 클램프 윗판째로 실림
+    R.seat[s] = { box, w, sr };
   }
   R.cartLbl = tx('대차', { x: -120, y: 130, class: 'stn-t', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, cart);
   // 회전부(로봇)
@@ -144,9 +145,8 @@ function buildPlan() {
   el('polygon', { points: '107,-30 131,-30 131,-36 149,-36 149,-34 203,-34 203,-20 149,-20 149,20 203,20 203,34 149,34 149,36 131,36 131,30 107,30', class: 'blade' }, blade);
   R.carry = circ(184.5, 0, 50, 'wafer carry', blade);
   R.carryCass = el('g', {}, blade);                        // 클램프 윗판째로 든 카세트(중심 = 포크 원점 +184.5)
-  rect(184.5 - 50, -50, 100, 100, 'cassbox', R.carryCass);
-  R.carryCassW = circ(184.5, 0, 36, 'wafer', R.carryCass);
-  rect(184.5 - 55, -66, 110, 132, 'clamp', R.carryCass);
+  R.carryCassW = drawCassette(R.carryCass, 'in', 184.5).w;  // 입구 = 로봇 쪽(받침 · ① 과 같은 방향)
+  rect(184.5 - 29.5, -70, 100, 140, 'clamp', R.carryCass);
   R.collide = circ(203, 0, 16, 'collide', blade);
   R.s4 = circ(GEO.s4_local[0], GEO.s4_local[1], 8, 'sen', blade);
   tx('S4', { x: GEO.s4_local[0], y: GEO.s4_local[1] + 3, class: 'sen-t', transform: '' }, blade);

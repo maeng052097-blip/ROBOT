@@ -139,6 +139,18 @@ def main():
     assert pad_in - carried_out >= 10, (pad_in, carried_out)
     print(f"  OK NG path passes the UV tower at Z105: carried wafer r {carried_out:.1f} vs UV pad r {pad_in:.1f} "
           f"(gap {pad_in - carried_out:.1f} mm, assumed pad shape)")
+    # 대차 카세트 입구: 받침을 로봇 앞에 낼 때(앞 받침 F* = 그대로, 뒤 받침 R* = 대차 180° 회전) 입구가 셀 쪽(대차 로컬 -y)
+    assert set(C.CART_SEAT_FACE) == set(C.CART_SEATS)
+    for seat in C.CART_SEATS:
+        turned = -1 if seat[0] == "R" else 1                     # sim _cart_aligned_seat: rot 180 -> R*
+        assert C.CART_SEAT_FACE[seat] * turned == -1, (seat, C.CART_SEAT_FACE[seat])
+        cx = sum(x for x, _ in C.CART_SEAT_XY.values()) / 4
+        cy = sum(y for _, y in C.CART_SEAT_XY.values()) / 4
+        x, y = C.CART_SEAT_XY[seat]
+        if turned < 0:
+            x, y = 2 * cx - x, 2 * cy - y                       # 대차 중심 둘레 180°
+        assert (x == 0.0 or seat[1] == "R") and y == 0.0, (seat, x, y)   # 돈 뒤 그 받침이 앞줄(로봇 앞)에 옴
+    print("  OK cart cassettes open toward the gripper when presented (front seats face the cell, rear face out -> turned 180)")
     print(f"  OK desk {C.DESK_X1 - C.DESK_X0:.0f}x{C.DESK_Y1 - C.DESK_Y0:.0f} mm (assumed) encloses all stations + robot, "
           f"cart front {-cart_front:.1f} beyond desk edge {-C.DESK_Y0:.0f}")
 

@@ -274,7 +274,6 @@ body.detail .stn-t{font-size:20px}   /* 상세 = 도면이 작아짐 -> 글자 �
 .wheel{fill:var(--part2);stroke:var(--partln);stroke-width:.8}
 .seat{fill:none;stroke:var(--partln);stroke-width:1;stroke-dasharray:4 3}
 .ghostcart{opacity:.45}
-.cassbox{fill:var(--part2);stroke:var(--ok);stroke-width:1.2}
 .wafer.est{fill:none;stroke-dasharray:3 2}
 .tofs{fill:var(--steel3);stroke:var(--steel);stroke-width:.8}
 .tofbeam{stroke:var(--steel);stroke-width:1;stroke-dasharray:2 3;opacity:.8}
