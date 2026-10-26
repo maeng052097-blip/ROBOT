@@ -7,14 +7,15 @@
       -> 정상이면 UV 탑(θ60, 사용자 변경 - R22 문서는 θ0) 받침에 넘김 -> UV 켜고 끔 -> 다시 집어 -> ① 원래 슬롯에 되돌림
   -> 5 장이 끝나면 ① 카세트를 들어 원래 대차 받침에 놓고 대차가 움직인다.
 R22 문서 규칙:
-  - ① 은 RX 73 · ②③ 51 · UV · 대차 85. 옆길 θ180 <-> 220 은 RX <= 2 에서만.
+  - ① 은 RX 73 · ②③ 51 · UV · 대차 85. θ180 <-> 옆길(문서 220, 사용자 변경으로 검사 쪽 150) 은 RX <= 2 에서만.
   - UV 탑 밑(RX > 2)에서는 ZC 113.5 ~ 121.5 만. 램프는 7 가지 조건(uv_interlock)일 때만.
   - S4: ① 들기(P3) 뒤 ON = 꺼냄 / OFF = 빈 슬롯으로 기록하고 다음 슬롯(E1). UV 넘긴 뒤(U5) OFF, 다시 집은 뒤(U7) ON,
     ① 되돌린 뒤(R5) OFF. '없음' 확인은 포크를 뺀 뒤(놓은 직후에는 아직 보임).
   - 원점: R 후진 -> Z 선회 높이(Z Sharp) -> θ 를 - 쪽으로 5°/s, 95° 안 첫 LOW = 그 자리 -> 대기.
     (문서는 Z 를 먼저 적었지만 포크가 카세트 안이면 긁으므로 R 먼저 - R9 에서 정한 순서)
-해석(문서에 없는 부분, 사용자 확인 필요): ① 에서 웨이퍼를 든 채 Z 를 바꾸는 일은 모두 옆길(θ220)에서 한다
-(후진한 운반 웨이퍼가 ① 아래 슬롯 웨이퍼와 반경 27 mm 겹침). 카세트 운반은 슬립링 짧은 길 180 <-> 220 <-> 270.
+해석(문서에 없는 부분, 사용자 확인 필요): ① 에서 웨이퍼를 든 채 Z 를 바꾸는 일은 모두 옆길(θ150)에서 한다
+(후진한 운반 웨이퍼가 ① 아래 슬롯 웨이퍼와 반경 27 mm 겹침). 옆길이 ① 과 ② 사이라 꺼내기 180 -> 150 -> 120,
+되돌리기 60 -> 150 -> 180 모두 한 방향. 카세트 운반은 슬립링 짧은 길 180 <-> 270(Z241).
 한 단계 안의 동작은 순차 실행한다. 한글 문자열은 화면(브라우저) 전용 - 콘솔 출력 금지.
 """
 from dataclasses import dataclass
@@ -142,7 +143,7 @@ def cart_in_steps(seat):
              (MoveZ(seat_z), VerifyZ(), MoveR(RXC), VerifyR())),
         Step("C3", "cart_in", "카세트 들기 -> 빼기", f"Z {carry:g} (클램프 윗판째로) -> R 후진",
              (MoveZ(carry), VerifyZ(), MoveR(C.RX_RET), ExpectRet())),
-        Step("C4", "cart_in", "든 채 ① 로 선회 (270 -> 220 -> 180)", f"Z {carry:g} · RX <= 2 · ① 도크 비었음 (TOF-IN)",
+        Step("C4", "cart_in", f"든 채 ① 로 선회 ({C.STATIONS['cart']:g} -> {C.STATIONS['input']:g} 짧은 길)", f"Z {carry:g} · RX <= 2 · ① 도크 비었음 (TOF-IN)",
              (Expect("TOF_IN", False), Rotate(C.STATIONS["input"], "carry"), ExpectTh("input"))),
         Step("C5", "cart_in", "① 도크에 내려놓기", f"RX {RXI:g} -> Z {under:g} -> R 후진 · TOF-IN 있음 -> Z {SW:g}",
              (MoveR(RXI), VerifyR(), MoveZ(under), VerifyZ(), MoveR(C.RX_RET), ExpectRet(), Expect("TOF_IN", True),
@@ -164,15 +165,15 @@ def input_steps(n):
 
 def empty_steps(n):
     return [Step("E1", "input", f"① 슬롯 {n} 빈 슬롯 — 빼고 내리기", f"R 후진 -> 옆길 θ{SIDE:g} -> Z {SW:g} (다음 슬롯)",
-                 (MoveR(C.RX_RET), ExpectRet(), Rotate(SIDE, "side"), MoveZ(SW)))]
+                 (MoveR(C.RX_RET), ExpectRet(), Rotate(SIDE, "side"), MoveZ(SW)))]   # 빈 포크라 ① 앞에서도 되지만 S4 거짓 '없음' 에 대비해 옆길에서
 
 
 def inspect_steps(n):
     sz = C.side_z(n)
     above, seat = C.CRADLE_ZC_ABOVE, C.CRADLE_ZC_SEAT
     return [
-        Step("I1", "inspect", "옆길로 비켜 내린 뒤 ② 검사 (120°) 로 선회",
-             f"θ 180 -> {SIDE:g} (Z {sz:g} · RX <= 2) -> Z {SW:g} -> θ 120",
+        Step("I1", "inspect", f"검사 쪽 옆길 (θ{SIDE:g}) 에서 내린 뒤 ② 검사 ({C.STATIONS['inspect']:g}°) 로",
+             f"θ {C.STATIONS['input']:g} -> {SIDE:g} (Z {sz:g} · RX <= 2) -> Z {SW:g} -> θ {C.STATIONS['inspect']:g} (한 방향)",
              (Rotate(SIDE, "side"), MoveZ(SW), VerifyZ(), Rotate(C.STATIONS["inspect"]), ExpectTh("inspect"))),
         Step("I2", "inspect", "② 검사 크래들에 놓기", f"Z {above:g} -> RX {RXE:g} -> Z {seat:g} (패드 {C.CRADLE_SEAT_Z:g}) -> R 후진 · S4 없음",
              (MoveZ(above), MoveR(RXE), VerifyR(), MoveZ(seat), MoveR(C.RX_RET), ExpectRet(), Expect("S4", False))),
@@ -220,11 +221,11 @@ def return_steps(n):
     sn, pz, sz = C.slot_z(n), C.pick_z(n), C.side_z(n)
     return [
         Step("R1", "ret", f"옆길 (θ{SIDE:g}) 로 선회",
-             f"θ {UV_TH:g} -> {C.STATIONS['inspect']:g} -> {C.STATIONS['input']:g} -> {SIDE:g} · Z {SW:g} (대차 쪽을 지나지 않음)",
+             f"θ {UV_TH:g} -> {C.STATIONS['inspect']:g} -> {SIDE:g} · Z {SW:g} (한 방향 - 대차 쪽을 지나지 않음)",
              (Rotate(SIDE),)),
         Step("R2", "ret", f"옆길에서 슬롯 {n} 높이로", f"Z {sz:g} (θ{SIDE:g} · RX <= 2)",
              (MoveZ(sz), VerifyZ())),
-        Step("R3", "ret", "옆길 -> ① (180°)", f"Z {sz:g} · RX <= 2 · TOF-IN 카세트 있음",
+        Step("R3", "ret", f"옆길 -> ① ({C.STATIONS['input']:g}°)", f"Z {sz:g} · RX <= 2 · TOF-IN 카세트 있음",
              (Rotate(C.STATIONS["input"], "side"), ExpectTh("input"), Expect("TOF_IN", True))),
         Step("R4", "ret", f"① 원래 슬롯 {n} 에 넣기", f"RX {RXI:g} -> Z {pz:g} (슬롯 바닥 {sn:g})",
              (MoveR(RXI), VerifyR(), MoveZ(pz))),
@@ -244,7 +245,7 @@ def cart_out_steps(seat):
              (MoveR(RXI), VerifyR())),
         Step("L3", "cart_out", f"카세트 들기 Z {carry:g} -> 빼기", "웨이퍼째로 듦 -> R 후진",
              (MoveZ(carry), VerifyZ(), MoveR(C.RX_RET), ExpectRet())),
-        Step("L4", "cart_out", f"든 채 대차{st_}로 선회 (180 -> 220 -> 270)", f"Z {carry:g} · RX <= 2",
+        Step("L4", "cart_out", f"든 채 대차{st_}로 선회 ({C.STATIONS['input']:g} -> {C.STATIONS['cart']:g} 짧은 길)", f"Z {carry:g} · RX <= 2",
              (Rotate(C.STATIONS["cart"], "carry"), ExpectTh("cart"))),
         Step("L5", "cart_out", "대차 받침에 내려놓기", f"RX {RXC:g} -> Z {seat_z:g}",
              (MoveR(RXC), VerifyR(), MoveZ(seat_z), VerifyZ())),
@@ -273,7 +274,8 @@ def can_rotate(zc, rx_ret_ok, th_from, th_to, mode="swing", carrying_wafer=False
         if carrying_wafer and zc + C.BLADE_PLANE_OFS + C.WAFER_T >= C.SWING_CLEAR_Z:
             why.append("WAFER_HIGH")
     elif mode == "side":
-        if lo < C.STATIONS["input"] - 0.5 or hi > C.SIDE_THETA + 0.5:
+        s_lo, s_hi = sorted((C.STATIONS["input"], C.SIDE_THETA))      # ① <-> 옆길 사이만(방향 무관)
+        if lo < s_lo - 0.5 or hi > s_hi + 0.5:
             why.append("SIDE_PATH")
         if carrying_cassette:
             why.append("CASS_SIDE")

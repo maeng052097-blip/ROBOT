@@ -105,18 +105,27 @@ def main():
     for key, a, b, mode, z in rots:
         lo, hi = min(a, b), max(a, b)
         if mode == "side":
-            assert lo >= 180 - 1e-6 and hi <= 220 + 1e-6, (key, a, b)
+            s_lo, s_hi = sorted((C.STATIONS["input"], C.SIDE_THETA))
+            assert lo >= s_lo - 1e-6 and hi <= s_hi + 1e-6, (key, a, b)
         if mode == "carry":
             assert lo >= 180 - 1e-6 and hi <= 270 + 1e-6 and z == C.CASS_Z_CARRY, (key, a, b, z)
         if mode == "swing":
             assert z == C.ZC_SWING, (key, z)
     assert any(r[3] == "carry" and r[2] == 180 for r in rots) and any(r[3] == "carry" and r[2] == 270 for r in rots)
     assert sum(1 for r in rots if r[3] == "side") >= 4
-    print(f"  OK walk {len(rots)} rotations: interlock passes, side 180-220, carry 180-270 @ Z241, swing @ Z105")
+    # 사용자 요청: ① 에서 꺼내 바로 검사 쪽으로(반대 방향 없음), 되돌릴 때도 한 방향
+    i1 = [(a, b) for k, a, b, m, z in rots if k == "I1"]
+    assert i1 and all(b < a for a, b in i1) and i1[0][0] == C.STATIONS["input"] and i1[-1][1] == C.STATIONS["inspect"], i1
+    ret = [(a, b) for k, a, b, m, z in rots if k in ("R1", "R3")]
+    assert ret and all(b > a for a, b in ret) and ret[-1][1] == C.STATIONS["input"], ret
+    assert C.STATIONS["inspect"] < C.SIDE_THETA < C.STATIONS["input"]
+    print(f"  OK walk {len(rots)} rotations: interlock passes, side {C.SIDE_THETA:g}-180, carry 180-270 @ Z241, swing @ Z105")
+    print("  OK one direction: pick 180 -> side -> inspect (I1 decreasing), return uv -> side -> 180 (R1/R3 increasing)")
     print("  OK no Z move at input while carrying, UV zone respected, UV lamp at ZC<=110 & R retracted, S4-none after retract")
 
-    assert Q.can_rotate(205, True, 180, 220, "side")[0]
-    assert not Q.can_rotate(205, False, 180, 220, "side")[0]
+    assert Q.can_rotate(205, True, 180, C.SIDE_THETA, "side")[0] and Q.can_rotate(205, True, C.SIDE_THETA, 180, "side")[0]
+    assert not Q.can_rotate(205, False, 180, C.SIDE_THETA, "side")[0]
+    assert "SIDE_PATH" in Q.can_rotate(205, True, 180, 220, "side")[1]          # 예전 옆길(문서 220)은 이제 금지
     assert "SIDE_PATH" in Q.can_rotate(205, True, 120, 180, "side")[1]
     assert "Z_NOT_SWING" in Q.can_rotate(121.5, True, 0, 120, "swing")[1]
     assert "CASS_SWING" in Q.can_rotate(105, True, 180, 270, "swing", carrying_cassette=True)[1]

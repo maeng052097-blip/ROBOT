@@ -38,7 +38,7 @@ ALARMS = {
 ROT_WHY = {
     "R_NOT_RET": "R 후진 미확인", "THETA_RANGE": "θ 범위 밖", "Z_NOT_SWING": f"Z {C.ZC_SWING:g} 아님",
     "CASS_SWING": "카세트를 든 채 Z 105 선회 금지", "WAFER_HIGH": "운반 웨이퍼가 스테이션 높이",
-    "SIDE_PATH": f"옆길은 θ {C.STATIONS['input']:g} ~ {C.SIDE_THETA:g} 만", "CASS_SIDE": "카세트를 든 채 옆길 금지",
+    "SIDE_PATH": f"옆길은 θ {min(C.STATIONS['input'], C.SIDE_THETA):g} ~ {max(C.STATIONS['input'], C.SIDE_THETA):g} 만", "CASS_SIDE": "카세트를 든 채 옆길 금지",
     "Z_RANGE": "Z 범위 밖", "CARRY_PATH": f"카세트 운반은 θ {C.STATIONS['input']:g} ~ {C.STATIONS['cart']:g} 만",
     "Z_NOT_CARRY": f"Z {C.CASS_Z_CARRY:g} 아님", "FINE_RANGE": f"미세 회전 {C.CORR_DTH:g}° 초과",
     "FINE_POSE": f"미세 회전은 ② Z {C.CRADLE_ZC_SEAT:g} 에서만", "MODE": "선회 방식 오류",
