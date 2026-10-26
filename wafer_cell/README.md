@@ -23,6 +23,7 @@ R22 셀의 공정을 브라우저에서 **실시간 애니메이션과 상태 �
   - 인터넷(CDN)은 필요 없습니다. 3D 화면의 three.js(r160, MIT)도 `web/`에 같이 들어 있습니다(아래 '3D 보기').
 - **함께 볼 문서**
   - 시리얼 규격(펌웨어 작성자용): [PROTOCOL.md](PROTOCOL.md)
+  - 하드웨어 구성도: [docs/system_hardware.svg](docs/system_hardware.svg)(PNG: [docs/system_hardware.png](docs/system_hardware.png), 아래 '하드웨어 구성도')
   - 인수인계: [handoff/README.md](handoff/README.md)
 
 ## 실행 (작업폴더 = 저장소 루트, Windows PowerShell)
@@ -108,6 +109,15 @@ py -3.13 wafer_cell/server.py --lan                             # 같은 네트�
 | S4 포크 웨이퍼 [모듈 보류] | 1 | P3(꺼냄/빈 슬롯), I2 · N2 · U5 · R5(놓고 뺀 뒤 OFF), I4 · U7(다시 집은 뒤 ON) | 포크 위 점, 칩 S4 |
 | 카메라 StreamCam | 1 | I3 촬영 → PC 판정 | 하단 카메라 칸(개념도 / LIVE) |
 | UV 감시 KSD9700 · A_UV · D9 | — | U6: 7가지 조건, A_UV 0.3 s, 조사 중 꺼짐 | UV 탑 빛, 하단 UV 칸(남은 초), 칩 UV · A-UV · D9 |
+
+## 하드웨어 구성도
+
+![하드웨어 구성도](docs/system_hardware.svg)
+
+- 원본은 `docs/system_hardware.svg`(손으로 고칠 수 있는 SVG)입니다. `docs/system_hardware.png`는 보고서 · PPT 용 2배 렌더(3200 × 2200)입니다. SVG를 고치면 PNG를 다시 만들어야 합니다.
+- 근거: 이 README의 센서 표 · UV · E-STOP, [PROTOCOL.md](PROTOCOL.md)(링크 규칙), [센서_구매목록.md](센서_구매목록.md) R22 주문표, `cell_config.py`(자리 · 슬립링 18회로 · 책상 가정).
+- 점선 상자 = **[불명]**(저장소에 근거 없음): 스테퍼 드라이버 모델, D9 외 Mega 핀 배정, 슬립링 회로 배정(S4 = 17번만 확정), R 전동 실린더 구성, 백라이트 제어 주체, 대차(AGV) 통신, 전원 구성, S4 모듈(보류).
+  핀은 일부러 적지 않았습니다(R9 시절 핀 표는 옛 설계). 정해지면 SVG 의 해당 상자를 실선으로 바꾸고 값을 적습니다.
 
 ## 화면 구성
 기본 화면은 발표용입니다(설명은 발표자가 합니다).

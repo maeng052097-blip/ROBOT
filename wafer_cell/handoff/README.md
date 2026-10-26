@@ -115,6 +115,7 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 | `camera_feed.py` | 웹캠(`common/camera.py` 재사용, common 수정 금지) |
 | `web/` | 대시보드(평면도 −90° 회전 + 책상, 입면도, 카메라 개념도, 상세 열, LIVE 배지). 하위 폴더 금지(`SAFE_NAME`) |
 | `web/3d.html` · `view3d.js` | 3D 보기(보기 전용). `three.module.min.js` · `OrbitControls.js` = three.js r160(MIT, `three.LICENSE`) |
+| `docs/system_hardware.svg` · `.png` | 하드웨어 구성도(PC · Mega · 센서 · 구동 · 슬립링 · 회전부/고정부/대차). [불명] = 점선 상자. SVG 가 원본, PNG 는 2배 렌더 |
 | 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,protocol,live,fake_mega,sync,server,camera}.py` |
 
 ## 7. 작업 규칙 (CLAUDE.md에서 — 어기면 깨진다)
