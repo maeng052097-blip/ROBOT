@@ -23,6 +23,7 @@ R22 셀의 공정을 브라우저에서 **실시간 애니메이션과 상태 �
   - 인터넷(CDN)은 필요 없습니다. 3D 화면의 three.js(r160, MIT)도 `web/`에 같이 들어 있습니다(아래 '3D 보기').
 - **함께 볼 문서**
   - 시리얼 규격(펌웨어 작성자용): [PROTOCOL.md](PROTOCOL.md)
+  - 동작 과정 그림(한 장 스토리보드): [docs/process_flow.svg](docs/process_flow.svg)(PNG: [docs/process_flow.png](docs/process_flow.png), 아래 '동작 과정 그림')
   - 하드웨어 구성도: [docs/system_hardware.svg](docs/system_hardware.svg)(PNG: [docs/system_hardware.png](docs/system_hardware.png), 아래 '하드웨어 구성도')
   - 인수인계: [handoff/README.md](handoff/README.md)
 
@@ -109,6 +110,20 @@ py -3.13 wafer_cell/server.py --lan                             # 같은 네트�
 | S4 포크 웨이퍼 [모듈 보류] | 1 | P3(꺼냄/빈 슬롯), I2 · N2 · U5 · R5(놓고 뺀 뒤 OFF), I4 · U7(다시 집은 뒤 ON) | 포크 위 점, 칩 S4 |
 | 카메라 StreamCam | 1 | I3 촬영 → PC 판정 | 하단 카메라 칸(개념도 / LIVE) |
 | UV 감시 KSD9700 · A_UV · D9 | — | U6: 7가지 조건, A_UV 0.3 s, 조사 중 꺼짐 | UV 탑 빛, 하단 UV 칸(남은 초), 칩 UV · A-UV · D9 |
+
+## 동작 과정 그림
+
+![동작 과정](docs/process_flow.svg)
+
+- 웨이퍼 한 장(① 슬롯 1)의 움직임을 칸 15 개로 그렸습니다. 공통 1–5(꺼내기 → ② 로 높이 선회 → 놓기 → 촬영 · 판정 → 다시 집기) 뒤
+  OK 줄 6–11(UV → ① 원래 슬롯) / NG 줄 6'–7'(③ 위 슬롯부터)로 갈리고, 앞뒤로 A(대차 → ① 카세트) · B(① 카세트 → 대차) 요약이 있습니다.
+- 칸마다 옆에서 본 그림(r–z 단면)에 포크 위 웨이퍼 자리의 경로를 축 색(θ 파랑 · Z 주황 · R 초록)과 순번으로 그리고, 아래 글의 번호와 맞춥니다.
+  옅은 로봇 = 칸 시작 자세. 주황 점선 띠 = ② 크래들(걸리면 안 되는 높이), 청록 점선 띠 = UV 탑 밑에서 허용되는 높이.
+- **손으로 그리지 않습니다.** `flow_diagram.py`가 `sequence.py` 단계 동작과 `cell_config.py` 수치에서 만듭니다. 시간은 가정 속도 등속이라
+  시뮬 실측과 같고(정상 슬롯 1 = 88.9 s · 슬롯 5 = 105.9 s, 불량 = 65.3 s), 가속 · 판정 대기를 뺀 하한값입니다.
+- 자리 · 단계 · 높이를 바꾸면 다시 만듭니다: `py -3.13 wafer_cell/flow_diagram.py`(다른 슬롯: `--slot 4`, 출력: `--out 파일`).
+  `tests/test_wafer_sequence.py`가 커밋된 SVG 와 다시 만든 결과를 비교하므로, 안 만들면 테스트가 실패합니다.
+  PNG(보고서 · PPT 용 2배 렌더)는 SVG 를 브라우저로 열어 저장하거나 클라우드 세션에서 다시 렌더해야 합니다(자동 아님).
 
 ## 하드웨어 구성도
 

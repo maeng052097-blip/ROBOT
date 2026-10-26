@@ -131,6 +131,7 @@ py -3.13 tests/find_camera.py
   (`$TYPE,k=v*HH` XOR, PC->Mega <= 60 B). 같은 화면이 SIM(`CellSim`)과 LIVE(`live.py`)를 `source.py` 인터페이스로 받는다.
   실행: `py -3.13 wafer_cell/server.py [--cam 1|none] [--speed 5] [--source live --serial fake|tcp:H:P|COMx]` -> `http://127.0.0.1:8765/`.
   3D 보기 = `/3d.html`(헤더 `3D`, 보기 전용, three.js r160 을 `web/` 에 포함 — CDN 금지, `web/` 은 하위 폴더 없음 = server `SAFE_NAME`).
+  동작 과정 그림 = `docs/process_flow.svg`(`flow_diagram.py` 가 단계 동작 · 수치에서 생성). 자리 · 단계 · 높이를 바꾸면 `py -3.13 wafer_cell/flow_diagram.py` 로 다시 만든다(`test_wafer_sequence` 가 비교).
   책상(`DESK_*`, 674x480 가정)이 장소 4곳 + 로봇 받침을 감싸고, 대차는 책상 밖 바닥(앞면 y -189.5 < 책상 끝 -140)이다 — `test_wafer_geometry` 가 강제.
   LIVE 화면 = 장비 상태는 `test_wafer_sync`(가짜 장비 ST 마다 스냅샷 비교, 불일치 0)가 보증한다. 스냅샷 키를 늘리면 SIM · LIVE · 비교 목록을 같이 고친다.
   Mega 펌웨어는 아직 없다(다음 단계). **AI 는 LIVE 를 가짜 장비(`--serial fake`, `wafer_cell/fake_mega.py`)로만 쓴다** — 실제 COM 으로 명령을 보내는 것은

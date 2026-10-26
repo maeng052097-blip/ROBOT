@@ -50,6 +50,7 @@ NODE_PATH=/opt/node22/lib/node_modules node $SP/verify_theme.js $SP/th http://12
 # 3D: headless Chromium 도 SwiftShader 로 WebGL 이 된다. 2D 페이지로 debug_hold 를 걸고 /3d.html 을 캡처
 # 주의: 점검 스크립트가 서버를 PAUSED 로 남기면 다음 실행의 'home' 이 거부돼 READY 를 영원히 기다린다 -> 서버를 다시 띄우고 돌린다
 kill $(cat $SP/srv.pid)                                                # pkill -f 금지
+python3 wafer_cell/flow_diagram.py                                     # 동작 과정 그림 다시 만들기(자리 · 단계 · 높이를 바꿨을 때)
 ```
 - 화면 고정 · 고장 주입은 `POST /api/cmd`로 합니다(`debug_hold{step,frac}`, `fault{name,on}`, `speed`, `ng_rate`).
   - 조건: loopback, JSON, Host/Origin, 기동 토큰. 토큰은 페이지의 `window.BOOT.token`에 있고 `X-Wafer-Token` 헤더로 보냅니다.
@@ -115,6 +116,7 @@ kill $(cat $SP/srv.pid)                                                # pkill -
 | `camera_feed.py` | 웹캠(`common/camera.py` 재사용, common 수정 금지) |
 | `web/` | 대시보드(평면도 −90° 회전 + 책상, 입면도, 카메라 개념도, 상세 열, LIVE 배지). 하위 폴더 금지(`SAFE_NAME`) |
 | `web/3d.html` · `view3d.js` | 3D 보기(보기 전용). `three.module.min.js` · `OrbitControls.js` = three.js r160(MIT, `three.LICENSE`) |
+| `flow_diagram.py` → `docs/process_flow.svg` · `.png` | 동작 과정 한 장 스토리보드(웨이퍼 1 장 · OK/NG 갈림 · 대차 앞뒤 요약). 단계 동작 · 수치에서 생성, 시간 = 시뮬. 바꾸면 다시 실행(테스트가 비교) |
 | `docs/system_hardware.svg` · `.png` | 하드웨어 구성도(PC · Mega · 센서 · 구동 · 슬립링 · 회전부/고정부/대차). [불명] = 점선 상자. SVG 가 원본, PNG 는 2배 렌더 |
 | 테스트 | `tests/test_wafer_{sequence,geometry,tof,sim,protocol,live,fake_mega,sync,server,camera}.py` |
 

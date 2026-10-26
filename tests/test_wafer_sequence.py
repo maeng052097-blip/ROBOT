@@ -8,6 +8,7 @@
   - ① 앞에서 웨이퍼를 든 채 R 후진 상태로 Z 를 바꿀 때 다른 슬롯 웨이퍼 높이를 지나지 않음(슬롯 4 의 transfer_z 만)
   - 사용자 요청: ① 에서 뺀 뒤 Z105 로 내리지 않고 그대로 ② 로(I1 회전 1 번 180 -> 120), UV 뒤에도 ② 앞에서 높이만 맞추고 ① 로
   - UV 켜기 7 조건 진리표, 보정 창(δr -3.5~+0.5 · |δθ| <= 0.5) 경계
+  - 동작 과정 그림(flow_diagram): 웨이퍼 1 장 시간 = 시뮬 실측(±0.2 s), 단계 키를 모두 담음, 커밋된 docs/process_flow.svg 가 최신
 
 실행: py -3.13 tests/test_wafer_sequence.py
 """
@@ -171,6 +172,42 @@ def main():
                           (0, 0.5, True), (0, -0.5, True), (0, -0.51, False), (0, 0, True)):
         assert Q.corr_ok(dr, dth) is want, (dr, dth)
     print("  OK correction window boundaries")
+
+    # 동작 과정 그림(docs/process_flow.svg): 시간 = 시뮬 실측, 웨이퍼 단계 키를 모두 담음, 커밋된 파일 = 다시 만든 결과
+    from wafer_cell import flow_diagram as F
+    from wafer_cell.sim import CellSim
+
+    def cycles(n_wafers, ng=False):
+        s = CellSim(seed=1)
+        s.ng_rate = 0.0
+        s.command("home")
+        for _ in range(200000):
+            if s.state != "HOMING":
+                break
+            s.tick(0.05)
+        s.command("start")
+        for _ in range(400000):
+            if len(s.cycles) >= n_wafers:
+                break
+            s.ng_next = ng
+            s.tick(0.05)
+        return s.cycles
+    ok = cycles(C.SLOT_COUNT)
+    for n in (1, C.SLOT_COUNT):
+        assert abs(ok[n - 1] - F.wafer_time(n)) < 0.2, (n, ok[n - 1], F.wafer_time(n))
+    ng = cycles(1, ng=True)
+    assert abs(ng[0] - F.wafer_time(1, ok=False, k=C.SLOT_COUNT)) < 0.2, (ng[0], F.wafer_time(1, ok=False))
+    wafer_keys = {st.key for st in Q.input_steps(1) + Q.empty_steps(1) + Q.inspect_steps(1) + Q.ng_steps(5)
+                  + Q.uv_steps() + Q.return_steps(1) + Q.cart_in_steps(None) + Q.cart_out_steps(None)}
+    assert wafer_keys <= set(F.covered_keys()), wafer_keys - set(F.covered_keys())
+    svg = F.build_svg()
+    assert svg == F.build_svg()                                   # 같은 입력 = 같은 글자
+    for n in range(1, C.SLOT_COUNT + 1):
+        F.build_svg(n)
+    committed = F.OUT_DEFAULT.read_text(encoding="utf-8").replace("\r", "")
+    assert committed == svg, "docs/process_flow.svg is stale: run py -3.13 wafer_cell/flow_diagram.py"
+    print(f"  OK flow diagram: wafer time = sim (slot 1 {ok[0]:.1f}s, slot {C.SLOT_COUNT} {ok[-1]:.1f}s, NG {ng[0]:.1f}s),"
+          " all step keys covered, committed SVG up to date")
     print("OK (all passed)")
 
 
