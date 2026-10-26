@@ -5,8 +5,9 @@
 몸체 치수(포크 면 오프셋 65.5, 슬롯 피치 18, 검사 크래들 252, 카세트 운반 높이)는 이전 R9 모니터 값을 이어 쓴다.
 
 좌표: 셀좌표 mm, 원점 = θ 축. θ 0° = ③ 불량 방향(+x). 위에서 볼 때 반시계가 +.
-  θ0 ③ 불량(NG) · θ60 UV 탑 · θ120 ② 검사 · θ180 ① 투입(원위치) · θ270 대차 받침,  옆길 θ150 (① 과 ② 사이, 아무것도 없음).
-  ※ 사용자 변경(2026-10-26): 옆길을 R22 문서의 θ220 대신 검사 쪽 θ150 으로 - ① 에서 꺼내 바로 ② 쪽으로(반대 방향 움직임 없음).
+  θ0 ③ 불량(NG) · θ60 UV 탑 · θ120 ② 검사 · θ180 ① 투입(원위치) · θ270 대차 받침.
+  ※ 사용자 변경(2026-10-26): 옆길(문서 θ220)을 없애고 ① <-> ② 는 '높이 선회' - ① 에서 뺀 뒤 벽(② 크래들)에 안 걸리는
+    높이로만 맞춰 그대로 돈다(transfer_z). 문서의 '선회는 Z105' 규칙의 예외.
   ※ 사용자 변경(2026-10-24): R22 문서는 θ0 UV · θ60 ③ 이었으나 둘의 자리를 맞바꿈(RX · 반경은 장소를 따라감).
 θ 는 슬립링(18 회로)이라 계속 돌 수 있다. 화면 · 프로토콜의 θ 범위는 [-45, 315) 한 바퀴로 쓰고, 공정 경로는
 그 안에서만 움직인다(0 -> 270 사이, 넘어가지 않음). 문서의 'θ270 = -90' 은 같은 자리다.
@@ -31,8 +32,6 @@ STATION_ORDER = ("ng", "uv", "inspect", "input", "cart")   # θ 센서 마스크
 TH_SENSORS = ("TH0", "TH60", "TH120", "TH180", "TH270")
 TH_OF = dict(zip(STATION_ORDER, TH_SENSORS))   # 장소 -> 그 자리 θ 센서 이름
 UV_TH_SENSOR = TH_OF["uv"]                     # UV 켜기 조건의 '자리 센서'(지금 TH60)
-SIDE_THETA = 150.0         # 옆길: ① 에서 비켜 웨이퍼를 든 채 Z 를 바꾸는 자리. θ180 <-> 150 은 RX <= 2 에서만
-                           #   (사용자 변경: 문서는 220. 150 = ① 과 ② 사이, 든 웨이퍼와 가장 좁은 틈 ② 크래들 팔 ~22 mm, R9 몸체 계산)
 THETA_FRAME = (-45.0, 315.0)   # 화면 · 프로토콜 θ 범위(한 바퀴)
 CASSETTES = ("input", "ng")
 STATION_TOL_DEG = 1.0      # 지령 θ 가 이 각도 이내면 '그 자리에 서 있음'
@@ -45,7 +44,7 @@ UV_THETA_TOL = 0.2         # UV 켜기 조건: 스텝이 UV 자리 ± 0.2° (문
 # ===== R 축 (실린더 시간 구동 + R Sharp 확인, 문서 §3) =====
 RX_HOME = -2.0             # 원점: R 을 RX -2 로 (후진 끝)
 RX_RET = -2.0              # 후진 목표(끝까지 뺌)
-RX_RET_OK = 2.0            # 후진 판정: R Sharp 로 RX <= 2 (옆길 · 선회 · UV 켜기 조건)
+RX_RET_OK = 2.0            # 후진 판정: R Sharp 로 RX <= 2 (선회 · 높이 선회 · UV 켜기 조건)
 STATION_RX = {             # 집기/놓기 전진량 (문서 §3: ① 73 · ②③ 51 · UV · 대차 85)
     "input": 73.0, "inspect": 51.0, "ng": 51.0, "uv": 85.0, "cart": 85.0,
 }
@@ -58,9 +57,9 @@ SLOT_Z0 = 190.0            # 슬롯 1 바닥(웨이퍼 하면) 높이. Sn = 190 
 SLOT_PITCH = 18.0
 LEDGE_T = 4.0              # 가정: 받침 이빨 두께 [Sn-4, Sn]
 PICK_OFS = -68.5           # 집기: Z = Sn - 68.5 -> 포크 면 Sn - 3
-PICK_LIFT = 7.5            # (R9) 들기 +7.5. R22 ① 은 옆길 높이까지 든다(SIDE_OFS)
+PICK_LIFT = 7.5            # (R9) 들기 +7.5. R22 ① 은 들기 높이(SIDE_OFS)까지 든다
 PLACE_OFS = -61.0          # 넣기(③): Z = Sn - 61 로 들어가 Sn - 68.5 로 내려놓음
-SIDE_OFS = -57.0           # 가정(역산): ① 옆길 높이 Z = Sn - 57 -> 슬롯 5 = 205 (문서 '205 (슬롯 5 옆길)')
+SIDE_OFS = -57.0           # 가정(역산): ① 들기 높이 Z = Sn - 57 -> 슬롯 5 = 205 (문서 '205 (슬롯 5 옆길)'. 이름은 예전 옆길에서 옴)
                            #   웨이퍼 하면 Sn + 8.5, 윗면 Sn + 10.5 -> 위 슬롯 이빨(Sn+14)까지 3.5 mm
 FRONT_LIP = 2.5            # 카세트 앞 턱 높이 (R9)
 CASS_TOP_Z = 284.0         # 카세트 윗레일 밑면 (R9 도면)
@@ -125,6 +124,10 @@ CRADLE_SEAT_Z = 252.0      # 패드 윗면
 CRADLE_ZC_ABOVE = 192.0    # 진입/다시 들기 높이 (웨이퍼 하면 257.5)
 CRADLE_ZC_SEAT = 183.0     # 내려놓은 뒤 (포크 면 248.5) - 이 높이에서만 δθ 미세 회전(≤ 0.5°) 허용
 SWING_CLEAR_Z = 180.0      # 선회 중 운반 웨이퍼 윗면은 이보다 아래(스테이션 하단)
+# 높이 선회(① <-> ②, 사용자 변경): 도는 길의 '벽' = ② 크래들 팔 밑면 244 ~ 패드 윗면 252 (화면 · 3D 와 같은 R9 모양, 가정).
+# 백라이트(z 213~240)는 r 238 부터라 후진 운반 웨이퍼(r <= 236.5)에 닿지 않는다(지금 I2 상승과 같은 조건).
+CRADLE_BAND_Z = (244.0, 252.0)
+HIGH_SWING_MARGIN = 5.0    # 가정: 그 띠 · 아래 슬롯 웨이퍼와 운반 웨이퍼 사이 최소 틈
 CORR_DR = (-3.5, 0.5)      # 다시 집기 보정 창: δr (mm)
 CORR_DTH = 0.5             # |δθ| (deg)
 
@@ -211,7 +214,7 @@ CELL_SERIAL_PORT = None    # 셀 Mega COM. 재활용 로봇 MOTOR_PORT/LIDAR 포
 ASSUMED = [
     "WAFER_T", "LEDGE_T", "SIDE_OFS", "THETA_STANDBY", "S4_LOCAL_X", "S4_RANGE", "SHARP_TOL", "SHARP_NOISE",
     "TOF_PRESENT_MM", "TOF_CASS_D", "UV_SEAT_Z", "UV_S", "JUDGE_TIMEOUT_S", "CASS_LIFT_Z", "CASS_SEAT_LIFT_Z",
-    "CART_DEFAULT_MAP", "CART_BODY", "DESK_X0", "DESK_X1", "DESK_Y0", "DESK_Y1", "DESK_TOP_Z", "DESK_H", "THETA_SPEED", "Z_SPEED", "R_SPEED", "CAPTURE_S", "NG_RATE", "OPERATOR_S",
+    "CART_DEFAULT_MAP", "CART_BODY", "CRADLE_BAND_Z", "HIGH_SWING_MARGIN", "DESK_X0", "DESK_X1", "DESK_Y0", "DESK_Y1", "DESK_TOP_Z", "DESK_H", "THETA_SPEED", "Z_SPEED", "R_SPEED", "CAPTURE_S", "NG_RATE", "OPERATOR_S",
     "CART_CALL_S", "CART_DOCK_S", "CART_RETREAT_S", "CART_LATERAL_S", "CART_ROTATE_S", "CART_LEAVE_S",
 ]
 
@@ -230,7 +233,23 @@ def place_z(n):
 
 
 def side_z(n):
+    """① 슬롯 n 들기 높이(꺼낼 때 들어 올린 높이 = 되돌릴 때 넣는 높이)."""
     return slot_z(n) + SIDE_OFS
+
+
+def transfer_z(n):
+    """① 슬롯 n 웨이퍼를 든 채 ① <-> ② 를 그대로 도는 높이(사용자: '벽에 안 걸리는 선까지 하강 후 선회').
+    들기 높이의 운반 웨이퍼가 ② 크래들 띠(± 여유)에 걸리면 띠 밑까지 내린다(아래 슬롯 웨이퍼 위 여유까지만),
+    그것도 안 되면 띠 위로 올린다. 그대로면 0 mm 이동."""
+    z = side_z(n)
+    lo, hi = CRADLE_BAND_Z
+    m = HIGH_SWING_MARGIN
+    if z + BLADE_PLANE_OFS + WAFER_T <= lo - m or z + BLADE_PLANE_OFS >= hi + m:
+        return z
+    under = lo - m - WAFER_T - BLADE_PLANE_OFS
+    if n == 1 or under + BLADE_PLANE_OFS >= slot_z(n - 1) + WAFER_T + m:
+        return under
+    return hi + m - BLADE_PLANE_OFS
 
 
 def wrap_deg(a):
@@ -270,7 +289,8 @@ def ui_geometry():
         "blade_origin_x": BLADE_ORIGIN_X, "blade_tip_x": BLADE_TIP_X, "wafer_on_blade_x": WAFER_ON_BLADE_X,
         "stations": STATIONS, "station_order": list(STATION_ORDER), "th_sensors": list(TH_SENSORS),
         "station_rx": STATION_RX, "station_r": {k: station_r(k) for k in STATIONS},
-        "side_theta": SIDE_THETA, "theta_frame": list(THETA_FRAME), "th_low_half": TH_LOW_HALF_DEG,
+        "transfer_z": [transfer_z(n) for n in range(1, SLOT_COUNT + 1)], "cradle_band_z": list(CRADLE_BAND_Z),
+        "theta_frame": list(THETA_FRAME), "th_low_half": TH_LOW_HALF_DEG,
         "input_dock_shift": INPUT_DOCK_SHIFT, "cassettes": list(CASSETTES),
         "rx_ret": RX_RET, "rx_ret_ok": RX_RET_OK, "rx_max": RX_MAX,
         "cradle_seat_z": CRADLE_SEAT_Z, "cradle_zc_seat": CRADLE_ZC_SEAT, "cradle_zc_above": CRADLE_ZC_ABOVE,

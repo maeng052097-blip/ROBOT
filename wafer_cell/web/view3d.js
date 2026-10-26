@@ -155,7 +155,7 @@ function buildScene() {
     addLabel(text, new THREE.Vector3(r * Math.cos(a), z, -r * Math.sin(a)), cls);
   };
   lab('① 투입', 'input', 300, 330); lab('② 검사', 'inspect', 290, 330); lab('③ 불량', 'ng', 290, 330);
-  lab('UV 탑', 'uv', UR, 300); lab('옆길', GEO.side_theta, 230, 40, 'small');
+  lab('UV 탑', 'uv', UR, 300);
   addLabel('책상', new THREE.Vector3(dk.x1 - 60, dk.top_z + 4, -dk.y0 - 30), 'small');     // UV · 대차 쪽 모서리(대차에 안 가림)
   R.cartLabelAnchor = new THREE.Vector3(0, 0, 0);
   R.cartLabel = addLabel('대차', R.cartLabelAnchor, '');

@@ -5,7 +5,8 @@
   - 충돌(포크 · 운반 웨이퍼 띠 vs 슬롯/크래들/받침 웨이퍼, 받침 이빨, 윗레일, 클램프 윗판, UV 구간)
 을 계산한다. 반경 방향 겹침은 수치로 미리 따진 결과를 규칙으로 쓴다(R9 몸체 + R22 자리):
   - 후진(RX <= 2) 포크 끝은 R 205 이하. ① 웨이퍼는 257.5 - 50 = 207.5 부터라 빈 포크는 ① 앞에서 자유롭게 오르내린다.
-    하지만 후진 운반 웨이퍼(반경 <= 236.5)는 ① 웨이퍼와 27~29 mm 겹친다 -> 든 채 Z 이동은 옆길(θ150, ① 과 ② 사이)에서.
+    하지만 후진 운반 웨이퍼(반경 <= 236.5)는 ① 웨이퍼와 27~29 mm 겹친다 -> ① 앞에서 든 채 Z 이동은 다른 슬롯 웨이퍼 높이를
+    지나지 않을 때만(높이 선회 전 슬롯 4 를 15.5 mm 내리는 것 - C.transfer_z). 웨이퍼를 든 ① <-> ② 선회는 그 높이 그대로(사용자 변경).
   - ②③ 웨이퍼(185.5~)는 후진 포크와도 겹친다 -> ③ 은 위 슬롯부터 채운다(R9 와 같음).
   - 받침 이빨(옆 날개 |y| >= 47)은 운반 웨이퍼가 RX > station_r - 222 부터 닿는다(③ 13.5, ① 35.5).
 충돌 결과는 (코드, 자리, 슬롯) 튜플(ASCII). 화면 문구는 texts.py. 높이 구간 비교는 경계 접촉을 겹침으로 보지 않는다.
@@ -37,12 +38,10 @@ class Occupancy:
 
 
 def station_at(theta):
-    """지령 θ 가 스테이션 ±STATION_TOL_DEG 이내면 그 이름, 옆길이면 'side', 아니면 None."""
+    """지령 θ 가 스테이션 ±STATION_TOL_DEG 이내면 그 이름, 아니면 None."""
     for name, ang in C.STATIONS.items():
         if abs(C.wrap_deg(theta - ang)) <= C.STATION_TOL_DEG:
             return name
-    if abs(C.wrap_deg(theta - C.SIDE_THETA)) <= C.STATION_TOL_DEG:
-        return "side"
     return None
 
 
@@ -107,10 +106,6 @@ def z_move(theta, rx, zc0, zc1, occ, t=None):
         near = near_station(theta)
         if near and hi > C.ZC_SWING + 0.25:
             return {"events": ev, "collision": ("BETWEEN", near, None)}
-        return {"events": ev, "collision": None}
-    if st == "side":
-        if rx > C.RX_RET_OK + EPS:
-            return {"events": ev, "collision": ("BETWEEN_R", "side", None)}
         return {"events": ev, "collision": None}
     mode = rx_mode(st, rx)
     if mode == "mid":
@@ -231,7 +226,7 @@ def r_move(theta, zc, rx0, rx1, occ, t=None):
     rmax = max(rx0, rx1)
     if rmax > C.RX_MAX + C.RX_TOL:
         return ("R_MAX", st, None)
-    if st is None or st == "side":
+    if st is None:
         return ("BETWEEN_R", st, None) if rmax > C.RX_RET_OK + EPS else None
     if rmax <= C.RX_RET_OK + EPS:
         return None
@@ -321,11 +316,11 @@ def th_mask(theta_true, half=C.TH_LOW_HALF_DEG):
 def clearances(t=None):
     """문서 · R9 수치로 계산한 여유(mm) - README/현장 확인용."""
     t = C.WAFER_T if t is None else t
-    side_w = C.SIDE_OFS + C.BLADE_PLANE_OFS                     # 옆길 높이에서 웨이퍼 하면 (Sn 기준)
+    side_w = C.SIDE_OFS + C.BLADE_PLANE_OFS                     # 들기 높이에서 웨이퍼 하면 (Sn 기준)
     tip = C.BLADE_TIP_X + C.RX_RET_OK
     return [
         {"key": "insert_gap", "label": "카세트 삽입 틈 (포크 면 아래)", "mm": round(-(C.PICK_OFS + C.BLADE_PLANE_OFS), 2)},
-        {"key": "side_ledge", "label": "① 옆길 높이: 운반 웨이퍼 윗면 -> 윗 슬롯 이빨", "mm": round(C.SLOT_PITCH - C.LEDGE_T - side_w - t, 2)},
+        {"key": "side_ledge", "label": "① 들기 높이: 운반 웨이퍼 윗면 -> 윗 슬롯 이빨", "mm": round(C.SLOT_PITCH - C.LEDGE_T - side_w - t, 2)},
         {"key": "input_tip", "label": "① 후진 포크 끝(RX 2) -> ① 웨이퍼", "mm": round(C.station_r("input") - C.WAFER_D / 2 - tip, 2)},
         {"key": "cradle_above", "label": "② 진입 웨이퍼 하면 -> 패드", "mm": round(C.CRADLE_ZC_ABOVE + C.BLADE_PLANE_OFS - C.CRADLE_SEAT_Z, 2)},
         {"key": "uv_hand", "label": "UV 넘김: 포크 면 -> 받침 (ZC 113.5 / 121.5)",

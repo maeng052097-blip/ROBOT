@@ -1,7 +1,7 @@
 """tests/test_wafer_geometry.py — R22 충돌 · 이송 이벤트 · 센서 기하(순수 로직, 하드웨어 불필요).
 
   - ① (도크 +22 mm): 후진 빈 포크는 가득 찬 ① 앞에서 오르내려도 안전, 웨이퍼를 든 채 후진 Z 이동은 충돌
-    -> 옆길(θ150, ① 과 ② 사이 - 사용자 변경)에서는 든 채 오르내림 가능(틈 계산), 자리 사이에서 R 전진/운반은 금지
+    -> 다른 슬롯 높이를 안 지나는 작은 Z 이동만(슬롯 4 의 높이 선회 높이), ① <-> ② 높이 선회 틈(② 크래들 띠) 계산, 자리 사이 R 전진/운반 금지
   - ① 슬롯 집기(Sn 교차) · 옆길 높이에서 원래 슬롯에 놓기, 윗레일 · 클램프 윗판 · 받침 이빨
   - ③ 위 슬롯부터 채움(아래부터 채우면 후진 포크가 웨이퍼를 긁음)
   - UV 탑: ZC 121.5 초과 금지, RX > 2 에서 113.5~121.5 밖 금지, 받침(183)에 넘김/다시 집기
@@ -24,7 +24,6 @@ def main():
     print("test_wafer_geometry:")
     full = {k: True for k in range(1, 6)}
     I, NG, IN, UV, CART = (C.STATIONS[k] for k in ("inspect", "ng", "input", "uv", "cart"))   # ③ 0 · UV 60 (사용자 변경)
-    SIDE = C.SIDE_THETA
     RI, RE, RU = C.STATION_RX["input"], C.STATION_RX["ng"], C.STATION_RX["uv"]
     ret = C.RX_RET
 
@@ -34,39 +33,42 @@ def main():
     oc = G.Occupancy(cass={"input": {1: True, 3: True}, "ng": {}}, blade=True)
     col = G.z_move(IN, ret, 105, C.side_z(4), oc)["collision"]
     assert col and col[0] == "CARRIED_WAFER" and col[1] == "input", col
-    assert G.z_move(SIDE, ret, 105, C.side_z(4), oc)["collision"] is None
-    BTW = 200.0                                        # 자리 사이(① 과 대차 사이, 옆길 아님)
-    assert G.station_at(BTW) is None and G.station_at(SIDE) == "side"
+    # 높이 선회 전 슬롯 4 를 ② 크래들 밑으로 15.5 mm 내림: 다른 슬롯(1·2·3·5 찬) 웨이퍼 높이를 지나지 않아 ① 앞에서도 됨
+    oc4 = G.Occupancy(cass={"input": {1: True, 2: True, 3: True, 5: True}, "ng": {}}, blade=True)
+    assert G.z_move(IN, ret, C.side_z(4), C.transfer_z(4), oc4)["collision"] is None
+    assert G.z_move(IN, ret, C.transfer_z(4), C.side_z(4), oc4)["collision"] is None   # 되돌릴 때 넣기 높이로
+    assert G.z_move(IN, ret, C.side_z(4), 105, oc4)["collision"][0] == "CARRIED_WAFER"  # Z105 까지는 슬롯 3·2·1 을 지남
+    BTW = 200.0                                        # 자리 사이(① 과 대차 사이)
+    assert G.station_at(BTW) is None and G.station_at(150) is None          # 옆길 자리는 없앰
     assert G.z_move(BTW, ret, 140, 105, G.Occupancy())["collision"] is None
     assert G.z_move(BTW, ret, 105, 140, G.Occupancy(blade=True))["collision"][0] == "BETWEEN"
     assert G.z_move(NG + 10, ret, 105, 140, G.Occupancy())["collision"][0] == "BETWEEN"   # ③ 가까이
     assert G.z_move(UV + 10, ret, 105, 140, G.Occupancy())["collision"] is None            # UV 받침 웨이퍼(219.5~)는 후진 포크(205)와 안 겹침
     assert G.r_move(BTW, 105, ret, 30, G.Occupancy())[0] == "BETWEEN_R"
-    assert G.r_move(SIDE, 105, ret, 30, G.Occupancy())[0] == "BETWEEN_R"
     assert G.r_move(BTW, 105, 30, ret, G.Occupancy()) is None                        # 후진은 언제나
     assert G.z_move(IN, 30, 105, 106, o)["collision"][0] == "R_MID"
-    print("  OK input dock +22: retracted empty fork free, carrying needs side path, nothing between stations")
+    print("  OK input dock +22: retracted empty fork free, carrying only without crossing other slots, nothing between stations")
 
-    # 옆길(θ150, 사용자 변경 - ① 과 ② 사이)에서 웨이퍼를 든 채 오르내릴 때 틈: 운반 웨이퍼(RX -2~2) vs ① 웨이퍼 · ① 틀 · ② 크래들
+    # 높이 선회(사용자 변경): ① <-> ② 를 웨이퍼를 든 채 transfer_z 그대로 돈다. 도는 길의 벽 = ② 크래들 띠(z 244~252)
     def lp(u, v, th):
         t = math.radians(th)
         return (u * math.cos(t) - v * math.sin(t), u * math.sin(t) + v * math.cos(t))
-    def edge(u0, u1, v0, v1, th):
-        return [lp(u0 + (u1 - u0) * i / 20, v, th) for i in range(21) for v in (v0, v1)] + \
-               [lp(u, v0 + (v1 - v0) * i / 20, th) for i in range(21) for u in (u0, u1)]
-    dx = C.station_r("input") - 235.5
-    parts = {"input_frame": edge(212 + dx, 304 + dx, -65, 65, IN), "inspect_arms": edge(220, 265, -52, 52, I),
-             "inspect_plate": edge(262, 318, -52, 52, I), "backlight": edge(238, 268, -50, 50, I)}
-    gaps = {}
-    for rx in (C.RX_RET, C.RX_RET_OK):
-        c = lp(C.BLADE_ORIGIN_X + C.WAFER_ON_BLADE_X + rx, 0, SIDE)
-        w1 = lp(C.station_r("input"), 0, IN)
-        gaps["input_wafer"] = min(gaps.get("input_wafer", 1e9), math.dist(c, w1) - C.WAFER_D)
-        for k, pts in parts.items():
-            gaps[k] = min(gaps.get(k, 1e9), min(math.dist(c, p) for p in pts) - C.WAFER_D / 2)
-    assert min(gaps.values()) >= 15, gaps
-    print("  OK side path at theta %g: carried wafer gaps %s mm (R9 body, assumed)"
-          % (SIDE, ", ".join(f"{k} {v:.1f}" for k, v in sorted(gaps.items(), key=lambda kv: kv[1]))))
+    reach = C.BLADE_ORIGIN_X + C.WAFER_ON_BLADE_X + C.RX_RET_OK + C.WAFER_D / 2        # 후진 운반 웨이퍼 바깥 236.5
+    backlight = min(math.hypot(*lp(238, v, I)) for v in range(-50, 51))                  # z 213~240, 띠 아래 벽
+    front_in = C.station_r("input") - 235.5 + 215                                          # ① 이빨 · 벽 앞면
+    assert backlight > reach and front_in > reach, (backlight, front_in, reach)
+    b0, b1 = C.CRADLE_BAND_Z
+    gaps = []
+    for n in range(1, C.SLOT_COUNT + 1):
+        z = C.transfer_z(n)
+        w0, w1 = z + C.BLADE_PLANE_OFS, z + C.BLADE_PLANE_OFS + C.WAFER_T
+        g = (b0 - w1) if w1 <= b0 else (w0 - b1)
+        assert g >= C.HIGH_SWING_MARGIN - 1e-6, (n, z, g)
+        if n > 1:
+            assert w0 - (C.slot_z(n - 1) + C.WAFER_T) >= C.HIGH_SWING_MARGIN, n          # 내려도 아래 슬롯 웨이퍼 위
+        gaps.append(f"{n}:{z:g}({'under' if w1 <= b0 else 'over'} {g:.1f})")
+    print(f"  OK high swing input<->inspect: transfer Z {' '.join(gaps)} mm vs cradle band, "
+          f"backlight r {backlight:.1f} / input front r {front_in:.1f} > carried r {reach:.1f} (R9 body, assumed)")
 
     o = G.Occupancy(cass={"input": {2: True, 3: True}, "ng": {}})
     r = G.z_move(IN, RI, C.pick_z(2), C.side_z(2), o)

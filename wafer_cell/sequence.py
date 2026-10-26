@@ -7,22 +7,23 @@
       -> 정상이면 UV 탑(θ60, 사용자 변경 - R22 문서는 θ0) 받침에 넘김 -> UV 켜고 끔 -> 다시 집어 -> ① 원래 슬롯에 되돌림
   -> 5 장이 끝나면 ① 카세트를 들어 원래 대차 받침에 놓고 대차가 움직인다.
 R22 문서 규칙:
-  - ① 은 RX 73 · ②③ 51 · UV · 대차 85. θ180 <-> 옆길(문서 220, 사용자 변경으로 검사 쪽 150) 은 RX <= 2 에서만.
+  - ① 은 RX 73 · ②③ 51 · UV · 대차 85. 선회는 Z105 · RX <= 2 (예외는 can_rotate 모드).
   - UV 탑 밑(RX > 2)에서는 ZC 113.5 ~ 121.5 만. 램프는 7 가지 조건(uv_interlock)일 때만.
   - S4: ① 들기(P3) 뒤 ON = 꺼냄 / OFF = 빈 슬롯으로 기록하고 다음 슬롯(E1). UV 넘긴 뒤(U5) OFF, 다시 집은 뒤(U7) ON,
     ① 되돌린 뒤(R5) OFF. '없음' 확인은 포크를 뺀 뒤(놓은 직후에는 아직 보임).
   - 원점: R 후진 -> Z 선회 높이(Z Sharp) -> θ 를 - 쪽으로 5°/s, 95° 안 첫 LOW = 그 자리 -> 대기.
     (문서는 Z 를 먼저 적었지만 포크가 카세트 안이면 긁으므로 R 먼저 - R9 에서 정한 순서)
-해석(문서에 없는 부분, 사용자 확인 필요): ① 에서 웨이퍼를 든 채 Z 를 바꾸는 일은 모두 옆길(θ150)에서 한다
-(후진한 운반 웨이퍼가 ① 아래 슬롯 웨이퍼와 반경 27 mm 겹침). 옆길이 ① 과 ② 사이라 꺼내기 180 -> 150 -> 120,
-되돌리기 60 -> 150 -> 180 모두 한 방향. 카세트 운반은 슬립링 짧은 길 180 <-> 270(Z241).
+사용자 변경(2026-10-26) '높이 선회': ① 에서 뺀 웨이퍼는 Z105 로 내리지 않고 벽(② 크래들)에 안 걸리는 높이(C.transfer_z,
+슬롯 4 만 171.5 로 조금 내림)로 180 -> 120 을 그대로 돈다. 되돌리기는 UV -> ② 앞(Z105)에서 그 높이로 -> 180 그대로.
+후진 운반 웨이퍼가 ① 아래 슬롯 웨이퍼와 반경 27 mm 겹치므로 ① 앞 Z 이동은 다른 슬롯 웨이퍼 높이를 지나지 않을 때만(슬롯 4 의 15.5 mm).
+카세트 운반은 슬립링 짧은 길 180 <-> 270(Z241).
 한 단계 안의 동작은 순차 실행한다. 한글 문자열은 화면(브라우저) 전용 - 콘솔 출력 금지.
 """
 from dataclasses import dataclass
 
 from wafer_cell import cell_config as C
 
-ROT_MODES = ("swing", "side", "carry", "fine")
+ROT_MODES = ("swing", "high", "carry", "fine")   # high = ① <-> ② 웨이퍼를 든 채 높이 선회(사용자 변경)
 
 
 @dataclass(frozen=True)
@@ -108,7 +109,8 @@ STAGES = [("cart", "대차"), ("input", "투입"), ("inspect", "검사"), ("ng",
 
 RXI, RXE, RXU, RXC = C.STATION_RX["input"], C.STATION_RX["inspect"], C.STATION_RX["uv"], C.STATION_RX["cart"]
 NG_TH, UV_TH = C.STATIONS["ng"], C.STATIONS["uv"]
-SW, SIDE = C.ZC_SWING, C.SIDE_THETA
+SW = C.ZC_SWING
+IN_TH, IS_TH = C.STATIONS["input"], C.STATIONS["inspect"]
 
 
 def homing_steps():
@@ -158,23 +160,25 @@ def input_steps(n):
              (Rotate(C.STATIONS["input"]), ExpectTh("input"), Expect("TOF_IN", True))),
         Step("P2", "input", f"① 슬롯 {n} 밑으로 포크", f"Z {pz:g} (슬롯 바닥 {sn:g} - {-C.PICK_OFS:g}) -> RX {RXI:g}",
              (MoveZ(pz), VerifyZ(), MoveR(RXI), VerifyR())),
-        Step("P3", "input", f"① 슬롯 {n} 들기 (S4) -> 빼기", f"Z {sz:g} (옆길 높이) · S4 ON = 꺼냄 / OFF = 빈 슬롯 -> R 후진",
+        Step("P3", "input", f"① 슬롯 {n} 들기 (S4) -> 빼기", f"Z {sz:g} (들기 높이) · S4 ON = 꺼냄 / OFF = 빈 슬롯 -> R 후진",
              (MoveZ(sz), CheckPick(), MoveR(C.RX_RET), ExpectRet())),
     ]
 
 
 def empty_steps(n):
-    return [Step("E1", "input", f"① 슬롯 {n} 빈 슬롯 — 빼고 내리기", f"R 후진 -> 옆길 θ{SIDE:g} -> Z {SW:g} (다음 슬롯)",
-                 (MoveR(C.RX_RET), ExpectRet(), Rotate(SIDE, "side"), MoveZ(SW)))]   # 빈 포크라 ① 앞에서도 되지만 S4 거짓 '없음' 에 대비해 옆길에서
+    return [Step("E1", "input", f"① 슬롯 {n} 빈 슬롯 — 빼고 내리기", f"R 후진 -> Z {SW:g} (빈 포크 끝 r 205 < ① 웨이퍼 207.5, 다음 슬롯)",
+                 (MoveR(C.RX_RET), ExpectRet(), MoveZ(SW)))]
 
 
 def inspect_steps(n):
-    sz = C.side_z(n)
+    sz, tz = C.side_z(n), C.transfer_z(n)
     above, seat = C.CRADLE_ZC_ABOVE, C.CRADLE_ZC_SEAT
+    down = f"Z {sz:g} -> {tz:g} (② 크래들 밑) · " if tz != sz else f"Z {sz:g} 그대로 · "
     return [
-        Step("I1", "inspect", f"검사 쪽 옆길 (θ{SIDE:g}) 에서 내린 뒤 ② 검사 ({C.STATIONS['inspect']:g}°) 로",
-             f"θ {C.STATIONS['input']:g} -> {SIDE:g} (Z {sz:g} · RX <= 2) -> Z {SW:g} -> θ {C.STATIONS['inspect']:g} (한 방향)",
-             (Rotate(SIDE, "side"), MoveZ(SW), VerifyZ(), Rotate(C.STATIONS["inspect"]), ExpectTh("inspect"))),
+        # 사용자 변경: Z105 로 내리지 않고 벽(② 크래들)에 안 걸리는 높이로만 맞춰 그대로 선회. 동작 수는 슬롯과 무관(0 mm 이동 가능)
+        Step("I1", "inspect", f"② 검사 ({IS_TH:g}°) 로 바로 선회 (높이 그대로)",
+             f"{down}θ {IN_TH:g} -> {IS_TH:g} · RX <= 2",
+             (MoveZ(tz), VerifyZ(), Rotate(IS_TH, "high"), ExpectTh("inspect"))),
         Step("I2", "inspect", "② 검사 크래들에 놓기", f"Z {above:g} -> RX {RXE:g} -> Z {seat:g} (패드 {C.CRADLE_SEAT_Z:g}) -> R 후진 · S4 없음",
              (MoveZ(above), MoveR(RXE), VerifyR(), MoveZ(seat), MoveR(C.RX_RET), ExpectRet(), Expect("S4", False))),
         Step("I3", "inspect", "② StreamCam 촬영 · 판정 (PC)", f"OK / NG + 치우침 δr, δθ · {C.JUDGE_TIMEOUT_S:g} s 안에 판정",
@@ -218,15 +222,15 @@ def uv_steps():
 
 
 def return_steps(n):
-    sn, pz, sz = C.slot_z(n), C.pick_z(n), C.side_z(n)
+    sn, pz, sz, tz = C.slot_z(n), C.pick_z(n), C.side_z(n), C.transfer_z(n)
+    up = f" -> Z {sz:g} (넣기 높이)" if tz != sz else ""
     return [
-        Step("R1", "ret", f"옆길 (θ{SIDE:g}) 로 선회",
-             f"θ {UV_TH:g} -> {C.STATIONS['inspect']:g} -> {SIDE:g} · Z {SW:g} (한 방향 - 대차 쪽을 지나지 않음)",
-             (Rotate(SIDE),)),
-        Step("R2", "ret", f"옆길에서 슬롯 {n} 높이로", f"Z {sz:g} (θ{SIDE:g} · RX <= 2)",
-             (MoveZ(sz), VerifyZ())),
-        Step("R3", "ret", f"옆길 -> ① ({C.STATIONS['input']:g}°)", f"Z {sz:g} · RX <= 2 · TOF-IN 카세트 있음",
-             (Rotate(C.STATIONS["input"], "side"), ExpectTh("input"), Expect("TOF_IN", True))),
+        Step("R1", "ret", f"② 앞 ({IS_TH:g}°) 으로 선회", f"θ {UV_TH:g} -> {IS_TH:g} · Z {SW:g} (한 방향 - 대차 쪽을 지나지 않음)",
+             (Rotate(IS_TH), ExpectTh("inspect"))),
+        Step("R2", "ret", f"② 앞에서 슬롯 {n} 높이로", f"Z {tz:g} (② 크래들 띠 밖 · RX <= 2)",
+             (MoveZ(tz), VerifyZ())),
+        Step("R3", "ret", f"① ({IN_TH:g}°) 로 바로 선회 (높이 그대로)", f"θ {IS_TH:g} -> {IN_TH:g} · Z {tz:g}{up} · TOF-IN 카세트 있음",
+             (Rotate(IN_TH, "high"), ExpectTh("input"), Expect("TOF_IN", True), MoveZ(sz), VerifyZ())),
         Step("R4", "ret", f"① 원래 슬롯 {n} 에 넣기", f"RX {RXI:g} -> Z {pz:g} (슬롯 바닥 {sn:g})",
              (MoveR(RXI), VerifyR(), MoveZ(pz))),
         Step("R5", "ret", "포크 빼고 내리기 (S4 없음)", f"R 후진 -> Z {SW:g}",
@@ -273,14 +277,17 @@ def can_rotate(zc, rx_ret_ok, th_from, th_to, mode="swing", carrying_wafer=False
             why.append("CASS_SWING")
         if carrying_wafer and zc + C.BLADE_PLANE_OFS + C.WAFER_T >= C.SWING_CLEAR_Z:
             why.append("WAFER_HIGH")
-    elif mode == "side":
-        s_lo, s_hi = sorted((C.STATIONS["input"], C.SIDE_THETA))      # ① <-> 옆길 사이만(방향 무관)
-        if lo < s_lo - 0.5 or hi > s_hi + 0.5:
-            why.append("SIDE_PATH")
+    elif mode == "high":                                              # ① <-> ② 사이만, 운반 웨이퍼가 ② 크래들 띠 밖
+        if lo < C.STATIONS["inspect"] - 0.5 or hi > C.STATIONS["input"] + 0.5:
+            why.append("HIGH_PATH")
         if carrying_cassette:
-            why.append("CASS_SIDE")
+            why.append("CASS_HIGH")
         if not C.ZC_SWING - 0.25 <= zc <= C.ZC_SOFT_MAX:
             why.append("Z_RANGE")
+        b0, b1 = C.CRADLE_BAND_Z
+        w0, w1 = zc + C.BLADE_PLANE_OFS, zc + C.BLADE_PLANE_OFS + C.WAFER_T
+        if w1 > b0 - C.HIGH_SWING_MARGIN + 1e-6 and w0 < b1 + C.HIGH_SWING_MARGIN - 1e-6:
+            why.append("CRADLE_BAND")
     elif mode == "carry":
         if lo < C.STATIONS["input"] - 0.5 or hi > C.STATIONS["cart"] + 0.5:
             why.append("CARRY_PATH")

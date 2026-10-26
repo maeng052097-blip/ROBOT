@@ -48,7 +48,7 @@ class CellSim:
         self.noise = random.Random(seed + 7)           # 센서 잡음(공정 흐름과 분리)
         self.source, self.judge_mode = source, judge_mode
         self.t, self.tick_n, self.speed = 0.0, 0, 1.0
-        self.theta, self.zc, self.rx = 150.0, 140.0, 30.0    # 전원 투입 자세(옆길 자리 · 중간 높이 · 조금 나옴)
+        self.theta, self.zc, self.rx = 150.0, 140.0, 30.0    # 전원 투입 자세(자리 사이 · 중간 높이 · 조금 나옴)
         self.theta_err = 0.0                           # 실제 θ - 지령 θ (벨트 이빨 튐)
         self.homed = {"theta": False, "z": False, "r": False}
         self.state, self.prev_state, self.pause_reason, self.pause_req = "IDLE", None, None, None

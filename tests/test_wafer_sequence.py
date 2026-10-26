@@ -2,10 +2,11 @@
 
   - 단계 키 39 개가 서로 다르고 묶음 이름이 있음, describe(키, 슬롯) 문구, action_at
   - 자세 따라가기(walk): 원점 -> 대차->① -> 웨이퍼(정상 · 불량) -> ①->대차 를 지령값으로 밟으며
-      모든 선회가 그 자리 인터록(can_rotate)을 통과, 옆길은 θ180~220 · 카세트 운반은 180~270 · Z241 에서만,
+      모든 선회가 그 자리 인터록(can_rotate)을 통과, 높이 선회는 ② <-> ① · ② 크래들 띠 밖에서만, 카세트 운반은 180~270 · Z241 에서만,
       UV 탑 앞에서 R 전진은 ZC 113.5~121.5 에서만, ZC 는 245 이하, UV 조사는 ZC <= 110 · R 후진에서
   - S4 '없음' 확인은 언제나 R 후진 확인 바로 뒤(놓은 직후에는 아직 보임)
-  - ① 앞에서 웨이퍼를 든 채 R 후진 상태로 Z 를 바꾸는 동작이 없음(옆길에서만, 슬롯 안 들기/놓기는 제외)
+  - ① 앞에서 웨이퍼를 든 채 R 후진 상태로 Z 를 바꿀 때 다른 슬롯 웨이퍼 높이를 지나지 않음(슬롯 4 의 transfer_z 만)
+  - 사용자 요청: ① 에서 뺀 뒤 Z105 로 내리지 않고 그대로 ② 로(I1 회전 1 번 180 -> 120), UV 뒤에도 ② 앞에서 높이만 맞추고 ① 로
   - UV 켜기 7 조건 진리표, 보정 창(δr -3.5~+0.5 · |δθ| <= 0.5) 경계
 
 실행: py -3.13 tests/test_wafer_sequence.py
@@ -36,6 +37,7 @@ def main():
 
     # ---- 지령값 따라가기
     pose = {"th": 150.0, "z": 140.0, "r": 30.0}
+    cur = {"n": None}
     carry = {"wafer": False, "cass": False}
     rots, problems = [], []
 
@@ -46,7 +48,12 @@ def main():
                 if a.kind == "z":
                     if abs(C.wrap_deg(pose["th"] - C.STATIONS["input"])) < 1 and carry["wafer"] \
                             and pose["r"] <= C.RX_RET_OK and abs(a.value - pose["z"]) > 0.01:
-                        problems.append(f"{st.key}: Z move at input while carrying a wafer")
+                        # 다른 슬롯(모두 찼다고 봄) 웨이퍼 높이를 지나면 충돌 - 후진 운반 웨이퍼가 ① 웨이퍼와 27 mm 겹침
+                        b0 = min(a.value, pose["z"]) + C.BLADE_PLANE_OFS
+                        b1 = max(a.value, pose["z"]) + C.BLADE_PLANE_OFS + C.WAFER_T
+                        for k in range(1, C.SLOT_COUNT + 1):
+                            if k != cur["n"] and b0 < C.slot_z(k) + C.WAFER_T and b1 > C.slot_z(k):
+                                problems.append(f"{st.key}: Z move at input crosses slot {k} while carrying")
                     if abs(C.wrap_deg(pose["th"] - C.STATIONS["uv"])) < 1 and pose["r"] > C.RX_RET_OK \
                             and not C.UV_ZC_HAND <= a.value <= C.UV_ZC_IN:
                         problems.append(f"{st.key}: Z {a.value} under UV tower")
@@ -84,7 +91,8 @@ def main():
     walk(Q.cart_in_steps("FL")[3:4])
     carry["cass"] = False
     walk(Q.cart_in_steps("FL")[4:])
-    for n, ng in ((1, False), (2, True), (5, False)):
+    for n, ng in ((1, False), (2, True), (4, False), (5, False)):
+        cur["n"] = n
         walk(Q.input_steps(n)[:2])
         carry["wafer"] = True                                  # P3 들기 뒤
         walk(Q.input_steps(n)[2:] + Q.inspect_steps(n)[:2], wafer=("I2", False))
@@ -104,36 +112,47 @@ def main():
     assert not problems, problems
     for key, a, b, mode, z in rots:
         lo, hi = min(a, b), max(a, b)
-        if mode == "side":
-            s_lo, s_hi = sorted((C.STATIONS["input"], C.SIDE_THETA))
-            assert lo >= s_lo - 1e-6 and hi <= s_hi + 1e-6, (key, a, b)
+        if mode == "high":
+            assert lo >= C.STATIONS["inspect"] - 1e-6 and hi <= C.STATIONS["input"] + 1e-6, (key, a, b)
+            w0, w1 = z + C.BLADE_PLANE_OFS, z + C.BLADE_PLANE_OFS + C.WAFER_T
+            assert w1 <= C.CRADLE_BAND_Z[0] - C.HIGH_SWING_MARGIN or w0 >= C.CRADLE_BAND_Z[1] + C.HIGH_SWING_MARGIN, (key, z)
         if mode == "carry":
             assert lo >= 180 - 1e-6 and hi <= 270 + 1e-6 and z == C.CASS_Z_CARRY, (key, a, b, z)
         if mode == "swing":
             assert z == C.ZC_SWING, (key, z)
     assert any(r[3] == "carry" and r[2] == 180 for r in rots) and any(r[3] == "carry" and r[2] == 270 for r in rots)
-    assert sum(1 for r in rots if r[3] == "side") >= 4
-    # 사용자 요청: ① 에서 꺼내 바로 검사 쪽으로(반대 방향 없음), 되돌릴 때도 한 방향
-    i1 = [(a, b) for k, a, b, m, z in rots if k == "I1"]
-    assert i1 and all(b < a for a, b in i1) and i1[0][0] == C.STATIONS["input"] and i1[-1][1] == C.STATIONS["inspect"], i1
+    assert sum(1 for r in rots if r[3] == "high") == 7          # I1 x 4 슬롯 + R3 x 정상 3 장
+    # 사용자 요청: ① 에서 뺀 뒤 Z105 로 내렸다 올리지 않고 그대로 ② 로, UV 뒤에도 그대로 ① 로(한 방향)
+    tz = [C.transfer_z(n) for n in range(1, C.SLOT_COUNT + 1)]
+    assert tz == [C.side_z(1), C.side_z(2), C.side_z(3), 171.5, C.side_z(5)], tz       # 슬롯 4 만 ② 크래들 밑으로 15.5 mm
+    for n in range(1, C.SLOT_COUNT + 1):
+        i1 = Q.inspect_steps(n)[0]
+        assert [a.kind for a in i1.actions] == ["z", "vz", "rot", "expect_th"] and i1.actions[0].value == tz[n - 1]
+        assert C.ZC_SWING not in [a.value for a in i1.actions if a.kind == "z"]           # Z105 로 내리지 않음
+    i1 = [(a, b, z) for k, a, b, m, z in rots if k == "I1"]
+    assert i1 and all(a == C.STATIONS["input"] and b == C.STATIONS["inspect"] and z != C.ZC_SWING for a, b, z in i1), i1
     ret = [(a, b) for k, a, b, m, z in rots if k in ("R1", "R3")]
     assert ret and all(b > a for a, b in ret) and ret[-1][1] == C.STATIONS["input"], ret
-    assert C.STATIONS["inspect"] < C.SIDE_THETA < C.STATIONS["input"]
-    print(f"  OK walk {len(rots)} rotations: interlock passes, side {C.SIDE_THETA:g}-180, carry 180-270 @ Z241, swing @ Z105")
-    print("  OK one direction: pick 180 -> side -> inspect (I1 decreasing), return uv -> side -> 180 (R1/R3 increasing)")
-    print("  OK no Z move at input while carrying, UV zone respected, UV lamp at ZC<=110 & R retracted, S4-none after retract")
+    print(f"  OK walk {len(rots)} rotations: interlock passes, high swing inspect<->input outside the cradle band, carry 180-270 @ Z241, swing @ Z105")
+    print(f"  OK no stop at Z105: pick 180 -> 120 at transfer height {tz} (I1 one rotation), return uv -> 120 (raise) -> 180")
+    print("  OK Z move at input while carrying never crosses another slot, UV zone respected, UV lamp at ZC<=110 & R retracted, S4-none after retract")
 
-    assert Q.can_rotate(205, True, 180, C.SIDE_THETA, "side")[0] and Q.can_rotate(205, True, C.SIDE_THETA, 180, "side")[0]
-    assert not Q.can_rotate(205, False, 180, C.SIDE_THETA, "side")[0]
-    assert "SIDE_PATH" in Q.can_rotate(205, True, 180, 220, "side")[1]          # 예전 옆길(문서 220)은 이제 금지
-    assert "SIDE_PATH" in Q.can_rotate(205, True, 120, 180, "side")[1]
+    for z in (133, 151, 169, 171.5, 205):
+        assert Q.can_rotate(z, True, 180, 120, "high")[0] and Q.can_rotate(z, True, 120, 180, "high")[0], z
+    assert "CRADLE_BAND" in Q.can_rotate(187, True, 180, 120, "high")[1]           # 슬롯 4 들기 높이: 패드 위 0.5 mm
+    assert "CRADLE_BAND" in Q.can_rotate(172, True, 180, 120, "high")[1]           # 팔 밑 여유 5 mm 미만
+    assert not Q.can_rotate(205, False, 180, 120, "high")[0]
+    assert "HIGH_PATH" in Q.can_rotate(205, True, 180, 220, "high")[1]             # 예전 옆길 쪽
+    assert "HIGH_PATH" in Q.can_rotate(205, True, 120, 60, "high")[1]
+    assert "CASS_HIGH" in Q.can_rotate(205, True, 180, 120, "high", carrying_cassette=True)[1]
+    assert "MODE" in Q.can_rotate(205, True, 180, 150, "side")[1]                 # 옆길 모드는 없앰
     assert "Z_NOT_SWING" in Q.can_rotate(121.5, True, 0, 120, "swing")[1]
     assert "CASS_SWING" in Q.can_rotate(105, True, 180, 270, "swing", carrying_cassette=True)[1]
     assert "CARRY_PATH" in Q.can_rotate(241, True, 180, 0, "carry")[1]
     assert "THETA_RANGE" in Q.can_rotate(105, True, 0, -60, "swing")[1]
     assert Q.can_rotate(183, True, 120, 120.5, "fine")[0] and not Q.can_rotate(183, True, 120, 120.6, "fine")[0]
     assert not Q.can_rotate(192, True, 120, 120.2, "fine")[0]
-    print("  OK can_rotate: side/carry/fine/swing rules + R retract required")
+    print("  OK can_rotate: high/carry/fine/swing rules + R retract required")
 
     uv = C.STATIONS["uv"]                       # UV 자리 θ60 (사용자 변경) -> 자리 센서 TH60
     assert C.UV_TH_SENSOR == "TH60" and C.TH_OF["ng"] == "TH0"

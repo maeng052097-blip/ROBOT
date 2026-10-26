@@ -1,7 +1,7 @@
 /* R22 웨이퍼 검사셀 공정 모니터 — 브라우저 쪽.
    서버(SSE 20Hz) 스냅샷을 받아 벽시계 기준으로 보간해 도면을 움직인다. SIM(시뮬)과 LIVE(셀 Mega)가 같은 스냅샷 모양.
    평면도: 셀좌표(y 아래로 증가). θ 0°=+x(③ 불량), 90°=위. 로봇 그룹 rotate(-θ).
-   스테이션 = ③ 불량 0 · UV 60(사용자 변경) · ② 검사 120 · ① 투입 180 (22 mm 바깥) · 대차 270, 옆길 150(사용자 변경).
+   스테이션 = ③ 불량 0 · UV 60(사용자 변경) · ② 검사 120 · ① 투입 180 (22 mm 바깥) · 대차 270. ① <-> ② 는 높이 선회(사용자 변경, 옆길 없음).
    입면도 = 포크 방향 r-z 단면(포크는 항상 오른쪽), y = -z.
 */
 'use strict';
@@ -59,7 +59,7 @@ const R = {};            // SVG 참조
 /* ───────────────────────── 평면도 ───────────────────────── */
 const pos = (deg, r) => [r * Math.cos(deg * Math.PI / 180), -r * Math.sin(deg * Math.PI / 180)];
 // 평면도 보기 회전: 대차(270°, 셀 앞)를 화면 오른쪽에 둔다(넓은 패널에 대차 받침 4칸이 다 들어가게).
-// 화면에서 ③ 0° = 위, UV 60° = 왼쪽 위, ② 120° = 왼쪽 아래, 옆길 150° = ② 와 ① 사이, ① 180° = 아래. 글자는 똑바로.
+// 화면에서 ③ 0° = 위, UV 60° = 왼쪽 위, ② 120° = 왼쪽 아래, ① 180° = 아래. 글자는 똑바로.
 const VIEW = -90;
 const posV = (deg, r) => pos(deg - VIEW, r);
 let SR = 235.5, IR = 257.5, UR = 269.5;
@@ -84,11 +84,9 @@ function buildPlan() {
   R.desk = rect(dk.x0, -dk.y1, dk.x1 - dk.x0, dk.y1 - dk.y0, 'desk', g);
   const arc = (a0, a1, r, cls) => { const [x0, y0] = pos(a0, r), [x1, y1] = pos(a1, r); el('path', { d: `M${x0} ${y0} A${r} ${r} 0 ${Math.abs(a1 - a0) > 180 ? 1 : 0} 0 ${x1} ${y1}`, class: cls }, g); };
   arc(0, 180, SR, 'path');                                   // 웨이퍼 경로 0 -> 180
-  // 옆길(후진 운반 웨이퍼 중심). arc 는 a0 < a1 로 불러야 짧은 호(반시계)가 된다
-  arc(Math.min(GEO.stations.input, GEO.side_theta), Math.max(GEO.stations.input, GEO.side_theta), 184.5, 'path side');
+  // 높이 선회 ② <-> ① (웨이퍼를 든 채 슬롯 높이 그대로, 후진 운반 웨이퍼 중심). arc 는 a0 < a1 로 불러야 짧은 호(반시계)
+  arc(GEO.stations.inspect, GEO.stations.input, 184.5, 'path high');
   arc(GEO.stations.input, GEO.stations.cart, 184.5, 'path carry');   // 카세트 운반 180 -> 270 짧은 길
-  const [sx, sy] = pos(GEO.side_theta, 205);
-  R.sideMark = circ(sx, sy, 7, 'sidemark', g);
   R.hi = {};
   for (const [k, a] of Object.entries(GEO.stations)) { const [x, y] = pos(a, GEO.station_r[k]); R.hi[k] = circ(x, y, 70, 'stn-hi', g); }
   // ① 투입 (22 mm 바깥, 클램프 윗판) · ③ 불량
@@ -163,8 +161,6 @@ function buildPlan() {
   lab('uv', 364); lab('ng', 350); lab('inspect', 350); lab('input', 368);
   // 화면 좌표 = (-셀 y, -셀 x) (VIEW -90). 책상 글자는 화면 왼쪽 아래 안쪽 모서리
   tx('책상', { x: -dk.y1 + 10, y: -dk.x0 - 10, class: 'desk-t', 'text-anchor': 'start' }, lg);
-  const [lx, ly] = posV(GEO.side_theta, 300);                 // 옆길 바깥(② 와 ① 사이 빈 곳) - 포크 · 카세트와 안 겹치게
-  tx('옆길', { x: lx, y: ly, class: 'side-t', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, lg);
 }
 
 /* ───────────────────────── 입면도 ───────────────────────── */
@@ -314,7 +310,7 @@ function buildPanels() {
     for (const m of marks) { const s = document.createElement('span'); s.className = 'mk'; s.style.left = `${(m - lo) / (hi - lo) * 100}%`; s.title = String(m); tr.appendChild(s); }
     ax.appendChild(d); R.ax[k] = { d, lo, hi, unit, fill: d.querySelector('.fill'), tgt: d.querySelector('.tgt'), ms: d.querySelector('.ms'), av: d.querySelector('.av') };
   };
-  row('theta', 'θ', GEO.theta_frame[0], GEO.theta_frame[1], '°', [...Object.values(GEO.stations), GEO.side_theta]);
+  row('theta', 'θ', GEO.theta_frame[0], GEO.theta_frame[1], '°', Object.values(GEO.stations));
   row('zc', 'Z', GEO.zc_min, GEO.zc_soft_max, 'mm', [GEO.zc_swing, GEO.uv_zc_hand, GEO.uv_zc_in, GEO.cradle_zc_seat, GEO.cradle_zc_above, GEO.cass_z_seat, GEO.cass_z_under, GEO.cass_z_carry]);
   row('rx', 'R', -5, GEO.rx_max, 'mm', [GEO.rx_ret_ok, ...new Set(Object.values(GEO.station_rx))]);
   const chips = $('chips'); chips.innerHTML = '';
